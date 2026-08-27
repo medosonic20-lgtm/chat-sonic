@@ -242,9 +242,9 @@ setTimeout(() => {
   if (splash) {
     splash.style.opacity = '0';
     splash.style.transform = 'scale(1.1)';
-    setTimeout(() => splash.remove(), 600);
+    setTimeout(() => splash.remove(), 200);
   }
-}, 4000);
+}, 800);
 </script>
 .w-comments.open{display:block}
 .w-comment{display:flex;gap:8px;margin-bottom:8px;font-size:13px}
@@ -300,7 +300,7 @@ setTimeout(() => {
     splash.style.opacity = '0';
     splash.style.transform = 'scale(1.1)';
     setTimeout(() => splash.remove(), 600);
-  }, 4000);
+  }, 1200);
 </script>
 <!-- === نهاية شاشة البداية === -->
 <div class="overlay hide" id="blockOverlay"><div class="login-card" style="padding:30px;text-align:center">
@@ -920,7 +920,7 @@ function authTab(t,e){var tabs=document.querySelectorAll('.auth-tab'),panes=docu
 function loginGuest(){var n=el('gName').value.trim();if(!n)return toast('الرجاء كتابة الاسم المستعار');if(!el('gAge').value)return toast('الرجاء كتابة السن');userDoc(n).get().then(function(d){if(d.exists&&d.data().role!=='زائر')return toast('هذا الاسم مسجل عضوية، ادخل من تبويب الأعضاء');var u=d.exists?Object.assign({},d.data()):defPrefs({name:n,age:el('gAge').value||'--',gender:el('gGender').value,country:el('gCountry').value,role:'زائر',is_active:true});enter(u);}).catch(function(){toast('خطأ في الإتصال');});}
 function loginMember(){var n=el('mName').value.trim(),p=el('mPass').value;if(!n||!p)return toast('الرجاء إدخال الاسم وكلمة المرور');auth.signInWithEmailAndPassword(nameToEmail(n),p).then(function(){userDoc(n).get().then(function(d){if(!d.exists)return toast('العضوية محذوفة، سجّل من جديد من تبويب تسجيل عضوية');enter(Object.assign({},d.data()));});}).catch(function(err){if(err.code==='auth/user-not-found'||err.code==='auth/invalid-credential')toast('هذا الاسم غير مسجل');else if(err.code==='auth/wrong-password')toast('في خطأ في البيانات');else toast('خطأ: '+err.message);});}
 function register(){var n=el('rName').value.trim(),p=el('rPass').value;if(!n||!p||!el('rAge').value)return toast('الرجاء ملء جميع الحقول');userDoc(n).get().then(function(doc){if(doc.exists)return toast('تم استخدام هذا الاسم من قبل');auth.createUserWithEmailAndPassword(nameToEmail(n),p).then(function(){var u=defPrefs({name:n,age:el('rAge').value,gender:el('rGender').value,country:el('rCountry').value,role:'عضو',is_active:true});return userDoc(n).set(u).then(function(){enter(u);});}).catch(function(err){if(err.code==='auth/email-already-in-use'){auth.signInWithEmailAndPassword(nameToEmail(n),p).then(function(){var u=defPrefs({name:n,age:el('rAge').value,gender:el('rGender').value,country:el('rCountry').value,role:'عضو',is_active:true});userDoc(n).set(u).then(function(){enter(u);});}).catch(function(){toast('الاسم كان مستخدم قبل كده. استخدم نفس كلمة المرور القديمة أو اسم تاني');});}else if(err.code==='auth/weak-password')toast('كلمة المرور ضعيفة (6 أحرف على الأقل)');else toast('خطأ: '+err.message);});});}
-function enter(u){me=u;usersCache[u.name]=u;LS.setItem('session',u.name);LS.setItem('last_logged_member',u.name);el('loginModal').classList.add('hide');applyPrefsUI();updateProfile();setTimeout(function(){u.dev=deviceId();u.dtype=deviceType();u.browser=browserName();u.ip=myIP;u.lastSeen=Date.now();userDoc(u.name).set(u,{merge:true}).catch(function(){});startAll();logLogin(u);checkDeviceOrIPBan();},0);if(hbTimer)clearInterval(hbTimer);
+function enter(u){me=u;usersCache[u.name]=u;LS.setItem('session',u.name);LS.setItem('last_logged_member',u.name);el('loginModal').classList.add('hide');applyPrefsUI();updateProfile();renderOnline();setTimeout(function(){u.dev=deviceId();u.dtype=deviceType();u.browser=browserName();u.ip=myIP;u.lastSeen=Date.now();userDoc(u.name).set(u,{merge:true}).catch(function(){});startAll();logLogin(u);checkDeviceOrIPBan();},0);if(hbTimer)clearInterval(hbTimer);
   var isGuest = (me && me.role === 'زائر');
   var firstInterval = isGuest ? 8000 : 3000;
   var normalInterval = isGuest ? 20000 : 10000;
@@ -1003,7 +1003,9 @@ function setG(g){filterG=g;var o=document.querySelectorAll('.radio-opt');for(var
 function applyAdv(){filterC=el('advCountry').value;renderOnline();toggleAdv();}
 function clearAdv(){setG('الكل');filterC='الكل';el('advCountry').value='الكل';renderOnline();}
 var lastOnlineHTML='';
-function renderOnline(){var q=el('searchInput').value.trim().toLowerCase();var chips='';if(filterG!=='الكل')chips+='<span class="chip" onclick="setG(\'الكل\');renderOnline()">النوع: '+filterG+' ✕</span> ';if(filterC!=='الكل')chips+='<span class="chip" onclick="filterC=\'الكل\';renderOnline()">الدولة: '+filterC+' ✕</span>';el('chips').innerHTML=chips;var all=[];var seenNames={};for(var k in usersCache){var u=usersCache[k];if(seenNames[u.name])continue;seenNames[u.name]=true;all.push(u);}var list=all.filter(function(u){if(u.banned===true||u.is_active===false)return false;if(u.name==='Lana')return false;if(!isOnline(u)&&!isOwnerName(u.name))return false;if(isBlockedByMe(u.name))return false;return u.name.toLowerCase().indexOf(q)>-1&&(filterG==='الكل'||u.gender===filterG)&&(filterC==='الكل'||u.country===filterC);});list.sort(function(a,b){if(isOwnerName(a.name))return-1;if(isOwnerName(b.name))return 1;return 0;});if(!list.length){el('usersList').innerHTML='<div class="empty"><div class="big">🪐</div>لا يوجد مستخدمين متصلين حالياً</div>';return;}var html='';for(var i=0;i<list.length;i++){var u=list[i];var on=isOnline(u);var ava=getAvatar(u);var dots=isAdmin()?'<span class="u-dots" onclick="event.stopPropagation();openUserModal(\''+u.name+'\')">⋮</span>':'';var ownerBadge=isOwnerName(u.name)?'👑 ':'';html+='<div class="u-card" onclick="openUser(\''+u.name+'\')">'+getAvatarHTML(u,46)+'<span class="flag">'+(FLAGS[u.country]||flag('E','G'))+'</span><div style="flex:1"><div class="u-name">'+ownerBadge+styleName(u)+' ('+(u.age||'--')+') <span class="'+(u.gender==='أنثى'?'g-f':'g-m')+'">'+(u.gender==='أنثى'?'♀':'♂')+'</span></div><div style="font-size:11px;color:var(--mut)">'+role(u)+' • '+(on?'<span style="color:var(--grn)">متصل الآن</span>':'غير متصل')+'</div></div>'+dots+'</div>';}if(html!==lastOnlineHTML){
+function renderOnline(){var q=el('searchInput').value.trim().toLowerCase();var chips='';if(filterG!=='الكل')chips+='<span class="chip" onclick="setG(\'الكل\');renderOnline()">النوع: '+filterG+' ✕</span> ';if(filterC!=='الكل')chips+='<span class="chip" onclick="filterC=\'الكل\';renderOnline()">الدولة: '+filterC+' ✕</span>';el('chips').innerHTML=chips;var all=[];var seenNames={};
+if(me&&me.name){seenNames[me.name]=true;all.push(me);}
+for(var k in usersCache){var u=usersCache[k];if(seenNames[u.name])continue;seenNames[u.name]=true;all.push(u);}var list=all.filter(function(u){if(u.banned===true||u.is_active===false)return false;if(u.name==='Lana')return false;if(!isOnline(u)&&!isOwnerName(u.name))return false;if(isBlockedByMe(u.name))return false;return u.name.toLowerCase().indexOf(q)>-1&&(filterG==='الكل'||u.gender===filterG)&&(filterC==='الكل'||u.country===filterC);});list.sort(function(a,b){if(isOwnerName(a.name))return-1;if(isOwnerName(b.name))return 1;return 0;});if(!list.length){el('usersList').innerHTML='<div class="empty"><div class="big">🪐</div>لا يوجد مستخدمين متصلين حالياً</div>';return;}var html='';for(var i=0;i<list.length;i++){var u=list[i];var on=isOnline(u);var ava=getAvatar(u);var dots=isAdmin()?'<span class="u-dots" onclick="event.stopPropagation();openUserModal(\''+u.name+'\')">⋮</span>':'';var ownerBadge=isOwnerName(u.name)?'👑 ':'';html+='<div class="u-card" onclick="openUser(\''+u.name+'\')">'+getAvatarHTML(u,46)+'<span class="flag">'+(FLAGS[u.country]||flag('E','G'))+'</span><div style="flex:1"><div class="u-name">'+ownerBadge+styleName(u)+' ('+(u.age||'--')+') <span class="'+(u.gender==='أنثى'?'g-f':'g-m')+'">'+(u.gender==='أنثى'?'♀':'♂')+'</span></div><div style="font-size:11px;color:var(--mut)">'+role(u)+' • '+(on?'<span style="color:var(--grn)">متصل الآن</span>':'غير متصل')+'</div></div>'+dots+'</div>';}if(html!==lastOnlineHTML){
   el('usersList').innerHTML=html;
   lastOnlineHTML=html;
 }}
@@ -1934,5 +1936,74 @@ function applyPageBg(){
 })();
 </script>
 
-</body>
-        </html>
+<script>
+/* === إصلاح اختفاء الإدخال خلف الكيبورد === */
+(function(){
+  var vv = window.visualViewport;
+  var chatWin = document.querySelector('.chat-win');
+  var chatBox = document.getElementById('chatBox');
+  var msgInput = document.getElementById('msgInput');
+  
+  function fixKeyboard(){
+    if(!vv) return;
+    var kh = window.innerHeight - vv.height;
+    if(kh > 80){
+      // الكيبورد طالعة: نرفع المحتوى لفوق بمقدار ارتفاع الكيبورد
+      if(chatWin) chatWin.style.paddingBottom = kh + 'px';
+      setTimeout(function(){
+        if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+        if(msgInput) msgInput.scrollIntoView({block:'nearest', behavior:'smooth'});
+      }, 300);
+    } else {
+      // الكيبورد اتقفلت: نرجع كل حاجة زي ما كانت
+      if(chatWin) chatWin.style.paddingBottom = '';
+    }
+  }
+  
+  // للأجهزة الحديثة
+  if(vv){
+    vv.addEventListener('resize', fixKeyboard);
+  }
+  
+  // Fallback للأجهزة القديمة اللي مفيهاش visualViewport
+  else {
+    var lastH = window.innerHeight;
+    window.addEventListener('resize', function(){
+      var diff = lastH - window.innerHeight;
+      if(diff > 80){
+        if(chatWin) chatWin.style.paddingBottom = diff + 'px';
+        setTimeout(function(){
+          if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+        }, 300);
+      } else {
+        if(chatWin) chatWin.style.paddingBottom = '';
+      }
+      lastH = window.innerHeight;
+    });
+  }
+  
+  // لما تضغط على حقل الكتابة نستنى شوية ونظبط المكان
+  if(msgInput){
+    msgInput.addEventListener('focus', function(){
+      setTimeout(fixKeyboard, 400);
+      setTimeout(function(){
+        if(chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+      }, 700);
+    });
+  }
+  
+  // بعد الإرسال نرجع نركز على الحقل ونظبط الشاشة عشان تعرف إن الرسالة اتبعت
+  var oldSend = window.sendMsg;
+  window.sendMsg = function(){
+    var ret = oldSend ? oldSend.apply(this, arguments) : undefined;
+    setTimeout(function(){
+      if(msgInput){
+        msgInput.focus();
+        fixKeyboard();
+      }
+    }, 150);
+    return ret;
+  };
+})();
+</script>
+  </html>
