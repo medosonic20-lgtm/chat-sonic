@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta name="yandex-verification" content="08feec52eafe7bc2" />
+<meta name="yandex-verification" content="08feec52eafe7bc2" />
 <meta name="google-site-verification" content="xRCOv0fppceVNG36QkJYpPDvYFi5u1aoJFP_23sLjgM" />
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -558,8 +558,8 @@ setTimeout(() => {
 <div class="m-item" id="frameMenuItem" onclick="go('frames')" style="display:none"><span>🖼️ إطار الصورة</span><span>👈</span></div>
     </div>
     <div class="menu-list"><div class="m-item" onclick="openAdmin()"><span>⚡ لوحة تحكم الموقع</span><span>👈</span></div></div>
-<button onclick="alert('⏳ التطبيق الجديد قيد المراجعة — قريبا جدا! 🚀')" style="
-background: linear-gradient(135deg, #000000, #1a1a1a);
+<button onclick="window.open('https://apkpure.com/شات-سونيك/co.median.android.lpqeleb')" 
+style="background: linear-gradient(135deg, #000000, #1a1a1a);
 color: #ff9500;
 border: 2px solid #ff9500;
 padding: 8px 24px;
@@ -570,9 +570,9 @@ cursor: pointer;
 width: auto;
 display: block;
 margin: 0 auto 8px auto;
-box-shadow: 0 0 5px rgba(255, 149, 0, 0.3);
-">
-تثبيت التطبيق 📱
+box-shadow: 0 0 5px rgba(255, 149, 0, 0.3);">
+📲تثبيت التطبيق </button>
+
 </button>
 
 
@@ -1997,7 +1997,15 @@ function applyPageBg(){
   var oldSend = window.sendMsg;
   window.sendMsg = function(){
     var ret = oldSend ? oldSend.apply(this, arguments) : undefined;
-    setTimeout(function(){
+    setTimeout(function(){// جلب القيم من حقول الإدخال عندك (تأكد من أسماء الـ IDs بتاعت العناصر في صفحتك)
+    const content = document.getElementById('msgInput').value; // أو خانة النص عندك
+    const name = localStorage.getItem('chat_name') || 'مستخدم'; // أو متغير الاسم
+    const color = '#ffffff'; // أو المتغير الخاص بلون المستخدم
+    
+    // استدعاء دالة Appwrite للإرسال الفعلي
+    if(content && content.trim() !== '') {
+        sendAppwriteMessage(content, name, color);
+    }
       if(msgInput){
         msgInput.focus();
         fixKeyboard();
@@ -2006,5 +2014,83 @@ function applyPageBg(){
     return ret;
   };
 })();
+// دالة إرسال الرسائل الجديدة عبر Appwrite
+async function sendAppwriteMessage(content, name, color) {
+    try {
+        const response = await databases.createDocument(
+            'chat_db',      // اسم قاعدة البيانات عندك
+            'messages',     // اسم جدول الرسائل
+            ID.unique(),    // معرف فريد للرسالة
+            {
+                content: content,
+                name: name,
+                color: color
+            }
+        );
+        console.log('تم الإرسال لـ Appwrite بنجاح:', response);
+    } catch (error) {
+        console.error('خطأ في الإرسال:', error);
+    }
+}
 </script>
+<script>
+// ==========================================
+// كود Appwrite للإرسال وجلب الرسائل
+// ==========================================
+
+// 1. دالة إرسال الرسالة لـ Appwrite
+async function sendAppwriteMessage(content, name, color) {
+    try {
+        const response = await databases.createDocument(
+            'chat_db',      // اسم قاعدة البيانات
+            'messages',     // اسم جدول الرسائل
+            ID.unique(),    // معرف فريد
+            {
+                content: content,
+                name: name,
+                color: color
+            }
+        );
+        console.log('تم الإرسال بنجاح:', response);
+    } catch (error) {
+        console.error('خطأ في الإرسال:', error);
+    }
+}
+
+// 2. دالة جلب وعرض الرسائل
+async function loadMessages() {
+    try {
+        const response = await databases.listDocuments(
+            'chat_db',
+            'messages'
+        );
+        
+        const chatBox = document.getElementById('chatBox'); // مكان عرض الرسائل في الشات
+        if(chatBox) {
+            chatBox.innerHTML = ''; 
+            response.documents.forEach((doc) => {
+                chatBox.innerHTML += `
+                    <div class="message-item" style="color: ${doc.color || '#000'}">
+                        <b>${doc.name || 'مستخدم'}:</b> ${doc.content}
+                    </div>
+                `;
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    } catch (error) {
+        console.error('خطأ في جلب الرسائل:', error);
+    }
+}
+
+// تشغيل جلب الرسائل أول ما الصفحة تفتح
+loadMessages();
+
+// 3. التحديث الفوري (Realtime) للرسائل الجديدة
+client.subscribe('databases.chat_db.collections.messages.documents', response => {
+    if (response.events.includes("databases.*.collections.*.documents.*.create")) {
+        loadMessages();
+    }
+});
+<script>
+</body>
   </html>
