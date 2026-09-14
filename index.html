@@ -579,13 +579,13 @@ input[type=range]{width:100%}
 <div class="admin-tab owner-only hide" onclick="adminTab('site',this)">⚙️ إعدادات الموقع</div>
 </div>
 <div class="admin-panel open" id="ap-shortcuts"><div class="adm-sec"><h4>⌨️ اختصارات الشات السريعة</h4><div class="adm-row"><input id="scKey" placeholder="الرمز (س1)" style="width:35%"><input id="scVal" placeholder="النص الكامل"></div><button class="adm-btn" onclick="addShortcut()">حفظ الاختصار</button><table><thead><tr><th>الرمز</th><th>النص</th><th>تحكم</th></tr></thead><tbody id="scTable"></tbody></table></div></div>
-<div class="admin-panel" id="ap-members"><div class="adm-sec"><h4>👥 قائمة الأعضاء</h4><div class="adm-row"><input id="memSearch" placeholder="ابحث عن عضو..." oninput="renderMembers()"></div><table><thead><tr><th>العضو</th><th>الرتبة</th><th>الدولة</th><th>تحكم</th></tr></thead><tbody id="memTable"></tbody></table></div></div>
+<div class="admin-panel" id="ap-members"><div class="adm-sec"><h4>👥 قائمة الأعضاء</h4><div class="adm-row"><input id="memSearch" placeholder="ابحث عن عضو..." oninput="renderMembers()"></div><table><thead><tr><th>العضو</th><th>الرتبة</th><th>الدولة</th><th>IP</th><th>الجهاز</th><th>المتصفح</th><th>تحكم</th></tr></thead><tbody id="memTable"></tbody></table></div></div>
 <div class="admin-panel" id="ap-roles"><div class="adm-sec"><h4>🛡️ إدارة الرتب والترقيات</h4><div class="adm-row"><input id="roleUser" placeholder="اسم العضو" style="flex:1"><select id="roleSelect" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:6px"><option value="عضو">عضو</option><option value="🛡️ إدارة">🛡️ إدارة</option><option value="⭐ سوبر">⭐ سوبر</option></select></div><button class="adm-btn" onclick="assignRole()">✅ ترقية</button><table style="margin-top:12px"><thead><tr><th>العضو</th><th>الرتبة</th><th>تحكم</th></tr></thead><tbody id="roleTable"></tbody></table></div></div>
 <div class="admin-panel" id="ap-rooms"><div class="adm-sec"><h4>🏠 إدارة الغرف</h4><div id="adminRoomsList"></div></div></div>
 <div class="admin-panel" id="ap-emojis"><div class="adm-sec"><h4>😄 إدارة الإيموجيات والـ GIF</h4><div class="adm-row"><input id="emojiUrl" placeholder="رابط GIF أو صورة"><button class="adm-btn" onclick="addEmoji()">➕ رابط</button></div><div class="adm-row"><input type="file" id="emojiFile" accept="image/*,.gif"><button class="adm-btn" onclick="addEmojiFile()">📁 رفع ملف</button></div><div class="emoji-grid" id="emojiGrid"></div></div></div>
 <div class="admin-panel" id="ap-reports"><div class="adm-sec"><h4>🚨 الإبلاغات الواردة</h4><div id="reportsList"></div></div></div>
 <div class="admin-panel" id="ap-logs"><div class="adm-sec"><h4>📋 سجل النشاطات</h4><div id="activityLog"></div></div></div>
-<div class="admin-panel" id="ap-bans"><div class="adm-sec"><h4>⛔ حظر عضو</h4><div class="adm-row"><input id="banInput" placeholder="اسم العضو"><button class="adm-btn red" onclick="banManual()">حظر</button></div><div id="banList" style="font-size:12px"></div></div></div>
+<div class="admin-panel" id="ap-bans"><div class="adm-sec"><h4>⚡ حظر سريع - اضغط حظر جنب الاسم</h4><div id="quickBanList" style="margin-top:8px"></div></div><div class="adm-sec"><h4>🚫 المحظورين حالياً</h4><div id="banList" style="font-size:12px"></div></div></div>
 <div class="admin-panel" id="ap-announce"><div class="adm-sec"><h4>📢 نشر إعلان للجميع</h4><textarea id="announceText" style="width:100%;min-height:90px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:10px;font-size:13px;resize:none" placeholder="اكتب الإعلان هنا..."></textarea><div style="display:flex;gap:8px;margin-top:10px"><button class="adm-btn grn" onclick="publishAnnounce()">📢 نشر</button><button class="adm-btn red" onclick="clearAnnounce()">🗑️ مسح</button></div><p style="font-size:11px;color:var(--mut);margin-top:8px">الإعلان الحالي: <b id="currentAnnounce" style="color:var(--acc)">لا يوجد</b></p></div></div>
 <div class="admin-panel" id="ap-monitor"><div class="adm-sec"><h4>🕵️ مراقبة المحادثات</h4><div class="adm-row"><input id="monSearch" placeholder="ابحث باسم عضو..." style="flex:1" oninput="renderMonitor()"><button class="adm-btn" onclick="renderMonitor()">🔄 تحديث</button></div><div id="monitorList" style="max-height:260px;overflow-y:auto;margin-top:8px"></div></div><div class="adm-sec"><h4>💬 محتوى المحادثة</h4><div id="monChatHead" style="font-size:13px;color:var(--acc);margin-bottom:8px;font-weight:bold">اختر محادثة</div><div id="monChatBox" style="max-height:320px;overflow-y:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px"></div></div></div>
 <div class="admin-panel" id="ap-nicks"><div class="adm-sec"><h4>🎭 كشف النكات (الأجهزة والأسماء)</h4><div class="adm-row"><input id="nicksSearch" placeholder="ابحث باسم أو جهاز..." oninput="renderNicks()" style="flex:1"><button class="adm-btn" onclick="renderNicks()">🔄 تحديث</button></div><div id="nicksList" style="margin-top:8px"></div></div></div>
@@ -1482,7 +1482,7 @@ function adminTab(tab,e){
   document.querySelectorAll('.admin-tab').forEach(function(b){b.classList.remove('sel');});e.classList.add('sel');
   document.querySelectorAll('.admin-panel').forEach(function(p){p.classList.remove('open');});
   el('ap-'+tab).classList.add('open');
-  if(tab==='monitor'){if(!isOwner())return toast('لصاحب الموقع فقط');renderMonitor();}if(tab==='nicks'){if(!isOwner())return toast('لصاحب الموقع فقط');renderNicks();}
+  if(tab==='monitor'){if(!isOwner())return toast('لصاحب الموقع فقط');renderMonitor();}if(tab==='nicks'){if(!isOwner())return toast('لصاحب الموقع فقط');renderNicks();}if(tab==='bans')renderQuickBans();
 }
 function renderShortcutsTable(){var html='';for(var i=0;i<scItems.length;i++){var s=scItems[i];html+='<tr><td>'+escapeHtml(s.key)+'</td><td>'+escapeHtml(s.value)+'</td><td><button class="ebtn" onclick="editShortcut('+s.id+')">تعديل</button> <button class="xbtn" onclick="delShortcut('+s.id+')">حذف</button></td></tr>';}el('scTable').innerHTML=html||'<tr><td colspan="3" style="text-align:center;color:var(--mut)">لا توجد اختصارات</td></tr>';}
 async function addShortcut(){var k=el('scKey').value.trim(),v=el('scVal').value.trim();if(!k||!v)return toast('اكتب الرمز والنص');await SDB.addShortcut(k,v);el('scKey').value='';el('scVal').value='';await refreshShortcuts();toast('تم الحفظ');}
@@ -1525,9 +1525,9 @@ function renderMembers(){
     var prot=isOwnerName(u.name);
     var banBtn=prot?'<button class="xbtn protected-btn" disabled>🛡️</button>':(u.banned?'<button class="ubtn" onclick="banUser(\''+u.name+'\')">فك</button>':'<button class="xbtn" onclick="banUser(\''+u.name+'\')">حظر</button>');
     var delBtn=prot?'':'<button class="xbtn" onclick="deleteUser(\''+u.name+'\')" style="background:#dc2626">🗑️</button>';
-    html+='<tr><td>'+escapeHtml(u.name)+'</td><td>'+role(u)+'</td><td>'+(u.country||'')+'</td><td>'+banBtn+' '+delBtn+'</td></tr>';
+    html+='<tr><td>'+escapeHtml(u.name)+'</td><td>'+role(u)+'</td><td>'+(u.country||'')+'</td><td style="font-size:10px;direction:ltr">'+(u.ip||'?')+'</td><td>'+(u.dtype||'?')+'</td><td>'+(u.browser||'?')+'</td><td>'+banBtn+' '+delBtn+'</td></tr>';
   }
-  el('memTable').innerHTML=html||'<tr><td colspan="4" style="text-align:center;color:var(--mut)">لا يوجد أعضاء متصلين</td></tr>';
+  el('memTable').innerHTML=html||'<tr><td colspan="7" style="text-align:center;color:var(--mut)">لا يوجد أعضاء متصلين</td></tr>';
 }
 async function banUser(n){
   if(!isAdmin())return;if(isOwnerName(n))return toast('⛔ لا يمكن حظر صاحب الموقع');
@@ -1614,6 +1614,17 @@ async function renderLogs(){
   var html='';
   for(var i=0;i<logs.length;i++){var l=logs[i];html+='<div class="log-row">['+timeAgo(l.time)+'] <b>'+escapeHtml(l.action)+'</b>: '+escapeHtml(l.details)+'</div>';}
   el('activityLog').innerHTML=html||'<div style="text-align:center;color:var(--mut)">لا توجد سجلات</div>';
+}
+function renderQuickBans(){
+var h='';var any=false;
+for(var k in usersCache){
+var u=usersCache[k];
+if(isOwnerName(u.name))continue;
+any=true;
+var banBtn=u.banned?'<button class="ubtn" onclick="banUser(\''+u.name.replace(/'/g,"\\'")+'\')">فك الحظر</button>':'<button class="xbtn" onclick="banUser(\''+u.name.replace(/'/g,"\\'")+'\')">⛔ حظر</button>';
+h+='<div class="log-row" style="display:flex;justify-content:space-between;align-items:center"><b>'+escapeHtml(u.name)+'</b>'+banBtn+'</div>';
+}
+el('quickBanList').innerHTML=h||'<div style="text-align:center;color:var(--mut);padding:15px">لا يوجد أعضاء متصلين</div>';
 }
 async function renderBans(){
   var bans=await SDB.loadBans();
