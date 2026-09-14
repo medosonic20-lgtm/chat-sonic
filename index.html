@@ -1399,7 +1399,7 @@ function renderRooms(){
   for(var i=0;i<allRooms.length;i++){
     var r=allRooms[i];
     var iconHtml=r.img?'<img src="'+r.img+'">':'💬';
-    html+='<div class="r-card" onclick="joinRoom(\''+r.id+'\')"><div class="r-icon">'+iconHtml+'</div><div style="flex:1"><div style="font-weight:bold">'+escapeHtml(r.name)+(roomUnread[r.id]?' <span class="m-badge">'+(roomUnread[r.id]>99?'99+':roomUnread[r.id])+'</span>':'')+'</div><div style="font-size:11px;color:var(--mut)">'+(r.descr?escapeHtml(r.descr.substring(0,30)):'غرفة دردشة')+' • '+(r.created_by?escapeHtml(r.created_by):'')+'</div></div></div>';
+    html+='<div class="r-card" onclick="joinRoom(\''+r.id+'\')"><div class="r-icon">'+iconHtml+'</div><div style="flex:1"><div style="font-weight:bold">'+escapeHtml(r.name)+(roomUnread[r.id]?' <span class="m-badge">'+(roomUnread[r.id]>99?'99+':roomUnread[r.id])+'</span>':'')+'</div><div style="font-size:11px;color:var(--mut)">'+(r.descr?escapeHtml(r.descr.substring(0,30)):'غرفة دردشة')+' • '+(r.created_by?escapeHtml(r.created_by):'')+'</div>'+(false?'<div style="display:flex;gap:6px;margin-top:8px"><button onclick="event.stopPropagation();pickRoomImg(\''+r.id+'\')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;background:#22c55e;color:#fff;font-size:12px;font-weight:bold">📷 صورة</button><button onclick="event.stopPropagation();editRoom(\''+r.id+'\')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;background:#8b5cf6;color:#fff;font-size:12px;font-weight:bold">✏️ تعديل</button><button onclick="event.stopPropagation();deleteRoom(\''+r.id+'\')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;background:#e64553;color:#fff;font-size:12px;font-weight:bold">🗑️ حذف</button></div><input type="file" accept="image/*" style="display:none" id="rImg_'+r.id+'" onchange="updateRoomImg(\''+r.id+'\',event)">':'')+'</div></div>';
   }
   el('roomsList').innerHTML=html;
 }
@@ -1573,7 +1573,7 @@ function renderRoomsAdmin(){
   for(var i=0;i<allRooms.length;i++){
     var r=allRooms[i];
     var imgPrev=r.img?'<img src="'+r.img+'" style="width:40px;height:40px;border-radius:8px;object-fit:cover">':'💬';
-    html+='<div class="room-card">'+imgPrev+'<div style="flex:1"><div style="font-weight:bold">'+escapeHtml(r.name)+'</div><div style="font-size:11px;color:var(--mut)">'+(r.descr||'')+'</div></div><button class="ebtn" style="background:#ffc107;color:#000" onclick="editRoom(\''+r.id+'\')">✏️</button><button class="xbtn" onclick="deleteRoom(\''+r.id+'\')">حذف</button></div>';
+    html+='<div class="room-card">'+imgPrev+'<div style="flex:1"><div style="font-weight:bold">'+escapeHtml(r.name)+'</div><div style="font-size:11px;color:var(--mut)">'+(r.descr||'')+'</div><div style="display:flex;gap:6px;margin-top:8px"><button onclick="pickRoomImg(\''+r.id+'\')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;background:#22c55e;color:#fff;font-size:12px;font-weight:bold">📷 صورة</button><button onclick="editRoom(\''+r.id+'\')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;background:#8b5cf6;color:#fff;font-size:12px;font-weight:bold">✏ تعديل</button><button onclick="deleteRoom(\''+r.id+'\')" style="flex:1;padding:8px 4px;border:none;border-radius:8px;background:#e64553;color:#fff;font-size:12px;font-weight:bold">حذف</button></div><input type="file" accept="image/*" style="display:none" id="rImg_'+r.id+'" onchange="updateRoomImg(\''+r.id+'\',event)"></div></div>';
   }
   el('adminRoomsList').innerHTML=html||'<div style="text-align:center;color:var(--mut);padding:20px">لا توجد غرف</div>';
 }
@@ -1626,6 +1626,10 @@ h+='<div class="log-row" style="display:flex;justify-content:space-between;align
 }
 el('quickBanList').innerHTML=h||'<div style="text-align:center;color:var(--mut);padding:15px">لا يوجد أعضاء متصلين</div>';
 }
+function pickRoomImg(id){var inp=el('rImg_'+id);if(inp)inp.click();else toast('افتح الغرف الأول');}
+function updateRoomImg(id,e){var f=e.target.files[0];if(!f)return;compressImg(f,function(dataUrl){sb.from('rooms').update({img:dataUrl}).eq('id',id).then(function(r){if(r.error)return toast('خطأ: '+r.error.message);toast('تم تحديث الصورة ✅');refreshRooms();});});e.target.value='';}
+function pickRoomImg(id){var inp=el('rImg_'+id);if(inp)inp.click();}
+function updateRoomImg(id,e){var f=e.target.files[0];if(!f)return;compressImg(f,function(dataUrl){sb.from('rooms').update({img:dataUrl}).eq('id',id).then(function(r){if(r.error)return toast('خطأ: '+r.error.message);toast('تم تحديث الصورة ✅');refreshRooms();renderRoomsAdmin();});});e.target.value='';}
 async function renderBans(){
   var bans=await SDB.loadBans();
   var html='';
@@ -1940,4 +1944,4 @@ if(saved){
 })();
 </script>
 </body>
-  </html>
+                                                                                                                           </html>
