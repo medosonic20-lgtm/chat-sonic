@@ -789,8 +789,21 @@ function subUsersRT(){
     var row=payload.new;if(!row||!row.name)return;
     var u=row.data||{};u.name=row.name;u.lastSeen=row.last_seen||u.lastSeen||0;
     if(u.banned===true||u.is_active===false){delete usersCache[u.name];}
-    else usersCache[u.name]=u;
-    if(me&&u.name===me.name){me=Object.assign({},me,u);}
+    else{
+if(usersCache[u.name]){
+var old=usersCache[u.name];
+for(var k in old){if(u[k]===undefined||u[k]===null)u[k]=old[k];}
+}
+usersCache[u.name]=u;
+}
+if(me&&u.name===me.name){
+var oldMeFrame=me.frame,oldMeAge=me.age,oldMeAvatar=me.avatar,oldMeRole=me.role;
+me=Object.assign({},me,u);
+if(oldMeFrame&&!me.frame)me.frame=oldMeFrame;
+if(oldMeAge&&!me.age)me.age=oldMeAge;
+if(oldMeAvatar&&!me.avatar)me.avatar=oldMeAvatar;
+if(oldMeRole&&!me.role)me.role=oldMeRole;
+}
     renderOnline();
     if(chat&&chat.type==='user'&&usersCache[chat.id])refreshChatHeader(usersCache[chat.id]);
   }).subscribe();
@@ -1713,9 +1726,8 @@ var d=await sb.from('frames').select('*').order('id',{ascending:true});
 if(d.error){grid.innerHTML='<div style="text-align:center;color:var(--red);grid-column:1/-1">خطأ: '+d.error.message+'</div>';return;}
 allFrames=d.data||[];
 if(allFrames.length===0){
-await sb.from('frames').insert({url:'https://i.postimg.cc/JtgHBw1w/cded336f399e93e0f13066a790db-removebg-preview.png'});
-var d2=await sb.from('frames').select('*').order('id',{ascending:true});
-allFrames=d2.data||[];
+grid.innerHTML='<div style="text-align:center;color:var(--mut);grid-column:1/-1;padding:20px;margin-bottom:10px">لا توجد إطارات حالياً</div><div style="background:var(--card2);border:2px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:32px;min-height:110px;color:var(--acc)" onclick="document.getElementById(\'frameInput\').click()">➕</div>';
+return;
 }
 var h='';
 allFrames.forEach(function(fr){
@@ -1726,7 +1738,16 @@ h+='<div style="background:var(--card2);border:2px dashed var(--line);border-rad
 grid.innerHTML=h;
 }
 async function delFrame(id){if(!confirm('حذف الإطار من القائمة؟'))return;var r=await sb.from('frames').delete().eq('id',id);if(r.error)return toast('خطأ: '+r.error.message);initFrames();toast('تم الحذف');}
-async function setFrame(url){if(!isAdmin()&&!isOwner())return toast('للإدارة فقط');await updateMe({frame:url||null});toast(url?'تم تعيين الإطار ✅':'تم إزالة الإطار');updateProfile();renderOnline();initFrames();}
+async function setFrame(url){
+if(!isAdmin()&&!isOwner())return toast('للإدارة فقط');
+await updateMe({frame:url||null});
+try{
+var fresh=await SDB.getUser(me.name);
+if(fresh){me=Object.assign({},me,fresh);usersCache[me.name]=me;}
+}catch(e){}
+toast(url?'تم تعيين الإطار ✅':'تم إزالة الإطار');
+updateProfile();renderOnline();initFrames();
+}
 function handleFrameUpload(e){
 var f=e.target.files[0];if(!f)return;
 if(f.size>500000)return toast('⚠️ حجم الإطار كبير جداً (نصف ميجا)');
@@ -1908,4 +1929,4 @@ if(saved){
 })();
 </script>
 </body>
-                            </html>
+  </html>
