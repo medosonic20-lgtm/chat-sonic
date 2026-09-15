@@ -915,6 +915,7 @@ function subSettingsRT(){
 var _ssDone=false;
 setInterval(function(){if(!me)return;if(!_ssDone){_ssDone=true;sb.channel('rt-stories').on('postgres_changes',{event:'*',schema:'public',table:'stories'},function(){renderStories();}).subscribe();}if(el('s-online')&&el('s-online').classList.contains('active'))renderStories();},5000);
 async function startAll(){
+  try{history.pushState({g:'s'},'');}catch(e){}
   subUsersRT();subConvsRT();subRoomsRT();subSettingsRT();
   await refreshUsers();
   await refreshConvs();
@@ -1012,9 +1013,10 @@ if(s==='frames')initFrames();
   if(!fromBack){if(MAIN_SCREENS.indexOf(s)>-1)navStack=[];else if(prevScreen)navStack.push(prevScreen);}
 }
 window.addEventListener('popstate',function(e){
-  if(chat){var wasRoom=chat.type==='room';chat=null;var prev=navStack.length?navStack.pop():(wasRoom?'rooms':'msgs');go(prev,getNavEl(prev),true);return;}
-  if(navStack.length>0){var prev=navStack.pop();go(prev,getNavEl(prev),true);}
+  if(chat){var wasRoom=chat.type==='room';chat=null;var prev=navStack.length?navStack.pop():(wasRoom?'rooms':'msgs');go(prev,getNavEl(prev),true);}
+  else if(navStack.length>0){var prev=navStack.pop();go(prev,getNavEl(prev),true);}
   else go('online',document.querySelectorAll('.nav-item')[0],true);
+  try{history.pushState({g:'s'},'');}catch(e2){}
 });
 function goBack(){
 if(chat){var wasRoom=chat.type==='room';chat=null;
