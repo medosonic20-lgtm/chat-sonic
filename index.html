@@ -455,6 +455,10 @@ input[type=range]{width:100%}
 </div>
 </div>
 <div style="font-size:12px;color:var(--grn)" id="setStatus">نشط الآن</div>
+<div id="passEditWrap" style="display:none;margin-top:8px"><input id="oldPass" type="password" placeholder="كلمة السر الحالية" style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px;margin-bottom:5px"><input id="newPass" type="password" placeholder="كلمة السر الجديدة" style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px;margin-bottom:5px"><div style="display:flex;gap:8px"><button onclick="doChangePass()" style="flex:1;padding:7px;background:var(--acc);border:none;color:#fff;border-radius:8px;font-size:12px;font-weight:bold">💾 تغيير</button><button onclick="cancelChangePass()" style="flex:1;padding:7px;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:12px">إلغاء</button></div></div>
+<div onclick="showPassEdit()" style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding:8px 10px;background:var(--card2);border-radius:8px;cursor:pointer"><span style="font-size:13px;font-weight:bold">🔑 تغيير كلمة السر</span><span style="font-size:14px">👈</span></div>
+<div id="ageEditWrap" style="display:none;margin-top:8px"><input id="newAge" type="number" min="16" max="100" placeholder="اكتب عمرك الجديد" style="width:100%;padding:8px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px;margin-bottom:5px"><div style="display:flex;gap:8px"><button onclick="doChangeAge()" style="flex:1;padding:7px;background:var(--acc);border:none;color:#fff;border-radius:8px;font-size:12px;font-weight:bold">💾 حفظ</button><button onclick="cancelChangeAge()" style="flex:1;padding:7px;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:12px">إلغاء</button></div></div>
+<div onclick="showAgeEdit()" style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding:8px 10px;background:var(--card2);border-radius:8px;cursor:pointer"><span style="font-size:13px;font-weight:bold">🎂 تعديل العمر</span><span style="font-size:14px">👈</span></div>
 </div>
 </div>
 <div class="menu-list">
@@ -735,11 +739,15 @@ async function loginMember(){
 }
 async function register(){
   var n=el('rName').value.trim(),p=el('rPass').value;
-  if(!n||!p||!el('rAge').value)return toast('الرجاء ملء جميع الحقول');
+  if(!n)return toast('اكتب اسم العضوية');
+if(!p)return toast('اكتب كلمة السر (حرف أو رقم واحد على الأقل)');
+if(!el('rAge').value)return toast('اكتب السن');
   toast('جاري التسجيل...');
   var existing=await SDB.getUser(n);
   if(existing)return toast('تم استخدام هذا الاسم من قبل');
-  var pw=await SDB.getPassword(n);
+  var chk=await SDB.getUser(n);
+if(!chk){try{await sb.from('passwords').delete().eq('name',n);}catch(e){}}
+var pw=null;
   if(pw)return toast('تم استخدام هذا الاسم من قبل');
   var u=defPrefs({name:n,age:el('rAge').value,gender:el('rGender').value,country:el('rCountry').value,role:'عضو',is_active:true});
   await SDB.setPassword(n,p);
@@ -1071,7 +1079,7 @@ async function umDelete(){
   if(!confirm('حذف عضوية '+umTarget+' نهائياً؟'))return;
   var cs=await sb.from('convs').select('id').or('user_a.eq.'+umTarget+',user_b.eq.'+umTarget);
   for(var i=0;i<(cs.data||[]).length;i++){await SDB.delConvMsgs(cs.data[i].id);await SDB.delConv(cs.data[i].id);}
-  await SDB.delUserRow(umTarget);
+  await SDB.delUserRow(umTarget);try{await sb.from('passwords').delete().eq('name',umTarget);}catch(e){}
   toast('تم حذف العضوية نهائياً');logActivity('delete_account',me.name+' حذف عضوية '+umTarget);
   closeModal('userModal');refreshUsers();renderMembers();
 }
@@ -1800,6 +1808,28 @@ renderStories();
 e.target.value='';
 };
 document.body.appendChild(storyInputEl);
+function showPassEdit(){var w=el('passEditWrap');if(!w)return;if(w.style.display==='none'){w.style.display='block';el('oldPass').value='';el('newPass').value='';}else w.style.display='none';}
+function cancelChangePass(){el('passEditWrap').style.display='none';}
+async function doChangePass(){
+var op=el('oldPass').value,np=el('newPass').value;
+if(!op||!np)return toast('املأ الحقلين');
+var saved=await SDB.getPassword(me.name);
+if(saved&&saved!==op)return toast('كلمة السر الحالية غلط ❌');
+await SDB.setPassword(me.name,np);
+toast('تم تغيير كلمة السر بنجاح ✅');
+el('passEditWrap').style.display='none';
+}
+function showAgeEdit(){var w=el('ageEditWrap');if(!w)return;if(w.style.display==='none'){w.style.display='block';el('newAge').value=me.age||'';}else w.style.display='none';}
+function cancelChangeAge(){el('ageEditWrap').style.display='none';}
+async function doChangeAge(){
+var av=parseInt(el('newAge').value);
+if(!av||av<16||av>100)return toast('⚠️ العمر لازم يكون من 16 لـ 100');
+await updateMe({age:String(av)});
+await SDB.saveUser(me.name,me);
+el('setDetails').innerText=(me.age||'--')+' • '+(me.gender||'')+' • '+(me.country||'');
+el('ageEditWrap').style.display='none';
+toast('تم تحديث عمرك ✅');
+}
 async function logActivity(action,details){try{await SDB.addLog({action:action,details:details,time:Date.now(),by_user:me?me.name:''});}catch(e){}}
 async function logLogin(u){try{await SDB.addLog({action:'login',details:u.name+' دخل من '+deviceType()+' / '+browserName(),time:Date.now(),by_user:u.name});await sb.from('device_logins').insert({device_id:deviceId(),name:u.name,ip:myIP,utime:Date.now()});}catch(e){}}
 
@@ -2102,4 +2132,4 @@ cur=null;
 })();
 </script>
 </body>
-</html>
+  </html>
