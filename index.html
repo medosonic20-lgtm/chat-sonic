@@ -509,6 +509,7 @@ input[type=range]{width:100%}
 <div class="set-row"><div><h4>إيصالات القراءة</h4><p>سيعلم محدثك أنك قرأت رسالته</p></div><label class="sw"><input type="checkbox" id="pRead" checked onchange="setPref('readReceipts',this.checked)"><span class="sl"></span></label></div>
 <div class="set-row"><div><h4>إظهار آخر ظهور</h4><p>لن يتمكن الآخرون من رؤية آخر ظهور لك</p></div><label class="sw"><input type="checkbox" id="pLast" checked onchange="setPref('showLastSeen',this.checked)"><span class="sl"></span></label></div>
 <div class="set-row"><div><h4>طلبات المراسلة</h4><p>رسائل غير الأصدقاء في تبويب منفصل</p></div><label class="sw"><input type="checkbox" id="pReq" checked onchange="setPref('msgRequests',this.checked)"><span class="sl"></span></label></div>
+<div class="set-row"><div><h4>🕶️ الوضع المخفي</h4><p>تختفي من قائمة المتصلين لكنك تستخدم الموقع طبيعي</p></div><label class="sw"><input type="checkbox" id="pHide" onchange="toggleHide(this.checked)"><span class="sl"></span></label></div>
 <div class="m-item" style="border-radius:10px;border:1px solid var(--line)" onclick="go('friends')"><span style="color:var(--acc)"> إدارة قائمة الأصدقاء</span></div>
 </div>
 <div class="screen" id="s-friends"><div class="sub-title" onclick="go('settings')">➔ قائمة الأصدقاء</div><div id="friendsList"></div></div>
@@ -1041,6 +1042,7 @@ function renderOnline(){
   for(var k in usersCache){var u=usersCache[k];if(seen[u.name])continue;seen[u.name]=true;all.push(u);}
   var list=all.filter(function(u){
     if(u.banned===true||u.is_active===false)return false;
+    if(u.hidden===true&&!(me&&u.name===me.name&&false)&&!isOwner())return false;
     if(!isOnline(u)&&!isOwnerName(u.name))return false;
     if(isBlockedByMe(u.name))return false;
     return u.name.toLowerCase().indexOf(q)>-1&&(filterG==='الكل'||u.gender===filterG)&&(filterC==='الكل'||u.country===filterC);
@@ -1364,7 +1366,7 @@ if('Notification' in window&&Notification.permission==='default'){Notification.r
 function closeModal(id){el(id).classList.remove('open');if(id==='roomModal'){pendingRoomImg=null;el('roomImgLabel').innerHTML='📷<input type="file" id="roomImg" accept="image/*" style="display:none" onchange="previewRoomImg(event)">';}}
 function openModal(id){el(id).classList.add('open');}
 document.addEventListener('click',function(e){if(!e.target.closest('.chat-menu')&&!e.target.closest('.dots-btn'))el('chatMenu').classList.remove('open');if(!e.target.closest('.sticker-panel')&&!e.target.closest('.ic-btn'))el('stickerPanel').classList.remove('open');if(!e.target.closest('.msg-menu')&&!e.target.closest('.msg-act-btn'))hideMsgMenu();});
-function applyPrefsUI(){if(!me)return;var p=me;if(p.dark!==false){document.body.classList.remove('light');el('darkSw').checked=true;}else{document.body.classList.add('light');el('darkSw').checked=false;}el('smoothSw').checked=p.smooth!==false;el('pMedia').checked=p.allowMedia!==false;el('pRead').checked=p.readReceipts!==false;el('pLast').checked=p.lastSeen!==false;el('pReq').checked=p.msgRequests!==false;el('sOwn').checked=p.sndOwn===true;el('sOther').checked=p.sndOther!==false;el('sNotif').checked=p.sndNotif!==false;if(p.smooth!==false)document.body.classList.add('smooth');}
+function applyPrefsUI(){if(!me)return;var p=me;if(el('pHide'))el('pHide').checked=(p.hidden===true);if(p.dark!==false){document.body.classList.remove('light');el('darkSw').checked=true;}else{document.body.classList.add('light');el('darkSw').checked=false;}el('smoothSw').checked=p.smooth!==false;el('pMedia').checked=p.allowMedia!==false;el('pRead').checked=p.readReceipts!==false;el('pLast').checked=p.lastSeen!==false;el('pReq').checked=p.msgRequests!==false;el('sOwn').checked=p.sndOwn===true;el('sOther').checked=p.sndOther!==false;el('sNotif').checked=p.sndNotif!==false;if(p.smooth!==false)document.body.classList.add('smooth');}
 function editStatus(){el('statusInputWrap').classList.remove('hide');el('statusInput').value=(me&&me.status)?me.status:'';el('statusInput').focus();}
 function cancelStatus(){el('statusInputWrap').classList.add('hide');}
 async function saveStatus(){var val=el('statusInput').value.trim();await updateMe({status:val||null});el('setStatusText').innerText=val||'لا توجد حالة';el('statusInputWrap').classList.add('hide');toast(val?'تم تحديث الحالة':'تم مسح الحالة');}
@@ -1992,6 +1994,11 @@ async function deleteStoryFile(url){try{var path=url.split('/stories/')[1];if(pa
 async function deleteMyStory(id){if(!confirm('حذف حالتك؟'))return;var d=await sb.from('stories').select('*').eq('id',id).limit(1);if(d.data&&d.data[0])deleteStoryFile(d.data[0].img);await sb.from('stories').delete().eq('id',id);closeModal('storyViewModal');renderStories();toast('تم الحذف');}
 var storyInputEl=document.createElement('input');storyInputEl.type='file';storyInputEl.accept='image/*,video/*';storyInputEl.style.display='none';storyInputEl.onchange=function(e){var f=e.target.files[0];if(!f)return;var isVideo=f.type.indexOf('video')===0;if(isVideo){var vid=document.createElement('video');vid.preload='metadata';vid.onloadedmetadata=function(){window.URL.revokeObjectURL(vid.src);if(vid.duration>60){toast('⚠️ الفيديو أطول من 60 ثانية - اختار أقصر');return;}toast('⏳ جاري رفع الفيديو...');uploadStoryFile(f).then(function(url){if(!url)return toast('فشل الرفع');var sid='st'+Date.now()+Math.floor(Math.random()*999);sb.from('stories').insert({id:sid,author:me.name,img:url,stype:'video',stime:Date.now()}).then(function(r){if(r.error)return toast('خطأ: '+r.error.message);toast('تم نشر فيديو حالتك ✅');renderStories();});});};vid.onerror=function(){toast('⚠️ مشكلة في قراءة الفيديو');};vid.src=URL.createObjectURL(f);}else{compressImg(f,function(dataUrl){uploadStoryFile(dataURLtoBlob(dataUrl)).then(function(url){if(!url)url=dataUrl;var sid='st'+Date.now()+Math.floor(Math.random()*999);sb.from('stories').insert({id:sid,author:me.name,img:url,stype:'image',stime:Date.now()}).then(function(r){if(r.error)return toast('خطأ: '+r.error.message);toast('تم نشر حالتك ✅');renderStories();});});});}e.target.value='';};
 if(document.body)document.body.appendChild(storyInputEl);else document.addEventListener('DOMContentLoaded',function(){document.body.appendChild(storyInputEl);});
+async function toggleHide(v){
+await updateMe({hidden:v});
+toast(v?'🕶️ أنت مخفي الآن من قائمة المتصلين':'✅ أنت ظاهر للمستخدمين');
+renderOnline();
+}
 async function checkDeviceOrIPBan(){
   try{
     var bans=await SDB.loadBans();
@@ -2095,4 +2102,4 @@ cur=null;
 })();
 </script>
 </body>
-  </html>
+</html>
