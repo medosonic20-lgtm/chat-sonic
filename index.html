@@ -413,7 +413,17 @@ input[type=range]{width:100%}
 </div>
 </div></div>
 <div class="screen" id="s-msgs">
-<div class="msg-head"><b>⚡ شات سونيك</b></div>
+<div class="msg-head" id="msgHeadNormal"><b>⚡ شات سونيك</b></div>
+<div id="selBar" style="display:none;background:var(--card);padding:10px 12px;border-bottom:1px solid var(--line);align-items:center;gap:8px;justify-content:space-between">
+<button onclick="selCancel()" style="background:none;border:none;color:var(--txt);font-size:18px;padding:4px 8px;cursor:pointer">✕</button>
+<div style="display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end">
+<button onclick="selAll()" style="background:var(--card2);border:1px solid var(--line);color:var(--txt);padding:7px 12px;border-radius:8px;font-size:12px;cursor:pointer">تحديد الكل</button>
+<button onclick="selDelete()" style="background:#e64553;border:none;color:#fff;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:bold;cursor:pointer">حذف 🗑️</button>
+<button onclick="selBlock()" style="background:#7a8694;border:none;color:#fff;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:bold;cursor:pointer">حظر ⛔</button>
+<button onclick="selPin()" style="background:#8b5cf6;border:none;color:#fff;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:bold;cursor:pointer">تثبيت 📌</button>
+<span id="selCount" style="background:var(--acc);color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold">0</span>
+</div>
+</div>
 <div class="tabs" id="msgTabs"><div class="tab sel" id="tabF" onclick="msgTab('f')">الأصدقاء</div><div class="tab" id="tabR" onclick="msgTab('r')">طلبات المراسلة</div></div>
 <div id="listF"></div><div id="listR" class="hide"></div>
 </div>
@@ -1283,12 +1293,83 @@ async function confirmBlock(){
 async function addFriend(){if(!chat||chat.type!=='user')return;if(!me.friends)me.friends=[];if(me.friends.indexOf(chat.id)>-1)return toast('هذا المستخدم صديقك بالفعل');me.friends.push(chat.id);await updateMe({friends:me.friends});toast('تمت الإضافة للأصدقاء');}
 async function toggleMediaPerm(){if(!chat||chat.type!=='user')return;if(!me.mediaBlock)me.mediaBlock={};me.mediaBlock[chat.id]=!me.mediaBlock[chat.id];await updateMe({mediaBlock:me.mediaBlock});toast(me.mediaBlock[chat.id]?'تم منع الوسائط':'تم السماح بالوسائط');el('mediaPermBtn').innerText=me.mediaBlock[chat.id]?'🖼️ السماح بالوسائط':'🖼️ منع الوسائط';}
 
-function toggleSel(name){if(selSet[name])delete selSet[name];else selSet[name]=true;updateSelBar();renderMsgs();}
-function updateSelBar(){var n=Object.keys(selSet).length;el('selCount').innerText=n;el('selBar').classList.toggle('open',selMode&&n>0);}
-function selCancel(){selMode=false;selSet={};renderMsgs();}
+var _msgLongPressTimer=null,_msgLongPressName=null,_msgTouchMoved=false,_msgJustLongPressed=false;
+function msgCardTouchStart(e,name){
+  _msgTouchMoved=false;
+  _msgLongPressName=name;
+  clearTimeout(_msgLongPressTimer);
+  _msgLongPressTimer=setTimeout(function(){
+    if(!_msgTouchMoved){
+      _msgJustLongPressed=true;
+      selMode=true;
+      selSet[name]=true;
+      renderMsgs();
+      if(navigator.vibrate)navigator.vibrate(40);
+    }
+  },480);
+}
+function msgCardTouchEnd(e){
+  clearTimeout(_msgLongPressTimer);
+  _msgLongPressTimer=null;
+}
+function msgCardTouchMove(e){
+  _msgTouchMoved=true;
+  clearTimeout(_msgLongPressTimer);
+}
+function toggleSel(name){
+  if(_msgJustLongPressed){
+    _msgJustLongPressed=false;
+    return;
+  }
+  if(selSet[name])delete selSet[name];
+  else selSet[name]=true;
+  if(Object.keys(selSet).length===0)selMode=false;
+  updateSelBar();
+  renderMsgs();
+}
+function updateSelBar(){
+  var n=Object.keys(selSet).length;
+  var bar=el('selBar');
+  var head=el('msgHeadNormal');
+  if(bar){
+    bar.style.display=selMode?'flex':'none';
+    if(el('selCount'))el('selCount').innerText=n;
+    var pinBtn=bar.querySelector('button[onclick="selPin()"]');
+    if(pinBtn){
+      var names=Object.keys(selSet);
+      var allPinned=names.length>0&&names.every(function(nm){return isPinned(nm);});
+      if(allPinned){
+        pinBtn.innerHTML='إلغاء التثبيت 📌';
+        pinBtn.style.background='#7a8694';
+      }else{
+        pinBtn.innerHTML='تثبيت 📌';
+        pinBtn.style.background='#8b5cf6';
+      }
+    }
+  }
+  if(head)head.style.display=selMode?'none':'flex';
+}
+function selCancel(){selMode=false;selSet={};updateSelBar();renderMsgs();}
 function selAll(){var list=currentMsgList();for(var i=0;i<list.length;i++)selSet[list[i].other]=true;updateSelBar();renderMsgs();}
 function currentMsgList(){var list=convsCache.filter(function(c){return c.other;});var curTab=el('tabR').classList.contains('hide')?'f':'r';var out=[];for(var i=0;i<list.length;i++){var c=list[i];var isFriend=me.friends&&me.friends.indexOf(c.other)>-1;if(curTab==='f'?(isFriend||!me.msgRequests):(!isFriend&&me.msgRequests))out.push(c);}return out;}
-async function selPin(){var names=Object.keys(selSet);if(!names.length)return;var pin=me.pinned||[];for(var i=0;i<names.length;i++){if(pin.indexOf(names[i])<0)pin.push(names[i]);}await updateMe({pinned:pin});toast('📌 تم التثبيت');selCancel();}
+async function selPin(){
+  var names=Object.keys(selSet);
+  if(!names.length)return;
+  var pin=me.pinned||[];
+  var allPinned=names.every(function(nm){return pin.indexOf(nm)>-1;});
+  if(allPinned){
+    pin=pin.filter(function(p){return names.indexOf(p)===-1;});
+    await updateMe({pinned:pin});
+    toast('📌 تم إلغاء التثبيت');
+  }else{
+    for(var i=0;i<names.length;i++){
+      if(pin.indexOf(names[i])<0)pin.push(names[i]);
+    }
+    await updateMe({pinned:pin});
+    toast('📌 تم التثبيت');
+  }
+  selCancel();
+}
 async function selBlock(){
   var names=Object.keys(selSet);if(!names.length)return;
   for(var i=0;i<names.length;i++){var n=names[i];if(isOwnerName(n))continue;if(!me.blocked)me.blocked=[];if(me.blocked.indexOf(n)<0)me.blocked.push(n);var cid=getConvId(n);await SDB.delConvMsgs(cid);await SDB.delConv(cid);}
@@ -1412,13 +1493,16 @@ function renderMsgs(){
     var on=isOnline(u);
     var statusDot=on?'<span style="color:var(--grn);font-size:10px">●</span>':'<span style="color:var(--mut);font-size:10px">●</span>';
     var pinned=isPinned(c.other)?'<span class="pin-icon">📌</span>':'';
-    var tap='openUser(\''+c.other.replace(/'/g,"\\'")+'\')';
-    var card='<div class="m-card" onclick="'+tap+'"><div style="display:flex;align-items:center;gap:10px">'+getAvatarHTML(u,40)+'<div style="flex:1"><div style="display:flex;justify-content:space-between;align-items:center"><div class="m-name">'+pinned+statusDot+' '+styleName(u||{name:c.other})+' '+(isFriend?'⭐':'')+'</div>'+badge+'</div><div class="m-last">'+escapeHtml(last.substring(0,35))+'</div></div></div></div>';
+    var selected=!!selSet[c.other];
+    var nameEsc=c.other.replace(/'/g,"\\'");
+    var tap=selMode?'toggleSel(\''+nameEsc+'\')':'openUser(\''+nameEsc+'\')';
+    var card='<div class="m-card'+(selected?' selected':'')+'" data-name="'+nameEsc+'" onclick="'+tap+'" ontouchstart="msgCardTouchStart(event,\''+nameEsc+'\')" ontouchend="msgCardTouchEnd(event)" ontouchmove="msgCardTouchMove(event)"><div class="m-check">✓</div><div style="display:flex;align-items:center;gap:10px">'+getAvatarHTML(u,40)+'<div style="flex:1"><div style="display:flex;justify-content:space-between;align-items:center"><div class="m-name">'+pinned+statusDot+' '+styleName(u||{name:c.other})+' '+(isFriend?'⭐':'')+'</div>'+badge+'</div><div class="m-last">'+escapeHtml(last.substring(0,35))+'</div></div></div></div>';
     if(_mr){if(isFriend)htmlF+=card;else htmlR+=card;}
     else htmlF+=card;
   }
   el('listF').innerHTML=htmlF||'<div class="empty"><div class="big">💬</div>لا توجد رسائل</div>';
   el('listR').innerHTML=htmlR||'<div class="empty"><div class="big">📨</div>لا توجد طلبات مراسلة</div>';
+  updateSelBar();
 }
 function msgTab(t){el('tabF').classList.toggle('sel',t==='f');el('tabR').classList.toggle('sel',t==='r');el('listF').classList.toggle('hide',t!=='f');el('listR').classList.toggle('hide',t!=='r');renderMsgs();}
 function renderRooms(){
