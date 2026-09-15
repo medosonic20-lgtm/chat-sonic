@@ -1196,9 +1196,21 @@ async function toggleReaction(mid,emoji){
   var msg=msgsCache.find(function(x){return x._id===mid;});
   if(!msg)return;
   var reacts=msg.reactions||{};var key=emoji.trim();
-  if(!reacts[key])reacts[key]=[me.name];
-  else if(typeof reacts[key]==='object'&&reacts[key].indexOf){var idx=reacts[key].indexOf(me.name);if(idx>-1)reacts[key].splice(idx,1);else reacts[key].push(me.name);if(reacts[key].length===0)delete reacts[key];}
-  else reacts[key]=[me.name];
+  var hadSame=false;
+  for(var k in reacts){
+    if(typeof reacts[k]==='object'&&reacts[k].indexOf){
+      var idx=reacts[k].indexOf(me.name);
+      if(idx>-1){
+        if(k===key){hadSame=true;}
+        reacts[k].splice(idx,1);
+        if(reacts[k].length===0)delete reacts[k];
+      }
+    }
+  }
+  if(!hadSame){
+    if(!reacts[key])reacts[key]=[me.name];
+    else reacts[key].push(me.name);
+  }
   msg.reactions=reacts;updateMsg(msg);
   await SDB.updMsg(mid,{reactions:reacts});
 }
@@ -2037,6 +2049,49 @@ if(saved){
     if(g.bannedWords)el('badWords').value=g.bannedWords.join('\n');
     if(g.blockLinks)el('siteBlockLinks').checked=true;
   }catch(e){}
+})();
+</script>
+<script>
+// ===== سحب للرد + دبل تاب للرياكشن (زي واتساب) =====
+(function(){
+var rBar=document.createElement('div');
+rBar.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);display:none;gap:12px;z-index:4000;box-shadow:0 6px 20px rgba(0,0,0,.55);transition:transform .25s ease;align-items:center';
+var rId=null;
+function hideRB(){rBar.style.display='none';}
+function showRB(id){if(!el('s-chat')||!el('s-chat').classList.contains('active'))return;rId=id;rBar.style.display='flex';clearTimeout(rBar._t);rBar._t=setTimeout(hideRB,5000);}
+['👍','❤️','😂','😮','😢','🙏'].forEach(function(em){
+var b=document.createElement('button');
+b.style.cssText='background:none;border:none;font-size:26px;cursor:pointer;padding:2px';
+b.onclick=function(){hideRB();if(rId)toggleReaction(rId,em);};
+rBar.appendChild(b);
+});
+var xb=document.createElement('button');
+xb.style.cssText='background:none;border:none;color:var(--mut);font-size:15px;cursor:pointer';
+rBar.innerHTML='';['\uD83D\uDC4D','\u2764\uFE0F','\uD83D\uDE02','\uD83D\uDE2E','\uD83D\uDE22','\uD83D\uDE4F'].forEach(function(em2){var eb=document.createElement('button');eb.style.cssText='background:none;border:none;font-size:26px;cursor:pointer;padding:2px';eb.textContent=em2;eb.onclick=function(){hideRB();if(rId)toggleReaction(rId,em2);};rBar.appendChild(eb);});var xb2=document.createElement('button');xb2.style.cssText='background:none;border:none;color:var(--mut);font-size:15px;cursor:pointer';xb2.textContent='\u2715';xb2.onclick=hideRB;
+rBar.appendChild(xb);
+document.body.appendChild(rBar);
+function replyById(id){var m=msgsCache.find(function(x){return x._id===id;});if(!m)return;replyTo=id;el('replyBar').classList.add('open');el('replyName').innerText=getMsgName(m.from);el('replyText').innerText=m.deleted?'تم حذف الرسالة':String(m.data).substring(0,50);el('msgInput').focus();}
+var tsx=0,tsy=0,tst=0,cur=null,lastTap=0,lastTapId=null;
+var box=el('chatBox');
+if(!box)return;
+box.addEventListener('touchstart',function(e){
+if(e.target.closest&&e.target.closest('.msg-actions')){cur=null;return;}
+var t=e.touches[0];tsx=t.clientX;tsy=t.clientY;tst=Date.now();
+cur=e.target.closest?e.target.closest('.bub'):null;
+},{passive:true});
+box.addEventListener('touchend',function(e){
+if(!cur)return;
+var t=e.changedTouches[0];
+var dx=t.clientX-tsx,dy=t.clientY-tsy,dt=Date.now()-tst;
+var id=cur.getAttribute('data-id');
+if(dt<400&&Math.abs(dx)>70&&Math.abs(dy)<50){replyById(id);cur=null;return;}
+if(dt<300&&Math.abs(dx)<12&&Math.abs(dy)<12){
+var now=Date.now();
+if(lastTapId===id&&now-lastTap<400){showRB(id);lastTap=0;lastTapId=null;}
+else{lastTap=now;lastTapId=id;}
+}
+cur=null;
+},{passive:true});
 })();
 </script>
 </body>
