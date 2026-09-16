@@ -2221,5 +2221,34 @@ cur=null;
 },{passive:true});
 })();
 </script>
+<script>
+/* ===== نسخة نهائية من عارض الحالات: الفيديو يخلص كامل مهما كانت مدته ===== */
+async function viewStory(id){
+  var d=await sb.from('stories').select('*').eq('id',id).limit(1);
+  if(!d.data||!d.data[0])return;
+  var s=d.data[0];
+  var u=usersCache[s.author];
+  var box=el('storyViewBox');
+  var prog='<div style="height:3px;background:rgba(255,255,255,.3);border-radius:2px;overflow:hidden;margin:10px"><div id="storyProgBar" style="height:100%;background:#fff;width:0%"></div></div>';
+  var head='<div style="display:flex;align-items:center;gap:10px;padding:0 12px 8px"><div style="width:40px;height:40px;border-radius:50%;background:var(--card2);overflow:hidden">'+((u&&u.avatar)?'<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover">':(u&&u.gender==='أنثى'?'👩':'👨'))+'</div><div style="flex:1"><div style="color:#fff;font-weight:bold;font-size:14px">'+escapeHtml(getMsgName(s.author))+'</div><div style="color:rgba(255,255,255,.7);font-size:11px">باقي '+timeLeft(s.stime)+'</div></div>'+((s.author===me.name)?'<button onclick="deleteMyStory(\''+s.id+'\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px">🗑️</button>':'')+'<button onclick="closeModal(\'storyViewModal\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px">✕</button></div>';
+  var isVid=(s.stype==='video');
+  var mediaHtml=isVid?'<video id="storyVideo" src="'+s.img+'" style="max-width:100%;max-height:100%" controls autoplay playsinline></video>':'<img src="'+s.img+'" style="max-width:100%;max-height:100%;object-fit:contain">';
+  box.innerHTML=prog+head+'<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden">'+mediaHtml+'</div><div style="display:flex;gap:8px;padding:10px;background:rgba(0,0,0,.6)">'+((s.author!==me.name)?'<input id="storyReplyInput" placeholder="اكتب رد على الحالة..." style="flex:1;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:24px;color:var(--txt);font-size:14px;outline:none" onkeydown="if(event.key===\'Enter\')sendStoryReply(\''+String(s.author).replace(/'/g,"\\'")+'\')"><button onclick="sendStoryReply(\''+String(s.author).replace(/'/g,"\\'")+'\')" style="background:var(--acc);border:none;color:#fff;width:42px;height:42px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0">➤</button>':'<div style="flex:1;text-align:center;color:var(--mut);font-size:12px;padding:8px">هذه حالتك</div>')+'</div>';
+  openModal('storyViewModal');
+  var closeIt=function(){var m=el('storyViewModal');if(m.classList.contains('open')){var si=el('storyReplyInput');if(si&&document.activeElement===si)return;closeModal('storyViewModal');}};
+  if(isVid){
+    var v=el('storyVideo');
+    if(!v){return;}
+    v.muted=false;var pp=v.play();if(pp&&pp.catch)pp.catch(function(){v.muted=true;try{v.play();}catch(_e){}});
+    var bar=el('storyProgBar');
+    v.addEventListener('timeupdate',function(){if(bar&&v.duration>0){bar.style.width=(v.currentTime/v.duration*100)+'%';}});
+    v.addEventListener('ended',closeIt);
+    v.addEventListener('error',function(){setTimeout(closeIt,2000);});
+  }else{
+    var bar2=el('storyProgBar');if(bar2){bar2.style.transition='width 6s linear';setTimeout(function(){bar2.style.width='100%';},50);}
+    setTimeout(closeIt,6200);
+  }
+}
+</script>
 </body>
   </html>
