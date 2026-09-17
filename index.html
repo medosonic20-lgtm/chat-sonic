@@ -3,7 +3,7 @@
 <head>
 <meta name="google-site-verification" content="xRCOv0fppceVNG36QkJYpPDvYFi5u1aoJFP_23sLjgM" />
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>شات سونيك</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -2342,12 +2342,6 @@ viewStory=async function(id){
   try{var _old=el('storyVideo');if(_old){try{_old.pause();}catch(_e1){}try{_old.removeAttribute('src');_old.load();}catch(_e2){}}}catch(e){}
   return _vsPrev(id);
 };
-</script>
-<script>
-/* ===== الشات يفضل ظاهر فوق الكيبورد ===== */
-var _mi=el('msgInput');
-if(_mi){_mi.addEventListener('focus',function(){setTimeout(scrollChat,300);setTimeout(scrollChat,600);});}
-if(window.visualViewport){visualViewport.addEventListener('resize',function(){setTimeout(scrollChat,100);});}
 </script>
 </body>
   </html>
