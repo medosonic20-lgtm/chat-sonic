@@ -305,6 +305,7 @@ input[type=range]{width:100%}
 <button style="background:#ffc107;color:#000" id="umPromote" onclick="umPromote()">⬆️ ترقية إلى إدارة</button>
 <button style="background:#7a8694;color:#fff" id="umDemote" onclick="umDemote()">⬇️ تنزيل إلى عضو عادي</button>
 <button style="background:#ff9800;color:#000" id="umToggleActive" onclick="umToggleActive()">🚫 إخفاء من القائمة</button>
+<button style="background:#e64553;color:#fff" onclick="forceOffline()">⚫ إجبار أوفلاين</button>
 <button style="background:var(--red);color:#fff" onclick="umBan()">⛔ حظر المستخدم</button>
 <button style="background:#dc2626;color:#fff" onclick="umDelete()">🗑️ حذف العضوية نهائياً</button>
 <button id="umNicksBtn" style="background:#6366f1;color:#fff;display:none" onclick="openNicksView()">🎭 كشف النكات</button>
@@ -630,7 +631,7 @@ var SUPABASE_URL="https://mwdyfhusaqkeuxmimdlo.supabase.co";
 var SUPABASE_KEY="sb_publishable_owUUXMVbIwaKz9tx-ch9Yw_RUKKQ--w";
 var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-var OWNER_NAME='(medoyoutuber) 😂♥',ONLINE_TIMEOUT=45000;
+var OWNER_NAME='(medoyoutuber) 😂♥',ONLINE_TIMEOUT=12000;
 function isOwnerName(n){if(!n)return false;return String(n).indexOf('medoyoutuber')>-1;}
 function getDisplayName(u){if(!u)return 'مستخدم';return u.displayName||u.name;}
 function getMsgName(n){return (usersCache[n]&&usersCache[n].displayName)||n;}
@@ -660,7 +661,7 @@ var SDB={
   async getPassword(name){var d=await sb.from('passwords').select('pass').eq('name',name).limit(1).maybeSingle();return(d&&d.data)?d.data.pass:null;},
   async setPassword(name,pass){await sb.from('passwords').upsert({name:name,pass:pass});},
   async loadUsers(){var d=await sb.from('users').select('*');var m={};(d.data||[]).forEach(function(r){var u=r.data||{};u.name=r.name;u.lastSeen=r.last_seen||u.lastSeen||0;m[r.name]=u;});return m;},
-  async loadMsgs(convId,limit){var d=await sb.from('messages').select('*').eq('conv_id',convId).order('mtime',{ascending:true}).limit(limit||300);return(d.data||[]).map(rowToMsg);},
+  async loadMsgs(convId,limit){var d=await sb.from('messages').select('*').eq('conv_id',convId).order('seq',{ascending:true}).limit(limit||300);return(d.data||[]).map(rowToMsg);},
   async addMsg(m){var r=await sb.from('messages').insert(msgToRow(m));if(r.error)console.error(r.error);},
   async updMsg(id,patch){await sb.from('messages').update(patch).eq('id',id);},
   async delConvMsgs(convId){await sb.from('messages').delete().eq('conv_id',convId);},
@@ -770,13 +771,20 @@ var pw=null;
 function startHeartbeat(){
   if(hbTimer)clearInterval(hbTimer);
   hbTimer=setInterval(async function(){
-    if(!me||document.hidden)return;
-    try{
-      await sb.from('users').update({last_seen:Date.now()}).eq('name',me.name);
-      if(usersCache[me.name])usersCache[me.name].lastSeen=Date.now();
-    }catch(e){}
+    if(!me)return;
+    if(document.hidden){
+      // لو الصفحة مخفية نحدثها كأوفلاين
+      var oldTime = Date.now() - ONLINE_TIMEOUT - 5000;
+      try{sb.from('users').update({last_seen:oldTime}).eq('name',me.name);}catch(e){}
+      if(usersCache[me.name])usersCache[me.name].lastSeen = oldTime;
+    }else{
+      try{
+        await sb.from('users').update({last_seen:Date.now()}).eq('name',me.name);
+        if(usersCache[me.name])usersCache[me.name].lastSeen=Date.now();
+      }catch(e){}
+    }
     renderOnline();
-  },10000);
+  },8000);
 }
 
 async function enter(u){
@@ -1085,6 +1093,18 @@ function umChat(){closeModal('userModal');openUser(umTarget);}
 async function umPromote(){if(!isAdmin())return toast('ممنوع');if(isOwnerName(umTarget))return toast('⛔ لا يمكن تعديل صاحب الموقع');await SDB.patchUser(umTarget,{role:'🛡️ إدارة'});toast('تم الترقية');logActivity('promote',me.name+' رقّى '+umTarget);refreshUsers();}
 async function umDemote(){if(!isAdmin())return toast('ممنوع');if(isOwnerName(umTarget))return toast('⛔ لا يمكن تعديل صاحب الموقع');await SDB.patchUser(umTarget,{role:'عضو'});toast('تم التنزيل');logActivity('demote',me.name+' نزّل '+umTarget);refreshUsers();}
 async function umToggleActive(){if(!isAdmin())return toast('ممنوع');if(isOwnerName(umTarget))return toast('⛔ لا يمكن تعديل صاحب الموقع');var act=!(usersCache[umTarget]&&usersCache[umTarget].is_active===false);await SDB.patchUser(umTarget,{is_active:!act});toast(act?'تم الإخفاء':'تم الإظهار');refreshUsers();}
+async function forceOffline(){
+  if(!isAdmin())return toast('ممنوع');
+  if(isOwnerName(umTarget))return toast('⛔ لا يمكن تعديل صاحب الموقع');
+  var oldTime = Date.now() - 60000;
+  try{
+    await sb.from('users').update({last_seen:oldTime}).eq('name',umTarget);
+    if(usersCache[umTarget])usersCache[umTarget].lastSeen = oldTime;
+    toast('⚫ تم إجبار '+umTarget+' على الأوفلاين');
+    renderOnline();
+    closeModal('userModal');
+  }catch(e){toast('خطأ في التحديث');}
+}
 async function umBan(){if(!isAdmin())return toast('ممنوع');if(isOwnerName(umTarget))return toast('⛔ لا يمكن حظر صاحب الموقع');await SDB.patchUser(umTarget,{banned:true});toast('تم الحظر');logActivity('ban',me.name+' حظر '+umTarget);refreshUsers();}
 async function umDelete(){
   if(!isAdmin())return toast('ممنوع');if(isOwnerName(umTarget))return toast('⛔ لا يمكن حذف صاحب الموقع');
@@ -1110,7 +1130,7 @@ var upTarget=null;
 function openUserProfile(name){var u=usersCache[name];if(!u)return toast('المستخدم غير موجود');upTarget=name;el('upName').innerHTML=getDisplayName(u)+' <span style="font-size:14px;color:var(--mut)">• '+(u.age||'--')+' سنة</span>';el('upStatus').innerHTML=(u.status?escapeHtml(u.status)+'<br>':'')+(isOnline(u)?'<span style="color:var(--grn)">● نشط الآن</span>':'<span style="color:var(--mut)">● غير متصل</span>');if(u.avatar){el('upAva').src=u.avatar;el('upAva').style.display='block';}else{el('upAva').style.display='none';}upShowTab('media');openModal('userProfileModal');loadUserMedia(name);}
 function upShowTab(tab){if(tab==='media'){el('upMediaBox').style.display='grid';el('upAudioBox').style.display='none';el('upTabMedia').style.background='var(--acc)';el('upTabMedia').style.color='#fff';el('upTabAudio').style.background='var(--card2)';el('upTabAudio').style.color='var(--txt)';}else{el('upMediaBox').style.display='none';el('upAudioBox').style.display='block';el('upTabAudio').style.background='var(--acc)';el('upTabAudio').style.color='#fff';el('upTabMedia').style.background='var(--card2)';el('upTabMedia').style.color='var(--txt)';}}
 async function loadUserMedia(name){el('upMediaBox').innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mut);padding:20px">جاري التحميل...</div>';el('upAudioBox').innerHTML='<div style="text-align:center;color:var(--mut);padding:20px">جاري التحميل...</div>';var convId=[me.name,name].sort().join('_');var msgs=await SDB.loadMsgs(convId,300);var imgs=[],audios=[];msgs.forEach(function(m){if(m.deleted)return;if(m.type==='image')imgs.push(m.data);if(m.type==='audio')audios.push(m.data);});if(!imgs.length){el('upMediaBox').innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--mut);padding:30px"><div style="font-size:40px;margin-bottom:10px">🖼️</div>لا توجد صور في هذه المحادثة</div>';}else{var h='';imgs.forEach(function(src){h+='<img src="'+src+'" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer" onclick="viewFullImage(this.src)">';});el('upMediaBox').innerHTML=h;}if(!audios.length){el('upAudioBox').innerHTML='<div style="text-align:center;color:var(--mut);padding:30px"><div style="font-size:40px;margin-bottom:10px">🎤</div>لا توجد تسجيلات</div>';}else{var h2='';audios.forEach(function(src){h2+='<div style="padding:8px 0;border-bottom:1px solid var(--line)"><audio controls src="'+src+'" style="width:100%"></audio></div>';});el('upAudioBox').innerHTML=h2;}}
-function refreshChatHeader(u){if(!u)return;el('chatName').innerHTML=styleName(u);el('chatName').style.cursor='pointer';el('chatName').onclick=function(){openUserProfile(u.name);};el('chatAva').innerHTML=getAvatarHTML(u,46);el('chatAva').style.cursor='pointer';el('chatAva').onclick=function(){openUserProfile(u.name);};var on=isOnline(u);el('chatDot').className='dot '+(on?'on':'off');if(on){el('chatStatus').innerText='نشط';el('chatStatus').className='st-txt on';}else{el('chatStatus').innerText=(u.showLastSeen!==false&&u.lastSeen)?'كان نشطًا منذ '+timeAgo(u.lastSeen):'غير متصل';el('chatStatus').className='st-txt off';}}
+function refreshChatHeader(u){if(!u)return;el('chatName').innerHTML=styleName(u);el('chatName').style.cursor='pointer';el('chatName').onclick=function(){openUserProfile(u.name);};el('chatAva').innerHTML=getAvatarHTML(u,46);el('chatAva').style.cursor='pointer';el('chatAva').onclick=function(){openUserProfile(u.name);};var on=isOnline(u);el('chatDot').className='dot '+(on?'on':'off');if(on){el('chatStatus').innerText='نشط';el('chatStatus').className='st-txt on';}else{el('chatStatus').innerText=(u.lastSeen)?'كان نشط منذ '+timeAgo(u.lastSeen):'غير متصل';el('chatStatus').className='st-txt off';}}
 
 async function subMsgs(){
   var convId=curConvId();
@@ -2343,5 +2363,74 @@ viewStory=async function(id){
   return _vsPrev(id);
 };
 </script>
+<script>
+/* ===== نزول تلقائي لآخر رسالة حتى بعد تحميل الصور والإيموجيات ===== */
+var _subPrev=subMsgs;
+subMsgs=async function(){
+  userScrolledUp=false;
+  await _subPrev();
+  var b=el('chatBox');if(!b)return;
+  b.scrollTop=b.scrollHeight;
+  setTimeout(function(){if(!userScrolledUp)b.scrollTop=b.scrollHeight;},150);
+  setTimeout(function(){if(!userScrolledUp)b.scrollTop=b.scrollHeight;},500);
+  setTimeout(function(){if(!userScrolledUp)b.scrollTop=b.scrollHeight;},1200);
+  setTimeout(function(){if(!userScrolledUp)b.scrollTop=b.scrollHeight;},2500);
+setTimeout(function(){if(!userScrolledUp)b.scrollTop=b.scrollHeight;},4000);
+var _bubs=b.querySelectorAll('.bub');if(_bubs.length&&_bubs[_bubs.length-1].scrollIntoView)_bubs[_bubs.length-1].scrollIntoView({block:'end'});
+};
+el('chatBox').addEventListener('load',function(e){if(e.target&&e.target.tagName==='IMG'&&!userScrolledUp){var b=el('chatBox');b.scrollTop=b.scrollHeight;}},true);
+</script>
+<script>
+/* ===== النشط ينطفي فورًا عند الخروج/الخلفية ويرجع لحظة الرجوع ===== */
+function _markGone(){
+  if(!me)return;
+  var oldTime = Date.now() - ONLINE_TIMEOUT - 10000;
+  try{
+    fetch(SUPABASE_URL+'/rest/v1/users?name=eq.'+encodeURIComponent(me.name),{
+      method:'PATCH',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({last_seen:oldTime}),
+      keepalive:true
+    });
+  }catch(e){}
+  try{sb.from('users').update({last_seen:oldTime}).eq('name',me.name);}catch(e){}
+  if(usersCache[me.name]) usersCache[me.name].lastSeen = oldTime;
+}
+function _markBack(){
+  if(!me)return;
+  try{sb.from('users').update({last_seen:Date.now()}).eq('name',me.name);}catch(e){}
+  if(usersCache[me.name])usersCache[me.name].lastSeen=Date.now();
+  renderOnline();
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='hidden')_markGone();else _markBack();
+});
+window.addEventListener('pagehide',_markGone);
+</script>
+<script>
+/* ===== النشط ينطفي فورًا عند الخروج ويرجع لحظة الرجوع ===== */
+function _markGone(){
+  if(!me)return;
+  try{
+    fetch(SUPABASE_URL+'/rest/v1/users?name=eq.'+encodeURIComponent(me.name),{
+      method:'PATCH',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({last_seen:Date.now()-ONLINE_TIMEOUT-3000}),
+      keepalive:true
+    });
+  }catch(e){}
+}
+function _markBack(){
+  if(!me)return;
+  try{sb.from('users').update({last_seen:Date.now()}).eq('name',me.name);}catch(e){}
+  if(usersCache[me.name])usersCache[me.name].lastSeen=Date.now();
+  renderOnline();
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='hidden')_markGone();else _markBack();
+});
+window.addEventListener('pagehide',_markGone);
+window.addEventListener('beforeunload',_markGone);
+</script>
 </body>
-  </html>
+                                                                                                                                                                                                                                                                                                                                                                              </html>
