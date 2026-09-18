@@ -2455,7 +2455,7 @@ async function _showCurStory(){
   var s=_storyList[_storyIdx];
   if(me&&s.author!==me.name){
     var views=s.views||[];
-    if(views.indexOf(me.name)===-1){views.push(me.name);s.views=views;sb.from('stories').update({views:views}).eq('id',s.id).catch(function(){});}
+    if(views.indexOf(me.name)===-1){views.push(me.name);s.views=views;sb.from('stories').update({views:views}).eq('id',s.id).then(function(){},function(){});}
   }
   var u=usersCache[s.author];
   var box=el('storyViewBox');
@@ -2516,6 +2516,208 @@ async function showStoryViewersAll(){
   order.forEach(function(n){var u=usersCache[n];list+='<div class="u-card" style="padding:8px 12px;margin-bottom:6px">'+getAvatarHTML(u||{},36)+'<div style="flex:1"><div class="u-name" style="font-size:13px">'+escapeHtml(getMsgName(n))+'</div></div></div>';});
   el('viewersList').innerHTML=list;
 }
+</script>
+<script>
+/* ============ باتش سونيك: صور/صوت على Storage + ستوريز نظيفة ============ */
+(function(){
+window.uploadMedia=function(data,ext){
+  return new Promise(function(resolve){
+    try{
+      var blob=(typeof data==='string')?dataURLtoBlob(data):data;
+      var fname='chat_'+Date.now()+'_'+Math.floor(Math.random()*9999)+(ext||'.jpg');
+      sb.storage.from('stories').upload(fname,blob,{cacheControl:'31536000',upsert:false}).then(function(r){
+        if(r.error){console.error('upload err',r.error);resolve(null);return;}
+        resolve(sb.storage.from('stories').getPublicUrl(fname).data.publicUrl);
+      });
+    }catch(e){resolve(null);}
+  });
+};
+var _rtmOld=rowToMsg;
+rowToMsg=function(r){
+  var m=_rtmOld(r);
+  try{
+    if(m&&(m.type==='image'||m.type==='audio'||m.type==='sticker')){
+      if(!m.data||m.data==='*'||m.data==='undefined'||m.data.length<12){
+        var old=(typeof msgsCache!=='undefined'&&msgsCache.find)?msgsCache.find(function(x){return x._id===m._id;}):null;
+        if(old&&old.data)m.data=old.data;
+      }
+    }
+  }catch(e){}
+  return m;
+};
+window.confirmImage=async function(){
+  if(!pendingImg||!chat)return;
+  var caption=(el('imgCaption')?el('imgCaption').value.trim():'');
+  var convId=curConvId();
+  if(caption){
+    var cm={_id:'m'+Date.now()+'c'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:caption,type:'text',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{}};
+    msgsCache.push(cm);appendMsg(cm);
+    await SDB.addMsg(cm);
+  }
+  var url=await uploadMedia(pendingImg,'.jpg');
+  var m={_id:'m'+Date.now()+'i'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:url||pendingImg,type:'image',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{}};
+  msgsCache.push(m);appendMsg(m);scrollChat();
+  await SDB.addMsg(m);
+  pendingImg=null;if(el('imgCaption'))el('imgCaption').value='';
+  closeModal('imgModal');
+  if(chat.type==='user')await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:caption||'[صورة]'});
+};
+window.startRec=function(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return toast('المتصفح لا يدعم التسجيل');
+  if(recording)return toast('التسجيل شغال بالفعل');
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    recCancelled=false;mediaRec=new MediaRecorder(stream);recChunks=[];
+    mediaRec.ondataavailable=function(e){if(e.data.size>0)recChunks.push(e.data);};
+    mediaRec.onstop=async function(){
+      try{stream.getTracks().forEach(function(t){t.stop();});}catch(e){}
+      if(recCancelled){recCancelled=false;recChunks=[];return;}
+      if(recChunks.length===0||!chat)return;
+      var blob=new Blob(recChunks,{type:'audio/webm'});recChunks=[];
+      var convId=curConvId();
+      toast('⏳ جاري إرسال التسجيل...');
+      var url=await uploadMedia(blob,'.webm');
+      var data=url||await new Promise(function(res){var r=new FileReader();r.onloadend=function(){res(r.result);};r.readAsDataURL(blob);});
+      var m={_id:'m'+Date.now()+'a'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:data,type:'audio',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{}};
+      msgsCache.push(m);appendMsg(m);scrollChat();
+      await SDB.addMsg(m);
+      if(chat.type==='user')await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:'[تسجيل صوتي]'});
+    };
+    mediaRec.start();recording=true;recStartTime=Date.now();
+    el('micBtn').classList.add('rec');el('recBar').style.display='flex';el('stopRecBtn').style.display='inline-block';
+    recInterval=setInterval(function(){var diff=Math.floor((Date.now()-recStartTime)/1000);var mm=Math.floor(diff/60),ss=diff%60;el('recTimer').innerText='جاري التسجيل... '+mm+':'+(ss<10?'0'+ss:ss);},1000);
+  }).catch(function(err){
+    if(err.name==='NotAllowedError'||err.name==='PermissionDeniedError')toast('⚠️ اسمح بالوصول للميكروفون');
+    else if(err.name==='NotFoundError')toast('⚠️ لم يتم العثور على ميكروفون');
+    else toast('لا يمكن الوصول للمايك');
+  });
+};
+var _msList=[],_msIdx=0,_msTimer=null;
+function _msStop(){if(_msTimer){clearInterval(_msTimer);clearTimeout(_msTimer);_msTimer=null;}}
+function _arr(v){return Array.isArray(v)?v:[];}
+window.renderStories=async function(){
+  try{
+    if(!me)return;
+    var myOld=Date.now()-86400000;
+    var d=await sb.from('stories').select('*').gt('stime',myOld).order('stime',{ascending:true});
+    if(d.error){console.error('stories err',d.error);return;}
+    var items=d.data||[],groups={},order=[];
+    items.forEach(function(s){if(!groups[s.author]){groups[s.author]=[];order.push(s.author);}groups[s.author].push(s);});
+    order.sort(function(a,b){return (groups[b][groups[b].length-1].stime||0)-(groups[a][groups[a].length-1].stime||0);});
+    var bar=el('storiesBar');if(!bar)return;
+    var h='<div onclick="storyInputEl.click()" style="min-width:70px;display:flex;flex-direction:column;align-items:center;cursor:pointer"><div style="width:60px;height:60px;border-radius:50%;border:2px dashed var(--acc);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--acc)">+</div><span style="font-size:10px;color:var(--mut);margin-top:4px">إضافة</span></div>';
+    order.forEach(function(author){
+      var list=groups[author],isMine=(author===me.name);
+      var u=usersCache[author];
+      var ava=isMine?getAvatar(me):((u&&u.avatar)?'<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover">':(u&&u.gender==='أنثى'?'👩':'👨'));
+      var allSeen=true;
+      if(!isMine)for(var i=0;i<list.length;i++){if(_arr(list[i].views).indexOf(me.name)===-1){allSeen=false;break;}}
+      var ring=isMine?'var(--acc)':(allSeen?'#6b7280':'var(--grn)');
+      var badge=list.length>1?'<span style="position:absolute;top:-4px;left:-2px;background:var(--acc);color:#fff;border-radius:10px;min-width:20px;height:18px;line-height:18px;font-size:10px;padding:0 4px;font-weight:bold">'+list.length+'</span>':'';
+      var sub=isMine?'<span onclick="event.stopPropagation();showStoryViewersAll()" style="font-size:9px;color:var(--acc);font-weight:bold;cursor:pointer">👁️ '+list.reduce(function(t,s){return t+_arr(s.views).length;},0)+'</span>':'<span style="font-size:9px;color:var(--mut)">'+timeLeft(list[list.length-1].stime)+'</span>';
+      h+='<div onclick="openAuthorStories(\''+String(author).replace(/'/g,"\\'")+'\')" style="position:relative;min-width:70px;display:flex;flex-direction:column;align-items:center;cursor:pointer"><div style="position:relative"><div style="width:60px;height:60px;border-radius:50%;border:3px solid '+ring+';padding:2px;overflow:hidden;background:var(--card2)">'+ava+'</div>'+badge+'</div><span style="font-size:10px;color:var(--txt);margin-top:4px;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(isMine?'حالتي':escapeHtml(getMsgName(author)))+'</span>'+sub+'</div>';
+    });
+    bar.innerHTML=h;
+  }catch(e){}
+};
+window.openAuthorStories=async function(author,startIdx){
+  var d=await sb.from('stories').select('*').eq('author',author).gt('stime',Date.now()-86400000).order('stime',{ascending:true});
+  if(d.error)return toast('خطأ تحميل الحالة: '+d.error.message);
+  if(!d.data||!d.data.length)return toast('الحالة انتهت');
+  _msList=d.data;
+  _msIdx=(startIdx!==undefined&&startIdx>-1&&startIdx<_msList.length)?startIdx:0;
+  window._showCurStory();
+};
+window.openStoryById=async function(id){
+  var d=await sb.from('stories').select('*').eq('id',id).limit(1);
+  if(d.error)return toast('خطأ: '+d.error.message);
+  if(!d.data||!d.data[0])return toast('انتهت صلاحية هذه الحالة');
+  var s=d.data[0];
+  await window.openAuthorStories(s.author);
+  for(var i=0;i<_msList.length;i++)if(_msList[i].id===id){if(i!==_msIdx){_msIdx=i;window._showCurStory();}break;}
+};
+window.viewStory=function(id){window.openStoryById(id);};
+window.nextStory=function(){if(_msIdx<_msList.length-1){_msIdx++;window._showCurStory();}else{_msStop();closeModal('storyViewModal');}};
+window.prevStory=function(){if(_msIdx>0){_msIdx--;window._showCurStory();}};
+window._showCurStory=async function(){
+  try{
+    _msStop();
+    if(!_msList.length||_msIdx>=_msList.length){closeModal('storyViewModal');return;}
+    var s=_msList[_msIdx];
+    if(me&&s.author!==me.name){
+      var views=_arr(s.views);
+      if(views.indexOf(me.name)===-1){views.push(me.name);s.views=views;sb.from('stories').update({views:views}).eq('id',s.id).then(function(){},function(){});}
+    }
+    var u=usersCache[s.author];
+    var box=el('storyViewBox');
+    var segs='';for(var i=0;i<_msList.length;i++){segs+='<div style="flex:1;height:3px;background:rgba(255,255,255,.3);border-radius:2px;overflow:hidden"><div id="seg'+i+'" style="height:100%;width:'+(i<_msIdx?'100%':'0%')+';background:#fff"></div></div>';}
+    var au=String(s.author).replace(/'/g,"\\'"),sid=String(s.id);
+    var head='<div style="display:flex;align-items:center;gap:10px;padding:0 12px 8px"><div style="width:40px;height:40px;border-radius:50%;background:var(--card2);overflow:hidden">'+((u&&u.avatar)?'<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover">':(u&&u.gender==='أنثى'?'👩':'👨'))+'</div><div style="flex:1"><div style="color:#fff;font-weight:bold;font-size:14px">'+escapeHtml(getMsgName(s.author))+'</div><div style="color:rgba(255,255,255,.7);font-size:11px">'+timeAgo(s.stime||Date.now())+' • باقي '+timeLeft(s.stime)+'</div></div>'+((s.author===me.name)?'<button onclick="showStoryViewers(\''+sid+'\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px">👁️</button><button onclick="deleteMyStory(\''+sid+'\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px">🗑️</button>':'')+'<button onclick="closeModal(\'storyViewModal\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px">✕</button></div>';
+    var isVid=(s.stype==='video');
+    var mediaHtml=isVid?'<video id="storyVideo" src="'+s.img+'" style="max-width:100%;max-height:100%" autoplay playsinline></video>':'<img src="'+s.img+'" style="max-width:100%;max-height:100%;object-fit:contain" onerror="toast(\'⚠️ الصورة مش بتحمل - خلّي باكت stories Public في Supabase\')">';
+    var replyHtml=(s.author!==me.name)?'<div style="display:flex;gap:8px;padding:10px;background:rgba(0,0,0,.6)"><input id="storyReplyInput" placeholder="اكتب رد على الحالة..." style="flex:1;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:24px;color:var(--txt);font-size:14px;outline:none" onkeydown="if(event.key===\'Enter\')sendStoryReply(\''+au+'\',\''+sid+'\',\''+(s.stype||'image')+'\')"><button onclick="sendStoryReply(\''+au+'\',\''+sid+'\',\''+(s.stype||'image')+'\')" style="background:var(--acc);border:none;color:#fff;width:42px;height:42px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0">➤</button></div>':'<div style="padding:10px;background:rgba(0,0,0,.6);text-align:center;color:var(--mut);font-size:12px">هذه حالتك</div>';
+    box.innerHTML='<div style="display:flex;gap:4px;margin:10px">'+segs+'</div>'+head+'<div style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden"><div onclick="prevStory()" style="position:absolute;top:0;bottom:0;right:0;width:35%;z-index:3"></div><div onclick="nextStory()" style="position:absolute;top:0;bottom:0;left:0;width:65%;z-index:3"></div>'+mediaHtml+'</div>'+replyHtml;
+    openModal('storyViewModal');
+    if(isVid){
+      var v=el('storyVideo');if(!v)return;
+      v.muted=false;var pp=v.play();if(pp&&pp.catch)pp.catch(function(){v.muted=true;try{v.play();}catch(_e){}});
+      v.addEventListener('timeupdate',function(){var sg=el('seg'+_msIdx);if(sg&&v.duration>0)sg.style.width=(v.currentTime/v.duration*100)+'%';});
+      v.addEventListener('ended',window.nextStory);
+      v.addEventListener('error',function(){_msStop();_msTimer=setTimeout(window.nextStory,3000);});
+    }else{
+      var t0=Date.now();
+      _msTimer=setInterval(function(){var p=Math.min(1,(Date.now()-t0)/6000);var sg=el('seg'+_msIdx);if(sg)sg.style.width=(p*100)+'%';if(p>=1){_msStop();window.nextStory();}},80);
+    }
+  }catch(e){toast('خطأ عرض الحالة: '+e.message);}
+};
+window.sendStoryReply=function(author,sid,stype){
+  var inp=el('storyReplyInput');var text=inp?(inp.value||'').trim():'';
+  if(!text)return toast('اكتب ردك الأول');
+  if(author===me.name)return;
+  if(isBlockedByOther(author))return toast('⛔ تم حظرك من هذا المستخدم');
+  var thumb='',vtype=stype||'image';
+  for(var i=0;i<_msList.length;i++)if(_msList[i].id===sid){thumb=_msList[i].img||'';vtype=_msList[i].stype||vtype;break;}
+  if(thumb&&thumb.length>80000)thumb='';
+  var convId=[me.name,author].sort().join('_');
+  var m={_id:'m'+Date.now()+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:text,type:'text',time:Date.now(),replyTo:'story:'+sid,edited:false,deleted:false,read:false,reactions:{},meta:{story:sid,thumb:thumb,vtype:vtype}};
+  SDB.addMsg(m).then(function(){
+    SDB.upsertConv(convId,{a:me.name,b:author,t:Date.now(),lastFrom:me.name,lastMsg:'📷 رد على حالة'});
+    toast('تم إرسال ردك ✅');
+    closeModal('storyViewModal');
+  });
+};
+window.showStoryViewers=function(id){
+  ensureViewersModal();
+  sb.from('stories').select('views').eq('id',id).limit(1).then(function(d){
+    var views=(d.data&&d.data[0])?_arr(d.data[0].views):[];
+    var list='';
+    if(!views.length)list='<div style="text-align:center;color:var(--mut);padding:15px;font-size:13px">لا أحد شاف حالتك بعد 🙈</div>';
+    views.forEach(function(n){var u=usersCache[n];list+='<div class="u-card" style="padding:8px 12px;margin-bottom:6px">'+getAvatarHTML(u||{},36)+'<div style="flex:1"><div class="u-name" style="font-size:13px">'+escapeHtml(getMsgName(n))+'</div></div></div>';});
+    el('viewersList').innerHTML=list;
+    el('storyViewersModal').classList.add('open');
+  });
+};
+window.showStoryViewersAll=function(){
+  ensureViewersModal();
+  el('viewersList').innerHTML='<div style="text-align:center;color:var(--mut);padding:15px">جاري التحميل...</div>';
+  el('storyViewersModal').classList.add('open');
+  sb.from('stories').select('views').eq('author',me.name).then(function(d){
+    var seen={},order=[];
+    (d.data||[]).forEach(function(s){_arr(s.views).forEach(function(n){if(!seen[n]){seen[n]=1;order.push(n);}});});
+    var list='';
+    if(!order.length)list='<div style="text-align:center;color:var(--mut);padding:15px;font-size:13px">لا أحد شاف حالتك بعد 🙈</div>';
+    order.forEach(function(n){var u=usersCache[n];list+='<div class="u-card" style="padding:8px 12px;margin-bottom:6px">'+getAvatarHTML(u||{},36)+'<div style="flex:1"><div class="u-name" style="font-size:13px">'+escapeHtml(getMsgName(n))+'</div></div></div>';});
+    el('viewersList').innerHTML=list;
+  });
+};
+var _cmOld=window.closeModal;
+window.closeModal=function(id){
+  if(id==='storyViewModal'){
+    _msStop();
+    try{var v=el('storyVideo');if(v){v.pause();v.removeAttribute('src');v.load();}}catch(e){}
+  }
+  _cmOld(id);
+};
+})();
 </script>
 </body>
   </html>
