@@ -1201,7 +1201,7 @@ function appendMsg(m){var box=el('chatBox');if(!box)return;var wasNearBottom=(bo
 function updateMsg(m){var div=document.querySelector('[data-id="'+m._id+'"]');if(div)div.innerHTML=renderMsgContent(m);}
 function renderMsgContent(m){
   var html='';
-  if(m.replyTo){var rp=msgsCache.find(function(x){return x._id===m.replyTo;});if(rp){html+='<div class="reply-bar open"><b>'+escapeHtml(getMsgName(rp.from))+'</b><div>'+escapeHtml(rp.deleted?'تم حذف الرسالة':String(rp.data).substring(0,50))+'</div></div>';}}
+  if(m.replyTo){var rp=msgsCache.find(function(x){return x._id===m.replyTo;});if(rp){html+='<div class="reply-bar open" style="cursor:pointer" onclick="event.stopPropagation();jumpToMsg(\''+String(m.replyTo).replace(/'/g,"")+'\')"><b>'+escapeHtml(getMsgName(rp.from))+'</b><div>'+replyPreviewHTML(rp,false)+'</div></div>';}}
   if(m.deleted){html+='<i style="opacity:.6">تم حذف هذه الرسالة</i>';return html;}
   if(chat&&chat.type==='room'&&m.from!=='نظام'){var sender=usersCache[m.from];var nm=sender?getDisplayName(sender):m.from;html+='<div style="font-size:12px;font-weight:bold;color:#fff;margin-bottom:4px;text-shadow:0 1px 2px rgba(0,0,0,.6)">'+escapeHtml(nm)+'</div>';}
   if(m.type==='image'){html+='<img src="'+escapeHtml(m.data)+'" style="max-width:200px;border-radius:8px;cursor:pointer" onclick="viewFullImage(this.src)">';}
@@ -1216,7 +1216,7 @@ function renderMsgContent(m){
 function scrollChat(){var box=el('chatBox');if(!box||userScrolledUp)return;setTimeout(function(){if(!userScrolledUp)box.scrollTop=box.scrollHeight;},50);}
 function openMsgMenu(e,id,from){e.stopPropagation();msgMenuId=id;msgMenuTarget=from;var menu=el('msgMenu');var isMine=(from===me.name);var isOwn=isOwner();menu.innerHTML='<button onclick="doReply()">↩️ رد</button><button onclick="doReact()">❤️ رياكشن</button>'+(isMine||isOwn?'<button onclick="doEdit()">✏️ تعديل</button><button onclick="doDelete()">🗑️ حذف</button>':'');menu.classList.add('open');menu.style.top=(e.clientY+window.scrollY)+'px';menu.style.left=(window.innerWidth-e.clientX<160?e.clientX-150:e.clientX)+'px';}
 function hideMsgMenu(){var menu=el('msgMenu');if(menu){menu.classList.remove('open');menu.style.display='';}}
-function doReply(){hideMsgMenu();var m=msgsCache.find(function(x){return x._id===msgMenuId;});if(!m)return;replyTo=msgMenuId;el('replyBar').classList.add('open');el('replyName').innerText=getMsgName(m.from);el('replyText').innerText=m.deleted?'تم حذف الرسالة':String(m.data).substring(0,50);el('msgInput').focus();}
+function doReply(){hideMsgMenu();var m=msgsCache.find(function(x){return x._id===msgMenuId;});if(!m)return;replyTo=msgMenuId;el('replyBar').classList.add('open');el('replyName').innerText=getMsgName(m.from);el('replyText').innerHTML=replyPreviewHTML(m,true);el('msgInput').focus();}
 function cancelReply(){replyTo=null;el('replyBar').classList.remove('open');}
 function doEdit(){hideMsgMenu();var m=msgsCache.find(function(x){return x._id===msgMenuId;});if(!m||m.from!==me.name||m.type!=='text')return toast('لا يمكنك تعديل هذه الرسالة');editingMsgId=msgMenuId;el('msgInput').value=m.data;el('msgInput').focus();}
 function doReact(){hideMsgMenu();var em=prompt('اكتب الإيموجي:');if(!em)return;toggleReaction(msgMenuId,em);}
@@ -2214,7 +2214,7 @@ xb.style.cssText='background:none;border:none;color:var(--mut);font-size:15px;cu
 rBar.innerHTML='';['\uD83D\uDC4D','\u2764\uFE0F','\uD83D\uDE02','\uD83D\uDE2E','\uD83D\uDE22','\uD83D\uDE4F'].forEach(function(em2){var eb=document.createElement('button');eb.style.cssText='background:none;border:none;font-size:26px;cursor:pointer;padding:2px';eb.textContent=em2;eb.onclick=function(){hideRB();if(rId)toggleReaction(rId,em2);};rBar.appendChild(eb);});var xb2=document.createElement('button');xb2.style.cssText='background:none;border:none;color:var(--mut);font-size:15px;cursor:pointer';xb2.textContent='\u2715';xb2.onclick=hideRB;
 rBar.appendChild(xb);
 document.body.appendChild(rBar);
-function replyById(id){var m=msgsCache.find(function(x){return x._id===id;});if(!m)return;replyTo=id;el('replyBar').classList.add('open');el('replyName').innerText=getMsgName(m.from);el('replyText').innerText=m.deleted?'تم حذف الرسالة':String(m.data).substring(0,50);el('msgInput').focus();}
+function replyById(id){var m=msgsCache.find(function(x){return x._id===id;});if(!m)return;replyTo=id;el('replyBar').classList.add('open');el('replyName').innerText=getMsgName(m.from);el('replyText').innerHTML=replyPreviewHTML(m,true);el('msgInput').focus();}
 var tsx=0,tsy=0,tst=0,cur=null,lastTap=0,lastTapId=null;
 var box=el('chatBox');
 if(!box)return;
@@ -2723,5 +2723,26 @@ window.closeModal=function(id){
 };
 })();
 </script>
+<script>
+/* ===== باتش: معاينة الصور في الردود + القفز للرسالة الأصلية ===== */
+window.jumpToMsg=function(id){
+  if(!id)return;
+  var t=document.querySelector('[data-id="'+id+'"]');
+  if(!t)return toast('الرسالة الأصلية مش موجودة');
+  t.scrollIntoView({behavior:'smooth',block:'center'});
+  t.style.transition='box-shadow .3s ease';
+  t.style.boxShadow='0 0 0 3px rgba(59,130,246,.95)';
+  setTimeout(function(){t.style.boxShadow='';},1600);
+};
+window.replyPreviewHTML=function(m,small){
+  if(!m)return'';
+  if(m.deleted)return'تم حذف الرسالة';
+  if(m.type==='image')return '<img src="'+escapeHtml(m.data)+'" style="max-height:'+(small?'36px':'60px')+';max-width:110px;border-radius:5px;vertical-align:middle;display:inline-block;margin-left:4px"><span style="font-size:11px;opacity:.85">🖼️ صورة</span>';
+  if(m.type==='sticker')return '<img src="'+escapeHtml(m.data)+'" style="height:'+(small?'32px':'45px')+';width:'+(small?'32px':'45px')+';object-fit:contain;vertical-align:middle;margin-left:4px"><span style="font-size:11px;opacity:.85">ستيكر</span>';
+  if(m.type==='audio')return '<span style="font-size:12px">🎤 تسجيل صوتي</span>';
+  return escapeHtml(String(m.data).substring(0,50));
+};
+</script>
+</body>
 </body>
   </html>
