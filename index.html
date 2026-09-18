@@ -731,6 +731,8 @@ async function loginGuest(){
   var n=el('gName').value.trim();
   if(!n)return toast('الرجاء كتابة الاسم المستعار');
   if(!el('gAge').value)return toast('الرجاء كتابة السن');
+var _gav=parseInt(el('gAge').value);
+if(isNaN(_gav)||_gav<16||_gav>100)return toast('⚠️ العمر لازم يكون من 16 لـ 100');
   toast('جاري الدخول...');
   var u=await SDB.getUser(n);
   if(u&&u.role!=='زائر')return toast('هذا الاسم مسجل عضوية، ادخل من تبويب الأعضاء');
@@ -747,7 +749,7 @@ async function loginMember(){
   if(!u)return toast('هذا الاسم غير مسجل');
   var savedPass=await SDB.getPassword(n);
   if(savedPass&&savedPass!==p)return toast('كلمة المرور غير صحيحة');
-  if(!savedPass)await SDB.setPassword(n,p);if(!u.age||u.age==='--'){var ag=prompt('اكتب سنك:');if(ag){u.age=ag;await SDB.saveUser(n,u);}}
+  if(!savedPass)await SDB.setPassword(n,p);if(!u.age||u.age==='--'){var ag=prompt('اكتب سنك (من 16 لـ 100):');if(ag){var _mv=parseInt(ag);if(isNaN(_mv)||_mv<16||_mv>100)return toast('⚠️ العمر لازم يكون من 16 لـ 100');u.age=String(_mv);await SDB.saveUser(n,u);}}
   enter(u);
 }
 async function register(){
@@ -755,6 +757,8 @@ async function register(){
   if(!n)return toast('اكتب اسم العضوية');
 if(!p)return toast('اكتب كلمة السر (حرف أو رقم واحد على الأقل)');
 if(!el('rAge').value)return toast('اكتب السن');
+var _rav=parseInt(el('rAge').value);
+if(isNaN(_rav)||_rav<16||_rav>100)return toast('⚠️ العمر لازم يكون من 16 لـ 100');
   toast('جاري التسجيل...');
   var existing=await SDB.getUser(n);
   if(existing)return toast('تم استخدام هذا الاسم من قبل');
@@ -2720,4 +2724,4 @@ window.closeModal=function(id){
 })();
 </script>
 </body>
-                                              </html>
+  </html>
