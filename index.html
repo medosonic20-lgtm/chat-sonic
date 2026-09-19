@@ -1011,7 +1011,9 @@ async function checkAnnounce(){
     if(LS.getItem('closed_announce')!==a.text){el('announceBannerText').innerText=a.text;el('announceBanner').style.display='block';}
     else el('announceBanner').style.display='none';
   }else{el('currentAnnounce').innerText='لا يوجد';el('announceBanner').style.display='none';}
-  function markConvRead(n){if(!n)return;unread[n]=0;updateBadges();}
+}
+
+function markConvRead(n){if(!n)return;unread[n]=0;updateBadges();}
 function updateBadges(){var tot=0;for(var k in unread)tot+=unread[k];var b=el('navBadge');if(tot>0){b.innerText=tot>99?'99+':tot;b.classList.remove('hide');}else b.classList.add('hide');var bd=el('backDot');if(tot>0)bd.classList.remove('hide');else bd.classList.add('hide');}
 
 var navStack=[];var MAIN_SCREENS=['online','msgs','rooms','wall','settings'];
@@ -3129,4 +3131,3 @@ try{if(me){renderOnline();renderStories();}}catch(e){}
 </body>
 </body>
 </html>
-}
