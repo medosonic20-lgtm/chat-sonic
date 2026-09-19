@@ -3132,6 +3132,24 @@ try{applyPageBg();}catch(e){}
 try{if(me){renderOnline();renderStories();}}catch(e){}
 })();
 </script>
+<script>
+/* ===== باتش: وقت الرسالة جوه الفقاعة زي تليجرام ===== */
+(function(){
+var _rmcT=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  var html=_rmcT(m);
+  try{
+    if(m&&m.type!=='system'&&m.from!=='نظام'){
+      var t=new Date(m.time||Date.now());
+      var ts=t.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'});
+      html+='<div style="font-size:10px;opacity:.6;text-align:left;margin-top:2px;direction:ltr;user-select:none">'+ts+'</div>';
+    }
+  }catch(e){}
+  return html;
+};
+})();
+</script>
+</body>
 </body>
 </body>
 </body>
