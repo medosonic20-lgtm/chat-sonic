@@ -739,7 +739,7 @@ function isSuper(){return me&&(role(me).indexOf('صاحب')>-1||role(me).indexOf
 function getAvatar(u){if(u&&u.avatar)return'<img src="'+u.avatar+'">';return(u&&u.gender==='أنثى')?'👩':'👨';}
 function getAvatarHTML(u,size){size=size||46;var ava=getAvatar(u);var frame=u&&u.frame?u.frame:null;if(frame&&(isOwnerName(u.name)||(u.role&&(u.role.indexOf('إدارة')>-1||u.role.indexOf('سوبر')>-1)))){return '<div class="ava-frame-wrap" style="width:'+(size+8)+'px;height:'+(size+8)+'px"><div class="u-ava" style="width:'+size+'px;height:'+size+'px">'+ava+'</div><img class="frame-img" src="'+frame+'"></div>';}return '<div class="u-ava" style="width:'+size+'px;height:'+size+'px">'+ava+'</div>';}
 function styleName(u){var name=escapeHtml(getDisplayName(u));if(u&&u.nameGradient){return '<span style="background:'+u.nameGradient+';-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:bold">'+name+'</span>';}if(u&&u.nameColor){return '<span style="color:'+u.nameColor+';font-weight:bold">'+name+'</span>';}return name;}
-function defPrefs(u){var d={allowMedia:true,readReceipts:true,lastSeen:true,msgRequests:true,dark:true,smooth:true,sndOwn:false,sndOther:true,sndNotif:true,friends:[],blocked:[],mediaBlock:{},pinned:[]};for(var k in u){d[k]=u[k];}return d;}
+function defPrefs(u){var d={allowMedia:false,readReceipts:true,lastSeen:true,msgRequests:true,dark:true,smooth:true,sndOwn:true,sndOther:true,sndNotif:true,friends:[],blocked:[],mediaBlock:{},pinned:[]};for(var k in u){d[k]=u[k];}return d;}
 function beep(f){try{var c=new(window.AudioContext||window.webkitAudioContext)();var o=c.createOscillator();var g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=f;g.gain.setValueAtTime(.15,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.4);o.start();o.stop(c.currentTime+.4);}catch(e){}}
 async function updateMe(patch){if(!me)return;for(var k in patch)me[k]=patch[k];await SDB.patchUser(me.name,patch);}
 function timeAgo(ts){var d=new Date(ts),now=new Date(),diff=Math.floor((now-d)/1000);if(diff<60)return'الآن';if(diff<3600)return Math.floor(diff/60)+' د';if(diff<86400)return Math.floor(diff/3600)+' س';return d.toLocaleDateString('ar-EG');}
@@ -2990,9 +2990,9 @@ function _sArr(v){return Array.isArray(v)?v:[];}
 function _ava60(u){if(u&&u.avatar)return'<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover">';return getAvatar(u||{});}
 
 /* ---------- 1) الصورة الافتراضية (سونيك) ---------- */
-window.getAvatar=function(u){if(u&&u.avatar)return'<img src="'+u.avatar+'">';return'<img src="'+SONIC+'" style="width:100%;height:100%;object-fit:cover">';};
+window._defAva=function(u){return (u&&u.gender==='أنثى')?'https://cdn.phototourl.com/free/2026-09-20-11612f11-f096-47b1-aa4d-76830caca2de.jpg':'https://cdn.phototourl.com/free/2026-09-20-9822ccb5-81a0-45e3-a666-f3e1813c5c27.jpg';};window.getAvatar=function(u){if(u&&u.avatar)return'<img src="'+u.avatar+'">';return'<img src="'+_defAva(u)+'" style="width:100%;height:100%;object-fit:cover">';};
 var _oupO=window.openUserProfile;
-window.openUserProfile=function(name){try{_oupO(name);}catch(e){}var u=usersCache[name];if(u&&!u.avatar){var a=el('upAva');if(a){a.style.display='block';a.src=SONIC;}}};
+window.openUserProfile=function(name){try{_oupO(name);}catch(e){}var u=usersCache[name];if(u&&!u.avatar){var a=el('upAva');if(a){a.style.display='block';a.src=_defAva(u);}}};
 
 /* ---------- 2) خلفية الموقع الافتراضية ---------- */
 window.applyPageBg=function(){var bg=LS.getItem('page_bg');var dim=(LS.getItem('page_dim')||40)/100;if(!bg)bg=SONIC;document.body.style.backgroundImage='linear-gradient(rgba(0,0,0,'+dim+'),rgba(0,0,0,'+dim+')),url('+bg+')';document.body.style.backgroundSize='cover';document.body.style.backgroundPosition='center';document.body.style.backgroundAttachment='fixed';};
