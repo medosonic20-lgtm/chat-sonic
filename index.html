@@ -3429,5 +3429,20 @@ window.closeModal=function(id){
 };
 })();
 </script>
+<script>
+/* ===== باتش: زرار الرجوع يرجع خطوة واحدة جوه الموقع ===== */
+(function(){
+var _lastPush=null;
+var _goB=window.go;
+window.go=function(s,navEl,fromBack){
+  var r=_goB(s,navEl,fromBack);
+  try{
+    if(!fromBack&&s&&s!==_lastPush){history.pushState({s:s},'');_lastPush=s;}
+  }catch(e){}
+  return r;
+};
+window.addEventListener('popstate',function(){try{_lastPush=null;}catch(e){}});
+})();
+</script>
 </body>
-</html>
+</html>خ
