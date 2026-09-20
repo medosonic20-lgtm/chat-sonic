@@ -3,7 +3,7 @@
 <head>
 <meta name="google-site-verification" content="xRCOv0fppceVNG36QkJYpPDvYFi5u1aoJFP_23sLjgM" />
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
 <title>شات سونيك - دردشة عربية مجانية | Chat Sonic</title>
 <meta name="description" content="شات سونيك: دردشة عربية مجانية للتحدث مع أصدقاء جدد من مصر والوطن العربي. محادثات خاصة، غرف دردشة، حالات، ألعاب والمزيد - انضم الآن مجاناً!">
 <meta name="keywords" content="شات, دردشة, شات عربي, شات مصري, دردشة مجانية, شات سونيك, chat sonic">
@@ -3444,5 +3444,24 @@ window.go=function(s,navEl,fromBack){
 window.addEventListener('popstate',function(){try{_lastPush=null;}catch(e){}});
 })();
 </script>
+<script>
+/* ===== حل تغطية الكيبورد في التطبيق ===== */
+(function(){
+var vv=window.visualViewport;
+if(!vv)return;
+function _fixKB(){
+  try{
+    document.body.style.height=vv.height+'px';
+    var a=document.activeElement;
+    if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')){
+      setTimeout(function(){try{a.scrollIntoView({block:'center'});}catch(e){}},60);
+    }
+  }catch(e){}
+}
+vv.addEventListener('resize',_fixKB);
+vv.addEventListener('scroll',_fixKB);
+document.addEventListener('focusin',function(){setTimeout(_fixKB,120);setTimeout(_fixKB,400);});
+})();
+</script>
 </body>
-</html>خ
+</html>
