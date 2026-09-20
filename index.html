@@ -3170,10 +3170,264 @@ window.renderMsgContent=function(m){
 };
 })();
 </script>
-</body>
-</body>
-</body>
-</body>
-</body>
+<script>
+/* ============ باتش: تفريغ قايمة الألعاب 🎮 (جاهزة لألعاب جديدة) ============ */
+(function(){
+window.GAMES_LIST=[];
+try{
+  var sm=document.getElementById('oxModal');
+  if(sm)sm.remove();
+}catch(e){}
+try{
+  var gc=document.getElementById('s-games');
+  if(gc){
+    var cards=gc.querySelectorAll('.r-card');
+    for(var i=0;i<cards.length;i++){cards[i].remove();}
+    var boxes=gc.querySelectorAll('div[style*="padding"]');
+    for(var j=0;j<boxes.length;j++){if(boxes[j].querySelector('.r-card')||boxes[j].innerText.indexOf('إكس أو')>-1)boxes[j].remove();}
+  }
+}catch(e){}
+window.openOX=function(){toast('🎮 اللعبة اتشالت - استنى الألعاب الجديدة');};
+window.renderGamesList=function(){
+  var scr=el('s-games');if(!scr)return;
+  var box=el('gamesListBox');
+  if(!box){box=document.createElement('div');box.id='gamesListBox';box.style.cssText='padding:0 10px 10px';scr.appendChild(box);}
+  box.innerHTML='<div class="empty" style="padding:40px 20px"><div class="big">🎮</div><div style="font-size:15px;font-weight:bold;margin-bottom:6px">قايمة الألعاب</div><div>الألعاب الجديدة جاية قريباً... استنى كل حلو 😎</div></div>';
+};
+try{
+  var sl=document.querySelector('#s-settings .menu-list');
+  if(sl&&!el('gamesMenuItem')){
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='gamesMenuItem';
+    mi.innerHTML='<span>🎮 الألعاب</span><span>👈</span>';
+    mi.onclick=function(){go('games',null);};
+    sl.appendChild(mi);
+  }
+}catch(e){}
+try{renderGamesList();}catch(e){}
+})();
+</script>
+<script>
+/* ============ باتش: قايمة الألعاب 🎮 v2 ============ */
+(function(){
+/* ➕ لإضافة لعبة جديدة: انسخ سطر وشكله وغير الاسم والرابط */
+window.GAMES_LIST=[
+ {name:'Bubble Rush 2',desc:'فرقع الفقاعات واجمع النقط',icon:'🫧',color:'#1e90ff',img:'https://cdn.phototourl.com/free/2026-09-20-0bfd88f7-e1de-4d7e-b9a9-68acea02747b.jpg',url:'https://html5.gamedistribution.com/aec6808b88504f39b6523776908c6e14/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
+{name:'تطابق الصور',desc:'طلّع الزوجين المتشابهين قبل ما يخلص الوقت',icon:'🃏',color:'#8e44ad',img:'https://img.gamedistribution.com/9c2d1c162cd34b5b98f654cdd0ffb1bd-512x384.jpg',url:'https://html5.gamedistribution.com/9c2d1c162cd34b5b98f654cdd0ffb1bd/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
+{name:'Knife Hit',desc:'اغرس السكاكين في التفاحة ومتخترقش سكينة',icon:'🔪',color:'#c0392b',img:'https://static.keygames.com/6/112986/92803/672x448/knife-hit.webp',url:'https://html5.gamedistribution.com/10264b8b01ee439aa834a1782baec669/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
+{name:'ترتيب العناصر',desc:'رتّب الألوان والعناصر في الأماكن الصح',icon:'🎯',color:'#16a085',img:'https://play-lh.googleusercontent.com/wxolV0qVcYVhMaptufoXJd7drEvySo5Hgs0vkO1Q1a_79QIORHxnzy0t4eFuOUzFq_0b3RojQPl9-kiX9ifvv1s=w240-h480-rw',url:'https://html5.gamedistribution.com/7037b5a9bd36452ab195486677004120/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
+{name:'انقذ الحيوان',desc:'اسحب الحواجز وانقذ الحيوان من الخطر',icon:'🐾',color:'#e67e22',img:'https://img.gamedistribution.com/f56ea48b72e84a3f8fefc7dee2910e25-512x512.jpg',url:'https://html5.gamedistribution.com/f56ea48b72e84a3f8fefc7dee2910e25/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
+{name:'Candy Jewels',desc:'طابق الحلوى المجوهرات وكسّر الأرقام',icon:'🍬',color:'#e91e63',img:'https://play-lh.googleusercontent.com/T7TBi6ImfbT7dvggMFbj0pAkD0mYGgQf38gRFHWtAqRhPmWHACnVSIHEc1QT36nVR6R_UsLLLCSYqFqcgPs5fg',url:'https://html5.gamedistribution.com/139b8e0290914556898663a6f2311817/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
+{name:'Forest Tile Match',desc:'طابق بلاطات الغابة الرائعة واصنع تطابقات ثلاثية',icon:'🌲',color:'#27ae60',img:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRSHluDiXlK0moBcG4Um3XxhdhThNjbqh5V30gtW9h-YQ&s=10',url:'https://html5.gamedistribution.com/3ef8dda8916d4867b20db49a7e23286d/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'}
+];
+if(!el('gamePlayModal')){
+  var gm=document.createElement('div');
+  gm.id='gamePlayModal';
+  gm.style.cssText='position:fixed;inset:0;background:#000;z-index:1200;display:none;flex-direction:column';
+  gm.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--line)"><button id="gameCloseBtn" style="background:var(--red);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0">✕</button><b id="gamePlayName" style="color:var(--txt);flex:1;font-size:15px"></b><span style="font-size:11px;color:var(--mut)">🎮 العب واستمتع</span></div><div style="flex:1;position:relative;background:#000"><iframe id="gameFrame" style="position:absolute;inset:0;width:100%;height:100%;border:none" allow="fullscreen; autoplay; gamepad" allowfullscreen></iframe></div>';
+  document.body.appendChild(gm);
+}
+window.openGamePlay=function(g){
+  try{
+    el('gamePlayName').innerText=g.name;
+    el('gameFrame').src=g.url;
+    el('gamePlayModal').style.display='flex';
+  }catch(e){}
+};
+try{el('gameCloseBtn').onclick=function(){el('gamePlayModal').style.display='none';el('gameFrame').src='';};}catch(e){}
+window.addEventListener('popstate',function(){try{var m=el('gamePlayModal');if(m&&m.style.display==='flex'){m.style.display='none';el('gameFrame').src='';}}catch(e){}});
+window.renderGamesList=function(){
+  var scr=el('s-games');if(!scr)return;
+  var box=el('gamesListBox');
+  if(!box){box=document.createElement('div');box.id='gamesListBox';box.style.cssText='padding:0 10px 10px';scr.appendChild(box);}
+  var h='';
+  GAMES_LIST.forEach(function(g,idx){
+    var thumb=g.img?'<img src="'+g.img+'" style="width:52px;height:52px;border-radius:10px;object-fit:cover">':'<div style="width:52px;height:52px;border-radius:10px;background:'+g.color+';display:flex;align-items:center;justify-content:center;font-size:26px">'+g.icon+'</div>';
+    h+='<div class="r-card" onclick="openGamePlay(GAMES_LIST['+idx+'])"><div class="r-icon" style="width:56px;height:56px;padding:0;background:transparent;overflow:visible">'+thumb+'</div><div style="flex:1"><div style="font-weight:bold;font-size:15px">'+g.name+'</div><div style="font-size:11px;color:var(--mut)">'+g.desc+' • الألعاب</div></div><span style="color:var(--acc);font-size:18px">▶</span></div>';
+  });
+  box.innerHTML=h;
+};
+try{
+  var sl=document.querySelector('#s-settings .menu-list');
+  if(sl&&!el('gamesMenuItem')){
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='gamesMenuItem';
+    mi.innerHTML='<span>🎮 الألعاب</span><span>👈</span>';
+    mi.onclick=function(){go('games',null);};
+    sl.appendChild(mi);
+  }
+}catch(e){}
+try{renderGamesList();}catch(e){}
+})();
+</script>
+<script>
+/* ===== باتش: رسالة تحت الحالة (زي واتساب) 📝 ===== */
+(function(){
+var _L2=[],_I2=0,_T2=null;
+function _stop2(){if(_T2){clearInterval(_T2);clearTimeout(_T2);_T2=null;}}
+function _arr2(v){return Array.isArray(v)?v:[];}
+function _typing2(){var si=el('storyReplyInput');return !!(si&&document.activeElement===si);}
+function _avaH(u){if(u&&u.avatar)return'<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover">';return getAvatar(u||{});}
+
+/* --- 1) خطوة المعاينة والرسالة بعد اختيار صورة/فيديو --- */
+var _pf=null,_pIsVid=false,_capBuilt=false;
+function _ensureCap(){
+  if(_capBuilt)return;
+  var m=document.createElement('div');m.id='storyCapModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:330px"><h3>✨ حالتك الجديدة</h3><div id="storyCapPrev" style="background:#000;border-radius:12px;min-height:120px;display:flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:8px"></div><textarea id="storyCapText" placeholder="اكتب رسالة تحت الحالة (اختياري)..." style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px;font-size:14px;resize:none;min-height:60px"></textarea><button style="background:var(--grn);color:#fff" onclick="publishCapStory()">✅ نشر الحالة</button><button style="background:transparent;color:var(--red);border:1px solid var(--red)!important" onclick="cancelCapStory()">❌ إلغاء</button></div>';
+  m.onclick=function(e){if(e.target===m)window.cancelCapStory();};
+  document.body.appendChild(m);_capBuilt=true;
+}
+window.cancelCapStory=function(){_pf=null;closeModal('storyCapModal');};
+window.publishCapStory=function(){
+  var f=_pf;if(!f)return;
+  var cap=(el('storyCapText').value||'').trim();
+  var isVid=_pIsVid;
+  _pf=null;closeModal('storyCapModal');
+  toast('⏳ جاري نشر الحالة...');
+  if(isVid){
+    uploadStoryFile(f).then(function(url){
+      if(!url)return toast('فشل الرفع، حاول تاني');
+      _insStory(url,cap,'video');
+    });
+  }else{
+    compressImg(f,function(dataUrl){
+      uploadStoryFile(dataURLtoBlob(dataUrl)).then(function(url){
+        _insStory(url||dataUrl,cap,'image');
+      });
+    });
+  }
+};
+function _insStory(url,cap,stype){
+  var sid='st'+Date.now()+Math.floor(Math.random()*999);
+  var imgVal=cap?(url+'|||'+cap):url;
+  sb.from('stories').insert({id:sid,author:me.name,img:imgVal,stype:stype,stime:Date.now()}).then(function(r){
+    if(r.error)return toast('خطأ: '+r.error.message);
+    toast('تم نشر حالتك ✅');renderStories();
+  });
+}
+try{
+  storyInputEl.onchange=function(e){
+    var f=e.target.files[0];if(!f)return;
+    _pf=f;_pIsVid=(f.type.indexOf('video')===0);
+    _ensureCap();
+    var prev=el('storyCapPrev');
+    el('storyCapText').value='';
+    if(_pIsVid){
+      var v=document.createElement('video');
+      v.preload='metadata';v.muted=true;
+      v.src=URL.createObjectURL(f);
+      v.controls=true;v.style.cssText='max-width:100%;max-height:170px;border-radius:10px';
+      prev.innerHTML='';prev.appendChild(v);
+      v.onloadedmetadata=function(){
+        if(v.duration>60){toast('⚠️ الفيديو أطول من 60 ثانية - اختار أقصر');window.cancelCapStory();return;}
+        openModal('storyCapModal');
+      };
+      v.onerror=function(){toast('⚠️ مشكلة في قراءة الفيديو');window.cancelCapStory();};
+    }else{
+      var im=document.createElement('img');
+      im.src=URL.createObjectURL(f);
+      im.style.cssText='max-width:100%;max-height:170px;border-radius:10px;object-fit:contain';
+      prev.innerHTML='';prev.appendChild(im);
+      openModal('storyCapModal');
+    }
+    e.target.value='';
+  };
+}catch(e){}
+
+/* --- 2) العارض الجديد (يعرض الرسالة تحت الحالة) --- */
+window.openAuthorStories=async function(author,startIdx){
+  var d=await sb.from('stories').select('*').eq('author',author).gt('stime',Date.now()-86400000).order('stime',{ascending:true});
+  if(d.error)return toast('خطأ تحميل الحالة: '+d.error.message);
+  if(!d.data||!d.data.length)return toast('الحالة انتهت');
+  (d.data||[]).forEach(function(s){
+    if(s.stype!=='text'&&s.img&&String(s.img).indexOf('|||')>-1){
+      var p=String(s.img).split('|||');
+      s.img=p[0];s._cap=p.slice(1).join('|||');
+    }else if(s.stype!=='text'){s._cap='';}
+  });
+  _L2=d.data;
+  _I2=(startIdx!==undefined&&startIdx>-1&&startIdx<_L2.length)?startIdx:0;
+  window._showCurStory();
+};
+window.openStoryById=async function(id){
+  var d=await sb.from('stories').select('*').eq('id',id).limit(1);
+  if(d.error)return toast('خطأ: '+d.error.message);
+  if(!d.data||!d.data[0])return toast('انتهت صلاحية هذه الحالة');
+  var s=d.data[0];
+  await window.openAuthorStories(s.author);
+  for(var i=0;i<_L2.length;i++)if(_L2[i].id===id){if(i!==_I2){_I2=i;window._showCurStory();}break;}
+};
+window.viewStory=function(id){window.openStoryById(id);};
+window.nextStory=function(){if(_I2<_L2.length-1){_I2++;window._showCurStory();}else{_stop2();closeModal('storyViewModal');}};
+window.prevStory=function(){if(_I2>0){_I2--;window._showCurStory();}};
+window._showCurStory=async function(){
+  try{
+    _stop2();
+    if(!_L2.length||_I2>=_L2.length){closeModal('storyViewModal');return;}
+    var s=_L2[_I2];
+    if(me&&s.author!==me.name){
+      var views=_arr2(s.views);
+      if(views.indexOf(me.name)===-1){views.push(me.name);s.views=views;sb.from('stories').update({views:views}).eq('id',s.id).then(function(){},function(){});}
+    }
+    var u=usersCache[s.author];
+    var box=el('storyViewBox');
+    var segs='';for(var i=0;i<_L2.length;i++){segs+='<div style="flex:1;height:3px;background:rgba(255,255,255,.3);border-radius:2px;overflow:hidden"><div id="seg'+i+'" style="height:100%;width:'+(i<_I2?'100%':'0%')+';background:#fff"></div></div>';}
+    var au=String(s.author).replace(/'/g,"\\'"),sid=String(s.id);
+    var head='<div style="display:flex;align-items:center;gap:10px;padding:0 12px 8px"><div style="width:40px;height:40px;border-radius:50%;background:var(--card2);overflow:hidden">'+_avaH(u)+'</div><div style="flex:1"><div style="color:#fff;font-weight:bold;font-size:14px">'+escapeHtml(getMsgName(s.author))+'</div><div style="color:rgba(255,255,255,.7);font-size:11px">'+timeAgo(s.stime||Date.now())+' • باقي '+timeLeft(s.stime)+'</div></div>'+((s.author===me.name)?'<button onclick="showStoryViewers(\''+sid+'\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px">👁️</button><button onclick="deleteMyStory(\''+sid+'\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px">🗑️</button>':'')+'<button onclick="closeModal(\'storyViewModal\')" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px">✕</button></div>';
+    var isVid=(s.stype==='video'),isTxt=(s.stype==='text');
+    var mediaHtml;
+    if(isTxt){
+      var pr=String(s.img||'').split('|||');
+      var col=pr[0]||'#0f172a';
+      var txt=escapeHtml(pr.slice(1).join('|||'));
+      mediaHtml='<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:'+col+';padding:24px"><div style="color:#fff;font-size:24px;font-weight:bold;text-align:center;line-height:1.9;word-break:break-word;max-width:95%;white-space:pre-wrap">'+txt+'</div></div>';
+    }else{
+      mediaHtml=isVid?'<video id="storyVideo" src="'+s.img+'" style="max-width:100%;max-height:100%" autoplay playsinline></video>':'<img src="'+s.img+'" style="max-width:100%;max-height:100%;object-fit:contain">';
+    }
+    var capHtml=(s._cap)?'<div style="margin:0 12px 8px;background:rgba(0,0,0,.55);border-radius:12px;padding:10px 14px"><div style="color:#fff;font-size:15px;line-height:1.7;word-break:break-word;white-space:pre-wrap">'+escapeHtml(s._cap)+'</div></div>':'';
+    var replyHtml=(s.author!==me.name)?'<div style="display:flex;gap:8px;padding:10px;background:rgba(0,0,0,.6)"><input id="storyReplyInput" placeholder="اكتب رد على الحالة..." style="flex:1;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:24px;color:var(--txt);font-size:14px;outline:none" onkeydown="if(event.key===\'Enter\')sendStoryReply(\''+au+'\',\''+sid+'\',\''+(s.stype||'image')+'\')"><button onclick="sendStoryReply(\''+au+'\',\''+sid+'\',\''+(s.stype||'image')+'\')" style="background:var(--acc);border:none;color:#fff;width:42px;height:42px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0">➤</button></div>':'<div style="padding:10px;background:rgba(0,0,0,.6);text-align:center;color:var(--mut);font-size:12px">هذه حالتك</div>';
+    box.innerHTML='<div style="display:flex;gap:4px;margin:10px">'+segs+'</div>'+head+'<div style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden"><div onclick="prevStory()" style="position:absolute;top:0;bottom:0;right:0;width:35%;z-index:3"></div><div onclick="nextStory()" style="position:absolute;top:0;bottom:0;left:0;width:65%;z-index:3"></div>'+mediaHtml+'</div>'+capHtml+replyHtml;
+    openModal('storyViewModal');
+    if(isVid){
+      var v=el('storyVideo');if(!v)return;
+      v.muted=false;var pp=v.play();if(pp&&pp.catch)pp.catch(function(){v.muted=true;try{v.play();}catch(_e){}});
+      v.addEventListener('timeupdate',function(){var sg=el('seg'+_I2);if(sg&&v.duration>0)sg.style.width=(v.currentTime/v.duration*100)+'%';});
+      try{var _si=el('storyReplyInput');if(_si){_si.addEventListener('focus',function(){try{v.pause();}catch(e){}});_si.addEventListener('blur',function(){try{if(!v.ended)v.play();}catch(e){}});}}catch(e){}
+      v.addEventListener('ended',window.nextStory);
+      v.addEventListener('error',function(){_stop2();_T2=setTimeout(window.nextStory,3000);});
+    }else{
+      var t0=Date.now();
+      _T2=setInterval(function(){if(_typing2()){t0+=80;return;}var p=Math.min(1,(Date.now()-t0)/6000);var sg=el('seg'+_I2);if(sg)sg.style.width=(p*100)+'%';if(p>=1){_stop2();window.nextStory();}},80);
+    }
+  }catch(e){toast('خطأ عرض الحالة: '+e.message);}
+};
+window.sendStoryReply=function(author,sid,stype){
+  var inp=el('storyReplyInput');var text=inp?(inp.value||'').trim():'';
+  if(!text)return toast('اكتب ردك الأول');
+  if(author===me.name)return;
+  if(isBlockedByOther(author))return toast('⛔ تم حظرك من هذا المستخدم');
+  var thumb='',vtype=stype||'image';
+  for(var i=0;i<_L2.length;i++)if(_L2[i].id===sid){
+    if(_L2[i].stype==='text'){thumb='';vtype='text';}
+    else{thumb=_L2[i].img||'';vtype=_L2[i].stype||vtype;}
+    break;
+  }
+  if(thumb&&thumb.length>80000)thumb='';
+  var convId=[me.name,author].sort().join('_');
+  var m={_id:'m'+Date.now()+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:text,type:'text',time:Date.now(),replyTo:'story:'+sid,edited:false,deleted:false,read:false,reactions:{},meta:{story:sid,thumb:thumb,vtype:vtype}};
+  SDB.addMsg(m).then(function(){
+    SDB.upsertConv(convId,{a:me.name,b:author,t:Date.now(),lastFrom:me.name,lastMsg:'📷 رد على حالة'});
+    toast('تم إرسال ردك ✅');
+    closeModal('storyViewModal');
+  });
+};
+var _cm2=window.closeModal;
+window.closeModal=function(id){
+  if(id==='storyViewModal')_stop2();
+  return _cm2(id);
+};
+})();
+</script>
 </body>
 </html>
