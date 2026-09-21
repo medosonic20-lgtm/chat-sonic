@@ -689,7 +689,7 @@ var SDB={
   async getPassword(name){var d=await sb.from('passwords').select('pass').eq('name',name).limit(1).maybeSingle();return(d&&d.data)?d.data.pass:null;},
   async setPassword(name,pass){await sb.from('passwords').upsert({name:name,pass:pass});},
   async loadUsers(){var d=await sb.from('users').select('*');var m={};(d.data||[]).forEach(function(r){var u=r.data||{};u.name=r.name;u.lastSeen=r.last_seen||u.lastSeen||0;m[r.name]=u;});return m;},
-  async loadMsgs(convId,limit){var d=await sb.from('messages').select('*').eq('conv_id',convId).order('mtime',{ascending:true}).limit(limit||300);return(d.data||[]).map(rowToMsg);},
+  async loadMsgs(convId,limit){var d=await sb.from('messages').select('*').eq('conv_id',convId).order('mtime',{ascending:false}).limit(limit||500);return(d.data||[]).map(rowToMsg).reverse();},
   async addMsg(m){var r=await sb.from('messages').insert(msgToRow(m));if(r.error)console.error(r.error);},
   async updMsg(id,patch){await sb.from('messages').update(patch).eq('id',id);},
   async delConvMsgs(convId){await sb.from('messages').delete().eq('conv_id',convId);},
@@ -2401,7 +2401,7 @@ subMsgs=async function(){
   setTimeout(function(){if(!userScrolledUp)b.scrollTop=b.scrollHeight;},1200);
   setTimeout(function(){if(!userScrolledUp)b.scrollTop=b.scrollHeight;},2500);
 setTimeout(function(){if(!userScrolledUp)b.scrollTop=b.scrollHeight;},4000);
-var _bubs=b.querySelectorAll('.bub');if(_bubs.length&&_bubs[_bubs.length-1].scrollIntoView)_bubs[_bubs.length-1].scrollIntoView({block:'end'});
+var _bubs=b.querySelectorAll('.bub');if(_bubs.length&&_bubs[_bubs.length-1].scrollIntoView)0;
 };
 el('chatBox').addEventListener('load',function(e){if(e.target&&e.target.tagName==='IMG'&&!userScrolledUp){var b=el('chatBox');b.scrollTop=b.scrollHeight;}},true);
 </script>
@@ -3451,7 +3451,7 @@ var vv=window.visualViewport;
 if(!vv)return;
 function _fixKB(){
   try{
-    document.body.style.height=vv.height+'px';
+    var _kbOpen=vv.height<(window.innerHeight*0.8);document.body.style.height=_kbOpen?(vv.height+'px'):'';
     var a=document.activeElement;
     if(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA')){
       setTimeout(function(){try{a.scrollIntoView({block:'center'});}catch(e){}},60);
@@ -3461,6 +3461,332 @@ function _fixKB(){
 vv.addEventListener('resize',_fixKB);
 vv.addEventListener('scroll',_fixKB);
 document.addEventListener('focusin',function(){setTimeout(_fixKB,120);setTimeout(_fixKB,400);});
+})();
+</script>
+<script>
+/* ===== باتش: ترتيب الرسائل + منع اختفاء آخر الرسائل عند فتح الشات ===== */
+(function(){
+var _pend=null;
+function _own(){return me&&window.isOwner&&isOwner();}
+function _domIds(){
+  var b=el('chatBox');if(!b)return[];
+  var out=[],kids=b.querySelectorAll('[data-id]');
+  for(var i=0;i<kids.length;i++)out.push(kids[i].getAttribute('data-id'));
+  return out;
+}
+function _rerender(){
+  try{
+    var b=el('chatBox');if(!b||!chat)return;
+    var seen={},clean=[];
+    msgsCache.forEach(function(m){if(m&&m._id&&!seen[m._id]){seen[m._id]=1;clean.push(m);}});
+    clean.sort(function(a,b){return((a.time||0)-(b.time||0));});
+    msgsCache=clean;
+    b.innerHTML='';
+    msgsCache.forEach(function(m){try{appendMsg(m);}catch(e){}});
+    if(!userScrolledUp)b.scrollTop=b.scrollHeight;
+  }catch(e){}
+}
+function _check(){return;
+  try{
+    if(!chat||chat.type!=='user'||!_own())return;
+    var dom=_domIds(),cach=msgsCache.map(function(m){return m._id;});
+    if(dom.join('|')!==cach.join('|'))_rerender();
+  }catch(e){}
+}
+var _apO=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apO(m);
+  try{
+    if(chat&&chat.type==='user'){
+      clearTimeout(_pend);
+      _pend=setTimeout(_check,450);
+    }
+  }catch(e){}
+  return r;
+};
+})();
+</script>
+<script>
+/* ===== باتش نهائي: سهم النزول لآخر رسالة ⬇️ ===== */
+(function(){
+try{
+  var _btn=document.createElement('div');
+  _btn.id='scrollDownBtn';
+  _btn.innerHTML='⬇️';
+  _btn.style.cssText='position:fixed;bottom:110px;left:18px;width:44px;height:44px;border-radius:50%;background:var(--acc);color:#fff;display:none;align-items:center;justify-content:center;font-size:20px;cursor:pointer;z-index:90;box-shadow:0 3px 12px rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.25)';
+  document.body.appendChild(_btn);
+  var b=el('chatBox');
+  function _chk(){
+    try{
+      var scr=document.querySelector('.screen.active');
+      var show=scr&&scr.id==='s-chat'&&b&&(b.scrollHeight-b.scrollTop-b.clientHeight)>350;
+      _btn.style.display=show?'flex':'none';
+    }catch(e){}
+  }
+  b.addEventListener('scroll',_chk,{passive:true});
+  setInterval(_chk,600);
+  _btn.onclick=function(){
+    try{
+      userScrolledUp=false;
+      b.scrollTop=b.scrollHeight;
+      var k=b.querySelectorAll('.bub');
+      if(k.length&&k[k.length-1].scrollIntoView){try{k[k.length-1].scrollIntoView({behavior:'smooth',block:'end'});}catch(e){}}
+    }catch(e){}
+  };
+}catch(e){}
+})();
+</script>
+<script>
+/* ===== باتش: عند إرسال رسالتك، الشات ينزل معاها فوراً ===== */
+(function(){
+var _apS=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apS(m);
+  try{
+    if(m&&m.from===me.name&&chat){
+      var b=el('chatBox');
+      userScrolledUp=false;
+      b.scrollTop=b.scrollHeight;
+      setTimeout(function(){userScrolledUp=false;b.scrollTop=b.scrollHeight;},80);
+      setTimeout(function(){userScrolledUp=false;b.scrollTop=b.scrollHeight;},350);
+      setTimeout(function(){userScrolledUp=false;b.scrollTop=b.scrollHeight;},800);
+    }
+  }catch(e){}
+  return r;
+};
+})();
+</script>
+<script>
+/* ===== كشف مشكلة رسايل شات ليلي ===== */
+(function(){
+return;var _smD=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smD();
+  try{
+    if(chat&&chat.type==='user'){
+      var st=await sb.from('messages').select('id,mtime,body').eq('conv_id',curConvId()).order('mtime',{ascending:false}).limit(3);
+      var db3=(st.data||[]).map(function(x){return x.id+'@'+new Date(x.mtime).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})+' :: '+String(x.body||'').substring(0,15);}).join('\n');
+      var lastC=msgsCache[msgsCache.length-1];
+      alert('📊 تقرير شاشة العرض:\n'
+      +'\n📂 الشات: '+chat.id
+      +'\n🔢 عدد الرسايل المحمّلة: '+msgsCache.length
+      +'\n🕐 آخر رسالة عالشاشة: '+(lastC?(new Date(lastC.time).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})+' :: '+String(lastC.data||'').substring(0,15)):'مفيش')
+      +'\n\n🗄️ آخر 3 رسايل في الداتابيز:\n'+db3);
+    }
+  }catch(e){alert('خطأ الفحص: '+e.message);}
+  return r;
+};
+})();
+</script>
+<script>
+/* ===== الحل النهائي: نزول بيتابع تحميل الصور (ResizeObserver) ===== */
+(function(){
+return;var _grace=false,_stop=null;
+function _down(){
+  try{
+    if(!_grace)return;
+    var b=el('chatBox');if(!b)return;
+    userScrolledUp=false;
+    b.scrollTop=b.scrollHeight;
+    var k=b.querySelectorAll('.bub');
+    if(k.length&&k[k.length-1].scrollIntoView){try{k[k.length-1].scrollIntoView({block:'end'});}catch(e){}}
+  }catch(e){}
+}
+function _startG(){
+  _grace=true;
+  clearTimeout(_stop);
+  _stop=setTimeout(function(){_grace=false;},6000);
+}
+function _stopG(){_grace=false;}
+try{el('chatBox').addEventListener('touchstart',_stopG,{passive:true});}catch(e){}
+/* أي توسع في الشات (تحميل صور مثلاً) وهو لسه بيتفتح = نزول */
+try{
+  var _b=el('chatBox');
+  if(window.ResizeObserver&&_b){
+    var _ro=new ResizeObserver(function(){_down();});
+    _ro.observe(_b);
+    var _ink=_b.querySelector('.chat-input');if(_ink)_ro.observe(_ink);
+  }
+}catch(e){}
+var _sm=window.subMsgs;
+window.subMsgs=async function(){
+  _startG();
+  var r=await _sm();
+  _startG();
+  return r;
+};
+})();
+</script>
+<script>
+/* ===== الحل النهائي: نزول قسري متكرر 8 ثواني بعد فتح الشات ===== */
+(function(){
+return;var _grace=false,_tmr=null;
+function _down(){
+  try{
+    if(!_grace)return;
+    var b=el('chatBox');if(!b)return;
+    userScrolledUp=false;
+    b.scrollTop=b.scrollHeight;
+  }catch(e){}
+}
+function _start(){
+  _grace=true;
+  if(_tmr)clearInterval(_tmr);
+  _down();
+  _tmr=setInterval(_down,250);
+  setTimeout(function(){_grace=false;if(_tmr)clearInterval(_tmr);},8000);
+}
+function _stopG(){_grace=false;if(_tmr)clearInterval(_tmr);}
+try{el('chatBox').addEventListener('touchmove',_stopG,{passive:true});}catch(e){}
+var _sm=window.subMsgs;
+window.subMsgs=async function(){
+  _start();
+  var r=await _sm();
+  _start();
+  return r;
+};
+})();
+</script>
+<script>
+/* ===== الحارس الذكي: آخر رسالة مثبتة عند الحد بالظبط ===== */
+(function(){
+var _reading=false;
+function _down(){
+  try{
+    var b=el('chatBox');if(!b||!chat||_reading)return;
+    var k=b.querySelectorAll('.bub');
+    if(!k.length)return;
+    var last=k[k.length-1];
+    var r=last.getBoundingClientRect(),c=b.getBoundingClientRect();
+    var d=(r.bottom-c.bottom)+14;
+    if(Math.abs(d)>4)b.scrollTop+=d;
+  }catch(e){}
+}
+try{el('chatBox').addEventListener('scroll',function(){
+  try{
+    var b=el('chatBox');
+    _reading=!((b.scrollHeight-b.scrollTop-b.clientHeight)<80);
+  }catch(e){}
+},{passive:true});}catch(e){}
+try{
+  var _btn=el('scrollDownBtn');
+  if(_btn)_btn.addEventListener('click',function(){_reading=false;setTimeout(_down,80);setTimeout(_down,500);},true);
+}catch(e){}
+try{el('chatBox').addEventListener('load',function(e){if(e.target&&e.target.tagName==='IMG')_down();},true);}catch(e){}
+setInterval(_down,600);
+var _sm=window.subMsgs;
+window.subMsgs=async function(){
+  _reading=false;
+  var r=await _sm();
+  setTimeout(_down,300);setTimeout(_down,1200);setTimeout(_down,3000);
+  return r;
+};
+})();
+</script>
+</body>
+<script>
+/* ===== الحل النهائي: نزول بيتابع تحميل الصور (ResizeObserver) ===== */
+(function(){
+return;var _grace=false,_stop=null;
+function _down(){
+  try{
+    if(!_grace)return;
+    var b=el('chatBox');if(!b)return;
+    userScrolledUp=false;
+    b.scrollTop=b.scrollHeight;
+    var k=b.querySelectorAll('.bub');
+    if(k.length&&k[k.length-1].scrollIntoView){try{k[k.length-1].scrollIntoView({block:'end'});}catch(e){}}
+  }catch(e){}
+}
+function _startG(){
+  _grace=true;
+  clearTimeout(_stop);
+  _stop=setTimeout(function(){_grace=false;},6000);
+}
+function _stopG(){_grace=false;}
+try{el('chatBox').addEventListener('touchstart',_stopG,{passive:true});}catch(e){}
+/* أي توسع في الشات (تحميل صور مثلاً) وهو لسه بيتفتح = نزول */
+try{
+  var _b=el('chatBox');
+  if(window.ResizeObserver&&_b){
+    var _ro=new ResizeObserver(function(){_down();});
+    _ro.observe(_b);
+    var _ink=_b.querySelector('.chat-input');if(_ink)_ro.observe(_ink);
+  }
+}catch(e){}
+var _sm=window.subMsgs;
+window.subMsgs=async function(){
+  _startG();
+  var r=await _sm();
+  _startG();
+  return r;
+};
+})();
+</script>
+<script>
+/* ===== الحل النهائي: نزول قسري متكرر 8 ثواني بعد فتح الشات ===== */
+(function(){
+return;var _grace=false,_tmr=null;
+function _down(){
+  try{
+    if(!_grace)return;
+    var b=el('chatBox');if(!b)return;
+    userScrolledUp=false;
+    b.scrollTop=b.scrollHeight;
+  }catch(e){}
+}
+function _start(){
+  _grace=true;
+  if(_tmr)clearInterval(_tmr);
+  _down();
+  _tmr=setInterval(_down,250);
+  setTimeout(function(){_grace=false;if(_tmr)clearInterval(_tmr);},8000);
+}
+function _stopG(){_grace=false;if(_tmr)clearInterval(_tmr);}
+try{el('chatBox').addEventListener('touchmove',_stopG,{passive:true});}catch(e){}
+var _sm=window.subMsgs;
+window.subMsgs=async function(){
+  _start();
+  var r=await _sm();
+  _start();
+  return r;
+};
+})();
+</script>
+<script>
+/* ===== الحارس الذكي: آخر رسالة مثبتة عند الحد بالظبط ===== */
+(function(){
+var _reading=false;
+function _down(){
+  try{
+    var b=el('chatBox');if(!b||!chat||_reading)return;
+    var k=b.querySelectorAll('.bub');
+    if(!k.length)return;
+    var last=k[k.length-1];
+    var r=last.getBoundingClientRect(),c=b.getBoundingClientRect();
+    var d=(r.bottom-c.bottom)+14;
+    if(Math.abs(d)>4)b.scrollTop+=d;
+  }catch(e){}
+}
+try{el('chatBox').addEventListener('scroll',function(){
+  try{
+    var b=el('chatBox');
+    _reading=!((b.scrollHeight-b.scrollTop-b.clientHeight)<80);
+  }catch(e){}
+},{passive:true});}catch(e){}
+try{
+  var _btn=el('scrollDownBtn');
+  if(_btn)_btn.addEventListener('click',function(){_reading=false;setTimeout(_down,80);setTimeout(_down,500);},true);
+}catch(e){}
+try{el('chatBox').addEventListener('load',function(e){if(e.target&&e.target.tagName==='IMG')_down();},true);}catch(e){}
+setInterval(_down,600);
+var _sm=window.subMsgs;
+window.subMsgs=async function(){
+  _reading=false;
+  var r=await _sm();
+  setTimeout(_down,300);setTimeout(_down,1200);setTimeout(_down,3000);
+  return r;
+};
 })();
 </script>
 </body>
