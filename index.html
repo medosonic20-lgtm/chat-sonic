@@ -17,7 +17,7 @@
 :root{--bg:linear-gradient(135deg,#000000 0%,#0a1628 50%,#050d1a 100%);--card:#1a1a1a;--card2:#141414;--line:#2a394b;--txt:#e7ecf3;--mut:#8b99a7;--acc:#3b82f6;--red:#e64553;--grn:#22c55e;--yel:#ffc107}
 body.light{--bg:#f2f5f9;--card:#ffffff;--card2:#eef2f6;--line:#d7dee6;--txt:#1a2430;--mut:#5c6b7a}
 *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,sans-serif}
-body{background:var(--bg);color:var(--txt);display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;background-attachment:fixed!important}
+body{background:var(--bg);color:var(--txt);display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;background-attachment:scroll!important}
 body.smooth *{transition:background .25s,color .25s}
 .hide{display:none!important}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;justify-content:center;align-items:center;z-index:1000;padding:15px}
@@ -226,7 +226,7 @@ input[type=range]{width:100%}
 <img src="https://cdn.phototourl.com/free/2026-08-20-2a069be3-55a5-4282-8e93-9d370070400b.png" alt="سونيك" style="width:280px;height:280px;object-fit:contain;border-radius:16px;box-shadow:0 0 40px rgba(0,163,255,.6),0 0 80px rgba(255,0,80,.4);animation:sonicPulse 1.2s ease-in-out infinite alternate">
 </div>
 <style>@keyframes sonicPulse{0%{transform:scale(1);filter:drop-shadow(0 0 20px #00a3ff)}100%{transform:scale(1.08);filter:drop-shadow(0 0 35px #ff0050)}}</style>
-<script>setTimeout(function(){var s=document.getElementById('splash-screen');if(s){s.style.opacity='0';s.style.transform='scale(1.1)';setTimeout(function(){s.remove();},600);}},4000);</script>
+<script>setTimeout(function(){var s=document.getElementById('splash-screen');if(s){s.style.opacity='0';s.style.transform='scale(1.1)';setTimeout(function(){s.remove();},600);}},1200);</script>
 
 <div class="overlay hide" id="blockOverlay"><div class="login-card" style="padding:30px;text-align:center">
 <div style="width:70px;height:70px;background:#e64553;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#fff;font-size:40px;font-weight:bold">−</div>
@@ -959,7 +959,7 @@ function subSettingsRT(){
   if(SDB.subs.settings)return;
   SDB.subs.settings=sb.channel('rt-settings')
   .on('postgres_changes',{event:'*',schema:'public',table:'settings',filter:'key=eq.announce'},async function(){
-    await checkAnnounce();
+    setTimeout(function(){try{checkAnnounce();}catch(e){}},2400);
   }).subscribe();
 }
 
@@ -967,19 +967,19 @@ function subSettingsRT(){
 // التحميل والبدء
 // ================================================================
 var _ssDone=false;
-setInterval(function(){if(!me)return;if(!_ssDone){_ssDone=true;sb.channel('rt-stories').on('postgres_changes',{event:'*',schema:'public',table:'stories'},function(){renderStories();}).subscribe();}if(el('s-online')&&el('s-online').classList.contains('active'))renderStories();},5000);
+setInterval(function(){if(!me)return;if(!_ssDone){_ssDone=true;sb.channel('rt-stories').on('postgres_changes',{event:'*',schema:'public',table:'stories'},function(){renderStories();}).subscribe();}if(el('s-online')&&el('s-online').classList.contains('active'))renderStories();},30000);
 async function startAll(){
   try{history.pushState({g:'s'},'');}catch(e){}
   subUsersRT();subConvsRT();subRoomsRT();subSettingsRT();
   await refreshUsers();
   await refreshConvs();
-  await loadSiteSettings();
-  await refreshEmojis();
-  await refreshRooms();
+  setTimeout(function(){try{loadSiteSettings();}catch(e){}},1600);
+  setTimeout(function(){try{refreshRooms();}catch(e){}},2000);
+  setTimeout(function(){try{refreshRooms();}catch(e){}},2000);
   loadStickers();
-  await refreshShortcuts();
-  await checkAnnounce();
-  await refreshWall();
+  setTimeout(function(){try{refreshShortcuts();}catch(e){}},2200);
+  setTimeout(function(){try{checkAnnounce();}catch(e){}},2400);
+  setTimeout(function(){try{refreshWall();}catch(e){}},2600);
 }
 async function refreshUsers(){
   var m=await SDB.loadUsers();
@@ -1594,7 +1594,7 @@ async function publishWallPost(){
   if(!content)return toast('اكتب محتوى المنشور');
   if((type==='image'||type==='youtube')&&!media)return toast('ضع الرابط');
   await SDB.addWall({id:'w'+Date.now(),author:me.name,content:content,type:type,media_url:media||'',likes:[],comments:[],timestamp:Date.now()});
-  await refreshWall();
+  setTimeout(function(){try{refreshWall();}catch(e){}},2600);
   toast('تم النشر ✅');el('wallContent').value='';el('wallMedia').value='';toggleWallForm();
 }
 function renderWall(){
@@ -1634,9 +1634,9 @@ async function sendWallComment(id){
   if(!p.comments)p.comments=[];
   p.comments.push({from:me.name,text:text,timestamp:Date.now()});
   await SDB.updWall(id,{comments:p.comments});
-  await refreshWall();
+  setTimeout(function(){try{refreshWall();}catch(e){}},2600);
 }
-async function deleteWallPost(id){if(!me)return;if(!confirm('حذف المنشور؟'))return;await SDB.delWall(id);await refreshWall();toast('تم الحذف');}
+async function deleteWallPost(id){if(!me)return;if(!confirm('حذف المنشور؟'))return;await SDB.delWall(id);setTimeout(function(){try{refreshWall();}catch(e){}},2600);toast('تم الحذف');}
 
 function openAdmin(){if(!isAdmin())return toast('ممنوع');go('admin',null);document.querySelectorAll('.owner-only').forEach(function(e){e.classList.add('hide');});if(isOwner())document.querySelectorAll('.owner-only').forEach(function(e){e.classList.remove('hide');});}
 function adminTab(tab,e){
@@ -1646,7 +1646,7 @@ function adminTab(tab,e){
   if(tab==='monitor'){if(!isOwner())return toast('لصاحب الموقع فقط');renderMonitor();}if(tab==='nicks'){if(!isOwner())return toast('لصاحب الموقع فقط');renderNicks();}if(tab==='bans')renderQuickBans();
 }
 function renderShortcutsTable(){var html='';for(var i=0;i<scItems.length;i++){var s=scItems[i];html+='<tr><td>'+escapeHtml(s.key)+'</td><td>'+escapeHtml(s.value)+'</td><td><button class="ebtn" onclick="editShortcut('+s.id+')">تعديل</button> <button class="xbtn" onclick="delShortcut('+s.id+')">حذف</button></td></tr>';}el('scTable').innerHTML=html||'<tr><td colspan="3" style="text-align:center;color:var(--mut)">لا توجد اختصارات</td></tr>';}
-async function addShortcut(){var k=el('scKey').value.trim(),v=el('scVal').value.trim();if(!k||!v)return toast('اكتب الرمز والنص');await SDB.addShortcut(k,v);el('scKey').value='';el('scVal').value='';await refreshShortcuts();toast('تم الحفظ');}
+async function addShortcut(){var k=el('scKey').value.trim(),v=el('scVal').value.trim();if(!k||!v)return toast('اكتب الرمز والنص');await SDB.addShortcut(k,v);el('scKey').value='';el('scVal').value='';setTimeout(function(){try{refreshShortcuts();}catch(e){}},2200);toast('تم الحفظ');}
 var editingShortcutId=null;
 function editShortcut(id){
 var item=scItems.find(function(s){return s.id===id;});
@@ -1667,16 +1667,16 @@ editingShortcutId=null;
 el('scKey').value='';el('scVal').value='';
 var btn=document.querySelector('#ap-shortcuts .adm-btn');
 if(btn)btn.innerText='حفظ الاختصار';
-await refreshShortcuts();
+setTimeout(function(){try{refreshShortcuts();}catch(e){}},2200);
 toast('تم التعديل ✅');
 return;
 }
 await SDB.addShortcut(k,v);
 el('scKey').value='';el('scVal').value='';
-await refreshShortcuts();
+setTimeout(function(){try{refreshShortcuts();}catch(e){}},2200);
 toast('تم الحفظ ✅');
 }
-async function delShortcut(id){await SDB.delShortcut(id);await refreshShortcuts();}
+async function delShortcut(id){await SDB.delShortcut(id);setTimeout(function(){try{refreshShortcuts();}catch(e){}},2200);}
 function renderMembers(){
   var q=el('memSearch').value.trim().toLowerCase();
   var html='';
@@ -1738,7 +1738,7 @@ function renderRoomsAdmin(){
   }
   el('adminRoomsList').innerHTML=html||'<div style="text-align:center;color:var(--mut);padding:20px">لا توجد غرف</div>';
 }
-async function deleteRoom(id){if(!isAdmin())return;if(!confirm('حذف الغرفة؟'))return;await SDB.delRoom(id);await refreshRooms();toast('تم الحذف');}
+async function deleteRoom(id){if(!isAdmin())return;if(!confirm('حذف الغرفة؟'))return;await SDB.delRoom(id);setTimeout(function(){try{refreshRooms();}catch(e){}},2000);toast('تم الحذف');}
 function editRoom(id){
   var room=allRooms.find(function(r){return r.id===id;});
   if(!room)return toast('الغرفة غير موجودة');
@@ -1753,14 +1753,14 @@ async function saveEditRoom(){
   logActivity('edit_room',me.name+' عدّل غرفة '+name);
 }
 function renderEmojis(){var html='';for(var i=0;i<customEmojis.length;i++){var e=customEmojis[i];html+='<div class="emoji-item"><img src="'+e.url+'"><button class="del-emoji" onclick="delEmoji('+e.id+')">✕</button></div>';}el('emojiGrid').innerHTML=html;}
-async function addEmoji(){var url=el('emojiUrl').value.trim();if(!url)return toast('اكتب رابط');await SDB.addEmoji(url);el('emojiUrl').value='';await refreshEmojis();loadStickers();toast('تم الإضافة');}
+async function addEmoji(){var url=el('emojiUrl').value.trim();if(!url)return toast('اكتب رابط');await SDB.addEmoji(url);el('emojiUrl').value='';setTimeout(function(){try{refreshRooms();}catch(e){}},2000);loadStickers();toast('تم الإضافة');}
 async function addEmojiFile(){
   var fileInput=document.getElementById('emojiFile');var file=fileInput.files[0];
   if(!file)return toast('اختر ملف');
-  if(file.type==='image/gif'){var reader=new FileReader();reader.onload=async function(e){await SDB.addEmoji(e.target.result);fileInput.value='';await refreshEmojis();loadStickers();toast('تم إضافة الـ GIF');};reader.readAsDataURL(file);}
-  else compressImg(file,async function(dataUrl){await SDB.addEmoji(dataUrl);fileInput.value='';await refreshEmojis();loadStickers();toast('تم الإضافة');});
+  if(file.type==='image/gif'){var reader=new FileReader();reader.onload=async function(e){await SDB.addEmoji(e.target.result);fileInput.value='';setTimeout(function(){try{refreshRooms();}catch(e){}},2000);loadStickers();toast('تم إضافة الـ GIF');};reader.readAsDataURL(file);}
+  else compressImg(file,async function(dataUrl){await SDB.addEmoji(dataUrl);fileInput.value='';setTimeout(function(){try{refreshRooms();}catch(e){}},2000);loadStickers();toast('تم الإضافة');});
 }
-async function delEmoji(id){await SDB.delEmoji(id);await refreshEmojis();loadStickers();}
+async function delEmoji(id){await SDB.delEmoji(id);setTimeout(function(){try{refreshRooms();}catch(e){}},2000);loadStickers();}
 async function renderReports(){
   var reports=await SDB.loadReports();
   var html='';
@@ -2187,7 +2187,7 @@ function forceRepaint(){document.body.style.webkitTransform='translateZ(0)';void
 function setPageBg(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(ev){LS.setItem('page_bg',ev.target.result);applyPageBg();forceRepaint();toast('تم تعيين خلفية الصفحة');};r.readAsDataURL(f);e.target.value='';}
 function clearPageBg(){LS.removeItem('page_bg');applyPageBg();toast('تم إزالة خلفية الصفحة');}
 function setPageDim(v){LS.setItem('page_dim',v);applyPageBg();}
-function applyPageBg(){var bg=LS.getItem('page_bg');var dim=(LS.getItem('page_dim')||40)/100;if(!bg)bg='https://cdn.phototourl.com/free/2026-09-18-fb7fe613-5e96-4c2a-ab72-b4f4cc12f7fb.jpg';document.body.style.backgroundImage='linear-gradient(rgba(0,0,0,'+dim+'),rgba(0,0,0,'+dim+')),url('+bg+')';document.body.style.backgroundSize='cover';document.body.style.backgroundPosition='center';document.body.style.backgroundAttachment='fixed';}
+function applyPageBg(){var bg=LS.getItem('page_bg');var dim=(LS.getItem('page_dim')||40)/100;if(!bg)bg='https://cdn.phototourl.com/free/2026-09-18-fb7fe613-5e96-4c2a-ab72-b4f4cc12f7fb.jpg';document.body.style.backgroundImage='linear-gradient(rgba(0,0,0,'+dim+'),rgba(0,0,0,'+dim+')),url('+bg+')';document.body.style.backgroundSize='cover';document.body.style.backgroundPosition='center';document.body.style.backgroundAttachment='scroll';}
 (function(){var bg=LS.getItem('theme_bg');var acc=LS.getItem('theme_acc');if(bg&&acc)setThemeColor(bg,acc);applyPageBg();})();
 
 fillCountries();
@@ -2995,7 +2995,7 @@ var _oupO=window.openUserProfile;
 window.openUserProfile=function(name){try{_oupO(name);}catch(e){}var u=usersCache[name];if(u&&!u.avatar){var a=el('upAva');if(a){a.style.display='block';a.src=_defAva(u);}}};
 
 /* ---------- 2) خلفية الموقع الافتراضية ---------- */
-window.applyPageBg=function(){var bg=LS.getItem('page_bg');var dim=(LS.getItem('page_dim')||40)/100;if(!bg)bg=SONIC;document.body.style.backgroundImage='linear-gradient(rgba(0,0,0,'+dim+'),rgba(0,0,0,'+dim+')),url('+bg+')';document.body.style.backgroundSize='cover';document.body.style.backgroundPosition='center';document.body.style.backgroundAttachment='fixed';};
+window.applyPageBg=function(){var bg=LS.getItem('page_bg');var dim=(LS.getItem('page_dim')||40)/100;if(!bg)bg=SONIC;document.body.style.backgroundImage='linear-gradient(rgba(0,0,0,'+dim+'),rgba(0,0,0,'+dim+')),url('+bg+')';document.body.style.backgroundSize='cover';document.body.style.backgroundPosition='center';document.body.style.backgroundAttachment='scroll';};
 
 /* ---------- 3) العمر من 16 لـ 100 ---------- */
 window.loginGuest=async function(){var n=el('gName').value.trim();if(!n)return toast('الرجاء كتابة الاسم المستعار');if(!el('gAge').value)return toast('الرجاء كتابة السن');if(!_ageOK(el('gAge').value))return toast('⚠️ العمر لازم يكون من 16 لـ 100');toast('جاري الدخول...');var u=await SDB.getUser(n);if(u&&u.role!=='زائر')return toast('هذا الاسم مسجل عضوية، ادخل من تبويب الأعضاء');if(!u)u=defPrefs({name:n,age:el('gAge').value,gender:el('gGender').value,country:el('gCountry').value,role:'زائر',is_active:true});u.lastSeen=Date.now();await SDB.saveUser(n,u);enter(u);};
@@ -3949,11 +3949,20 @@ window.openUserProfile=function(name){
 /* ===== دعم GIF في الغلاف والصور المتحركة ===== */
 window._ccGif=function(file,cb){
   try{
-    if(file.size>2500000)toast('⚠️ الصورة كبيرة شوية - ممكن تحمّل ببطء');
+    if(file.size>1500000)toast('⚠️ GIF كبير ('+Math.round(file.size/1024/1024)+'MB) — هيحمّل ببطء للكل، يفضل أصغر من 1.5MB');
   }catch(e){}
   if(file.type==='image/gif'){
     var r=new FileReader();
-    r.onload=function(e){cb(e.target.result);};
+    r.onload=function(e){
+      try{
+        var blob=dataURLtoBlob(e.target.result);
+        var fname='cov_'+Date.now()+'_'+Math.floor(Math.random()*9999)+'.gif';
+        sb.storage.from('stories').upload(fname,blob,{cacheControl:'31536000',upsert:false}).then(function(up){
+          if(up.error){cb(e.target.result);return;}
+          cb(sb.storage.from('stories').getPublicUrl(fname).data.publicUrl);
+        });
+      }catch(err){cb(e.target.result);}
+    };
     r.readAsDataURL(file);
     return;
   }
@@ -3972,6 +3981,181 @@ window._ccGif=function(file,cb){
   };
   r2.readAsDataURL(file);
 };
+</script>
+<script>
+/* ===== باتش: الأعضاء يظهروا فوراً من الكاش المحلي ⚡ ===== */
+(function(){
+/* كل تحميل ناجح للأعضاء = نحفظه على الجهاز */
+var _ruO=window.refreshUsers;
+window.refreshUsers=async function(){
+  var r=await _ruO();
+  try{LS.setItem('users_cache',JSON.stringify(usersCache));}catch(e){}
+  return r;
+};
+/* عند الدخول: نعرض الكاش المحفوظ فوراً قبل أي طلب نت */
+var _saO=window.startAll;
+window.startAll=async function(){
+  try{
+    var c=JSON.parse(LS.getItem('users_cache')||'{}');
+    if(me&&c){
+      for(var k in c){if(!usersCache[k])usersCache[k]=c[k];}
+      try{renderOnline();}catch(e){}
+      try{renderStories();}catch(e){}
+    }
+  }catch(e){}
+  return _saO();
+};
+})();
+</script>
+<script>
+/* ===== تحميل ذكي: الأعضاء الأول، والباقي بعدين (من غير ما نلمس الكود الأصلي) ===== */
+(function(){
+return;
+var _saO=window.startAll;
+window.startAll=async function(){
+  try{
+    if(!me)return _saO();
+    /* 1) الأعضاء والشاتات أول شي */
+    try{await refreshUsers();}catch(e){}
+    try{await refreshConvs();}catch(e){}
+    try{renderOnline();}catch(e){}
+    try{loadStickers();}catch(e){}
+    /* 2) الكاش المحلي يظهر فوراً لو فيه */
+    try{
+      var c=JSON.parse(LS.getItem('users_cache')||'{}');
+      for(var k in c){if(!usersCache[k])usersCache[k]=c[k];}
+      renderOnline();renderStories();
+    }catch(e){}
+    /* 3) الباقي بعد ثانية ونص في الهدوء */
+    setTimeout(function(){
+      try{loadSiteSettings();}catch(e){}
+      try{refreshEmojis();}catch(e){}
+      try{refreshRooms();}catch(e){}
+      try{refreshShortcuts();}catch(e){}
+      try{checkAnnounce();}catch(e){}
+      try{refreshWall();}catch(e){}
+    },1500);
+    /* 4) شغّل الباقي من الكود الأصلي من غير الانتظار */
+    try{_saO();}catch(e){}
+  }catch(e){try{return _saO();}catch(e2){}}
+};
+/* حفظ الأعضاء في الكاش بعد كل تحميل */
+var _ruO=window.refreshUsers;
+window.refreshUsers=async function(){
+  var r=await _ruO();
+  try{LS.setItem('users_cache',JSON.stringify(usersCache));}catch(e){}
+  return r;
+};
+})();
+</script>
+<script>
+/* ===== كاش صور الأعضاء: الصور الحقيقية تظهر فوراً ⚡ ===== */
+(function(){
+function _loadAva(){try{return JSON.parse(LS.getItem('ava_cache')||'{}');}catch(e){return{};}}
+function _saveAva(m){try{LS.setItem('ava_cache',JSON.stringify(m));}catch(e){try{var keys=Object.keys(m).slice(-40),small={};keys.forEach(function(k){small[k]=m[k];});LS.setItem('ava_cache',JSON.stringify(small));}catch(e2){}}}
+function _mergeAva(){
+  try{
+    var m=_loadAva();
+    for(var k in m){if(usersCache[k]&&!usersCache[k].avatar&&m[k])usersCache[k].avatar=m[k];else if(usersCache[k]&&m[k]&&!usersCache[k].avatar)usersCache[k].avatar=m[k];}
+    try{renderOnline();}catch(e){}
+    try{renderStories();}catch(e){}
+  }catch(e){}
+}
+var _ruO=window.refreshUsers;
+window.refreshUsers=async function(){
+  var r=await _ruO();
+  try{
+    var m=_loadAva(),dirty=false;
+    for(var k in usersCache){
+      var a=usersCache[k].avatar;
+      if(a&&a.length>100&&m[k]!==a){m[k]=a;dirty=true;}
+    }
+    if(dirty)_saveAva(m);
+  }catch(e){}
+  return r;
+};
+var _saO=window.startAll;
+window.startAll=async function(){
+  try{_mergeAva();}catch(e){}
+  return _saO();
+};
+try{
+  var _saved=LS.getItem('session');
+  if(_saved&&!me){var _w=function(){if(window.me){_mergeAva();}else setTimeout(_w,200);};_w();}
+}catch(e){}
+})();
+</script>
+<script>
+/* ===== ترحيل صور الأعضاء من base64 إلى Storage (تخفيف دائم) ===== */
+(function(){
+function _up(b64){
+  return new Promise(function(res){
+    try{
+      var blob=dataURLtoBlob(b64);
+      var fname='ava_'+Date.now()+'_'+Math.floor(Math.random()*9999)+'.jpg';
+      sb.storage.from('stories').upload(fname,blob,{cacheControl:'31536000',upsert:false}).then(function(r){
+        if(r.error)return res(null);
+        res(sb.storage.from('stories').getPublicUrl(fname).data.publicUrl);
+      });
+    }catch(e){res(null);}
+  });
+}
+async function _migAll(){
+  if(!me||!isOwner())return;
+  var list=[];
+  for(var k in usersCache){
+    var a=usersCache[k].avatar;
+    if(a&&String(a).indexOf('data:')===0)list.push([k,a]);
+  }
+  if(!list.length)return;
+  toast('🔄 بدأ ترحيل صور الأعضاء ('+list.length+' صورة) — سيتم في دقائق، متقفلش الموقع');
+  var done=0;
+  for(var i=0;i<list.length;i++){
+    try{
+      var url=await _up(list[i][1]);
+      if(url){
+        await SDB.patchUser(list[i][0],{avatar:url});
+        if(usersCache[list[i][0]])usersCache[list[i][0]].avatar=url;
+        done++;
+        try{renderOnline();}catch(e){}
+        if(done%5===0)toast('⏳ ترحيل: '+done+'/'+list.length);
+      }
+    }catch(e){}
+    await new Promise(function(r){setTimeout(r,400);});
+  }
+  toast('✅ اكتمل الترحيل! اطلع وادخل تاني هتلاقي الموقع أسرع بكتير');
+}
+/* الصور الجديدة من دلوقتي تترفع Storage على طول (مش base64) */
+var _caO=window.changeAvatar;
+window.changeAvatar=function(e){
+  var f=e.target.files[0];if(!f)return;
+  compressImg(f,async function(d){
+    toast('⏳ جاري رفع الصورة...');
+    var url=await _up(d);
+    if(url){await updateMe({avatar:url});var s=el('setAva');if(s)s.innerHTML='<img src="'+url+'">';toast('تم تغيير الصورة ✅');}
+    else{await updateMe({avatar:d});var s2=el('setAva');if(s2)s2.innerHTML='<img src="'+d+'">';}
+  });
+  e.target.value='';
+};
+try{
+  var _pi=el('profAvaInput');
+  if(_pi)_pi.onchange=function(e){
+    var f=e.target.files[0];if(!f)return;
+    compressImg(f,async function(d){
+      toast('⏳ جاري رفع الصورة...');
+      var url=await _up(d);
+      if(url){await updateMe({avatar:url});toast('تم تغيير الصورة ✅');try{openUserProfile(me.name);}catch(e){}}
+    });
+    e.target.value='';
+  };
+}catch(e){}
+var _saM=window.startAll;
+window.startAll=async function(){
+  var r=await _saM();
+  try{setTimeout(_migAll,3000);}catch(e){}
+  return r;
+};
+})();
 </script>
 </body>
 </html>
