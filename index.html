@@ -3189,80 +3189,110 @@ window.renderMsgContent=function(m){
 <script>
 /* ============ باتش: تفريغ قايمة الألعاب 🎮 (جاهزة لألعاب جديدة) ============ */
 (function(){
-window.GAMES_LIST=[];
-try{
-  var sm=document.getElementById('oxModal');
-  if(sm)sm.remove();
-}catch(e){}
-try{
-  var gc=document.getElementById('s-games');
-  if(gc){
-    var cards=gc.querySelectorAll('.r-card');
-    for(var i=0;i<cards.length;i++){cards[i].remove();}
-    var boxes=gc.querySelectorAll('div[style*="padding"]');
-    for(var j=0;j<boxes.length;j++){if(boxes[j].querySelector('.r-card')||boxes[j].innerText.indexOf('إكس أو')>-1)boxes[j].remove();}
-  }
-}catch(e){}
-window.openOX=function(){toast('🎮 اللعبة اتشالت - استنى الألعاب الجديدة');};
-window.renderGamesList=function(){
-  var scr=el('s-games');if(!scr)return;
-  var box=el('gamesListBox');
-  if(!box){box=document.createElement('div');box.id='gamesListBox';box.style.cssText='padding:0 10px 10px';scr.appendChild(box);}
-  box.innerHTML='<div class="empty" style="padding:40px 20px"><div class="big">🎮</div><div style="font-size:15px;font-weight:bold;margin-bottom:6px">قايمة الألعاب</div><div>الألعاب الجديدة جاية قريباً... استنى كل حلو 😎</div></div>';
-};
-try{
-  var sl=document.querySelector('#s-settings .menu-list');
-  if(sl&&!el('gamesMenuItem')){
-    var mi=document.createElement('div');
-    mi.className='m-item';mi.id='gamesMenuItem';
-    mi.innerHTML='<span>🎮 الألعاب</span><span>👈</span>';
-    mi.onclick=function(){go('games',null);};
-    sl.appendChild(mi);
-  }
-}catch(e){}
-try{renderGamesList();}catch(e){}
-})();
-</script>
-<script>
-/* ============ باتش: قايمة الألعاب 🎮 v2 ============ */
-(function(){
-/* ➕ لإضافة لعبة جديدة: انسخ سطر وشكله وغير الاسم والرابط */
 window.GAMES_LIST=[
- {name:'Bubble Rush 2',desc:'فرقع الفقاعات واجمع النقط',icon:'🫧',color:'#1e90ff',img:'https://cdn.phototourl.com/free/2026-09-20-0bfd88f7-e1de-4d7e-b9a9-68acea02747b.jpg',url:'https://html5.gamedistribution.com/aec6808b88504f39b6523776908c6e14/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'تطابق الصور',desc:'طلّع الزوجين المتشابهين قبل ما يخلص الوقت',icon:'🃏',color:'#8e44ad',img:'https://img.gamedistribution.com/9c2d1c162cd34b5b98f654cdd0ffb1bd-512x384.jpg',url:'https://html5.gamedistribution.com/9c2d1c162cd34b5b98f654cdd0ffb1bd/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'Knife Hit',desc:'اغرس السكاكين في التفاحة ومتخترقش سكينة',icon:'🔪',color:'#c0392b',img:'https://static.keygames.com/6/112986/92803/672x448/knife-hit.webp',url:'https://html5.gamedistribution.com/10264b8b01ee439aa834a1782baec669/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'ترتيب العناصر',desc:'رتّب الألوان والعناصر في الأماكن الصح',icon:'🎯',color:'#16a085',img:'https://play-lh.googleusercontent.com/wxolV0qVcYVhMaptufoXJd7drEvySo5Hgs0vkO1Q1a_79QIORHxnzy0t4eFuOUzFq_0b3RojQPl9-kiX9ifvv1s=w240-h480-rw',url:'https://html5.gamedistribution.com/7037b5a9bd36452ab195486677004120/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'انقذ الحيوان',desc:'اسحب الحواجز وانقذ الحيوان من الخطر',icon:'🐾',color:'#e67e22',img:'https://img.gamedistribution.com/f56ea48b72e84a3f8fefc7dee2910e25-512x512.jpg',url:'https://html5.gamedistribution.com/f56ea48b72e84a3f8fefc7dee2910e25/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'Candy Jewels',desc:'طابق الحلوى المجوهرات وكسّر الأرقام',icon:'🍬',color:'#e91e63',img:'https://play-lh.googleusercontent.com/T7TBi6ImfbT7dvggMFbj0pAkD0mYGgQf38gRFHWtAqRhPmWHACnVSIHEc1QT36nVR6R_UsLLLCSYqFqcgPs5fg',url:'https://html5.gamedistribution.com/139b8e0290914556898663a6f2311817/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'Forest Tile Match',desc:'طابق بلاطات الغابة الرائعة واصنع تطابقات ثلاثية',icon:'🌲',color:'#27ae60',img:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRSHluDiXlK0moBcG4Um3XxhdhThNjbqh5V30gtW9h-YQ&s=10',url:'https://html5.gamedistribution.com/3ef8dda8916d4867b20db49a7e23286d/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'}
+  {name:'Bubble Rush 2',desc:'فرقع الفقاعات واجمع النقط',icon:'🫧',color:'#1e90ff',img:'https://cdn.phototourl.com/free/2026-09-20-0bfd88f7-e1de-4d7e-b9a9-68acea02747b.jpg',id:'aec6808b88504f39b6523776908c6e14'},
+  {name:'تطابق الصور',desc:'طلّع الزوجين المتشابهين قبل ما يخلص الوقت',icon:'🃏',color:'#8e44ad',img:'https://img.gamedistribution.com/9c2d1c162cd34b5b98f654cdd0ffb1bd-512x384.jpg',id:'9c2d1c162cd34b5b98f654cdd0ffb1bd'},
+  {name:'Knife Hit',desc:'اغرس السكاكين في التفاحة ومتخترقش سكينة',icon:'🔪',color:'#c0392b',img:'https://static.keygames.com/6/112986/92803/672x448/knife-hit.webp',id:'10264b8b01ee439aa834a1782baec669'},
+  {name:'ترتيب العناصر',desc:'رتّب الألوان والعناصر في الأماكن الصح',icon:'🎯',color:'#16a085',img:'https://play-lh.googleusercontent.com/wxolV0qVcYVhMaptufoXJd7drEvySo5Hgs0vkO1Q1a_79QIORHxnzy0t4eFuOUzFq_0b3RojQPl9-kiX9ifvv1s=w240-h480-rw',id:'7037b5a9bd36452ab195486677004120'},
+  {name:'انقذ الحيوان',desc:'اسحب الحواجز وانقذ الحيوان من الخطر',icon:'🐾',color:'#e67e22',img:'https://img.gamedistribution.com/f56ea48b72e84a3f8fefc7dee2910e25-512x512.jpg',id:'f56ea48b72e84a3f8fefc7dee2910e25'},
+  {name:'Candy Jewels',desc:'طابق الحلوى المجوهرات وكسّر الأرقام',icon:'🍬',color:'#e91e63',img:'https://play-lh.googleusercontent.com/T7TBi6ImfbT7dvggMFbj0pAkD0mYGgQf38gRFHWtAqRhPmWHACnVSIHEc1QT36nVR6R_UsLLLCSYqFqcgPs5fg',id:'139b8e0290914556898663a6f2311817'},
+  {name:'Forest Tile Match',desc:'طابق بلاطات الغابة الرائعة واصنع تطابقات ثلاثية',icon:'🌲',color:'#27ae60',img:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRSHluDiXlK0moBcG4Um3XxhdhThNjbqh5V30gtW9h-YQ&s=10',id:'3ef8dda8916d4867b20db49a7e23286d'}
 ];
+
+function _gameUrl(id){
+  // نستخدم الدومين الحالي عشان GameDistribution يقبل اللعبة جوه الصفحة
+  var ref = '';
+  try {
+    ref = location.origin + location.pathname;
+    // لو الملف محلي أو داخل تطبيق (Median/WebView) نستخدم الدومين الرسمي
+    if (!ref || ref.indexOf('file:') === 0 || ref.indexOf('android') > -1 || ref.indexOf('median') > -1 || ref.length < 12) {
+      ref = 'https://medosonic20-lgtm.github.io/chat-sonic/';
+    }
+  } catch(e) {
+    ref = 'https://medosonic20-lgtm.github.io/chat-sonic/';
+  }
+  return 'https://html5.gamedistribution.com/' + id + '/?gd_sdk_referrer_url=' + encodeURIComponent(ref);
+}
+
 if(!el('gamePlayModal')){
   var gm=document.createElement('div');
   gm.id='gamePlayModal';
   gm.style.cssText='position:fixed;inset:0;background:#000;z-index:1200;display:none;flex-direction:column';
-  gm.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--line)"><button id="gameCloseBtn" style="background:var(--red);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0">✕</button><b id="gamePlayName" style="color:var(--txt);flex:1;font-size:15px"></b><span style="font-size:11px;color:var(--mut)">🎮 العب واستمتع</span></div><div style="flex:1;position:relative;background:#000"><iframe id="gameFrame" style="position:absolute;inset:0;width:100%;height:100%;border:none" allow="fullscreen; autoplay; gamepad" allowfullscreen></iframe></div>';
+  gm.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--line)">'
+    + '<button id="gameCloseBtn" style="background:var(--red);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0">✕</button>'
+    + '<b id="gamePlayName" style="color:var(--txt);flex:1;font-size:15px"></b>'
+    + '<button id="gameExtBtn" style="background:var(--acc);border:none;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;flex-shrink:0">فتح خارجي ↗</button>'
+    + '</div>'
+    + '<div style="flex:1;position:relative;background:#000">'
+    + '<iframe id="gameFrame" style="position:absolute;inset:0;width:100%;height:100%;border:none" '
+    + 'allow="fullscreen; autoplay; gamepad; accelerometer; gyroscope; clipboard-write" '
+    + 'allowfullscreen referrerpolicy="origin" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-pointer-lock allow-popups-to-escape-sandbox"></iframe>'
+    + '</div>';
   document.body.appendChild(gm);
 }
+
 window.openGamePlay=function(g){
   try{
-    el('gamePlayName').innerText=g.name;
-    el('gameFrame').src=g.url;
-    el('gamePlayModal').style.display='flex';
+    el('gamePlayName').innerText = g.name;
+    var url = g.id ? _gameUrl(g.id) : g.url;
+    var frame = el('gameFrame');
+    frame.src = 'about:blank';
+    setTimeout(function(){
+      frame.src = url;
+    }, 50);
+    el('gamePlayModal').style.display = 'flex';
+
+    // زر فتح خارجي كاحتياطي لو اللعبة اتقفلت جوه
+    var extBtn = el('gameExtBtn');
+    if (extBtn) {
+      extBtn.onclick = function(){
+        window.open(url, '_blank');
+      };
+    }
+  }catch(e){ console.error(e); }
+};
+
+try{
+  el('gameCloseBtn').onclick = function(){
+    el('gamePlayModal').style.display = 'none';
+    el('gameFrame').src = 'about:blank';
+  };
+}catch(e){}
+
+window.addEventListener('popstate', function(){
+  try{
+    var m = el('gamePlayModal');
+    if (m && m.style.display === 'flex') {
+      m.style.display = 'none';
+      el('gameFrame').src = 'about:blank';
+    }
   }catch(e){}
-};
-try{el('gameCloseBtn').onclick=function(){el('gamePlayModal').style.display='none';el('gameFrame').src='';};}catch(e){}
-window.addEventListener('popstate',function(){try{var m=el('gamePlayModal');if(m&&m.style.display==='flex'){m.style.display='none';el('gameFrame').src='';}}catch(e){}});
+});
+
 window.renderGamesList=function(){
-  var scr=el('s-games');if(!scr)return;
-  var box=el('gamesListBox');
-  if(!box){box=document.createElement('div');box.id='gamesListBox';box.style.cssText='padding:0 10px 10px';scr.appendChild(box);}
-  var h='';
-  GAMES_LIST.forEach(function(g,idx){
-    var thumb=g.img?'<img src="'+g.img+'" style="width:52px;height:52px;border-radius:10px;object-fit:cover">':'<div style="width:52px;height:52px;border-radius:10px;background:'+g.color+';display:flex;align-items:center;justify-content:center;font-size:26px">'+g.icon+'</div>';
-    h+='<div class="r-card" onclick="openGamePlay(GAMES_LIST['+idx+'])"><div class="r-icon" style="width:56px;height:56px;padding:0;background:transparent;overflow:visible">'+thumb+'</div><div style="flex:1"><div style="font-weight:bold;font-size:15px">'+g.name+'</div><div style="font-size:11px;color:var(--mut)">'+g.desc+' • الألعاب</div></div><span style="color:var(--acc);font-size:18px">▶</span></div>';
+  var scr = el('s-games');
+  if (!scr) return;
+  var box = el('gamesListBox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'gamesListBox';
+    box.style.cssText = 'padding:0 10px 10px';
+    scr.appendChild(box);
+  }
+  var h = '';
+  GAMES_LIST.forEach(function(g, idx){
+    var thumb = g.img
+      ? '<img src="'+g.img+'" style="width:52px;height:52px;border-radius:10px;object-fit:cover">'
+      : '<div style="width:52px;height:52px;border-radius:10px;background:'+g.color+';display:flex;align-items:center;justify-content:center;font-size:26px">'+g.icon+'</div>';
+    h += '<div class="r-card" onclick="openGamePlay(GAMES_LIST['+idx+'])">'
+      + '<div class="r-icon" style="width:56px;height:56px;padding:0;background:transparent;overflow:visible">'+thumb+'</div>'
+      + '<div style="flex:1"><div style="font-weight:bold;font-size:15px">'+g.name+'</div>'
+      + '<div style="font-size:11px;color:var(--mut)">'+g.desc+' • الألعاب</div></div>'
+      + '<span style="color:var(--acc);font-size:18px">▶</span></div>';
   });
-  box.innerHTML=h;
+  box.innerHTML = h;
 };
+
 try{
   var sl=document.querySelector('#s-settings .menu-list');
   if(sl&&!el('gamesMenuItem')){
@@ -4480,99 +4510,21 @@ window.startAll=async function(){
 })();
 </script>
 <script>
-/* ===== باتش: تكبير صورة البروفايل + صورة الحالة تفتح خاص 💬 ===== */
+/* ===== إخفاء لعبة إكس-أو من قايمة الألعاب ===== */
 (function(){
-/* 1) في البروفايل: الضغط على الصورة نفسها = تكبير (والإطار = الحالة زي ما هو) */
-var _ouP=window.openUserProfile;
-window.openUserProfile=function(name){
-  var r=_ouP(name);
+function _rm(){
   try{
-    var av=el('upAva');
-    if(av){av.style.cursor='pointer';av.title='اضغط لتكبير الصورة';av.onclick=function(e){e.stopPropagation();if(av.src)viewFullImage(av.src);};}
-  }catch(e){}
-  return r;
-};
-/* 2) في عارض الحالة: الضغط على صورة صاحب الحالة = فتح خاص معاه */
-var _csa='';
-var _oAS=window.openAuthorStories;
-window.openAuthorStories=async function(author,startIdx){_csa=author;return _oAS(author,startIdx);};
-var _sShow=window._showCurStory;
-window._showCurStory=async function(){
-  var r=await _sShow();
-  try{
-    var box=el('storyViewBox');if(!box)return r;
-    var av=box.querySelector('img');
-    if(av&&_csa){
-      av.style.cursor='pointer';
-      av.title='اضغط للدخول في خاص';
-      av.onclick=function(e){
-        e.stopPropagation();
-        if(_csa!==me.name){closeModal('storyViewModal');openUser(_csa);}
-        else{closeModal('storyViewModal');openUserProfile(me.name);}
-      };
+    var gc=el('s-games');if(!gc)return;
+    var cards=gc.querySelectorAll('.r-card');
+    for(var i=0;i<cards.length;i++){
+      if((cards[i].innerText||'').indexOf('لعبة إكس أو')>-1||(cards[i].innerText||'').indexOf('(OX)')>-1){cards[i].remove();}
     }
   }catch(e){}
-  return r;
-};
-})();
-</script>
-<script>
-/* ===== باتش: زوم بإصبعين على الصور المكبرة 🔍 ===== */
-(function(){
-var img=el('fullImageView');
-if(!img)return;
-img.style.touchAction='none';
-var st={scale:1,x:0,y:0,dist:0,sx:0,sy:0};
-function apply(){
-  img.style.transformOrigin='0 0';
-  img.style.transform='translate('+st.x+'px,'+st.y+'px) scale('+st.scale+')';
 }
-function reset(){st.scale=1;st.x=0;st.y=0;apply();}
-img.addEventListener('touchstart',function(e){
-  if(e.touches.length===2){
-    var dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;
-    st.dist=Math.sqrt(dx*dx+dy*dy);
-  }else if(e.touches.length===1&&st.scale>1){
-    st.sx=e.touches[0].clientX-st.x;st.sy=e.touches[0].clientY-st.y;
-  }
-},{passive:true});
-img.addEventListener('touchmove',function(e){
-  e.preventDefault();
-  if(e.touches.length===2){
-    var dx=e.touches[0].clientX-e.touches[1].clientX,dy=e.touches[0].clientY-e.touches[1].clientY;
-    var d=Math.sqrt(dx*dx+dy*dy);
-    if(st.dist>0){st.scale=Math.min(5,Math.max(1,st.scale*(d/st.dist)));apply();}
-    st.dist=d;
-  }else if(e.touches.length===1&&st.scale>1){
-    st.x=e.touches[0].clientX-st.sx;st.y=e.touches[0].clientY-st.sy;apply();
-  }
-},{passive:false});
-img.addEventListener('touchend',function(e){
-  if(e.touches.length===0){
-    st.dist=0;
-    if(st.scale<=1.05){st.scale=1;st.x=0;st.y=0;apply();}
-  }
-});
-/* دبل تاب: كبّر 2.5x على النقطة اللي ضغطت عليها / أو رجّع طبيعي */
-var _lt=0;
-img.addEventListener('touchend',function(e){
-  var now=Date.now();
-  if(now-_lt<350){
-    if(st.scale>1){reset();}
-    else{
-      st.scale=2.5;
-      var r=img.getBoundingClientRect();
-      st.x=(r.width/2-(e.changedTouches[0].clientX-r.left))*1.5;
-      st.y=(r.height/2-(e.changedTouches[0].clientY-r.top))*1.5;
-      apply();
-    }
-  }
-  _lt=now;
-});
-/* أول ما تفتح أي صورة جديدة = ترجع طبيعية */
-var _vfO=window.viewFullImage;
-window.viewFullImage=function(src){reset();return _vfO(src);};
+try{_rm();}catch(e){}
+try{var _rgO=window.renderGamesList;window.renderGamesList=function(){var r=_rgO();setTimeout(_rm,50);return r;};}catch(e){}
 })();
 </script>
+</body>
 </body>
 </html>
