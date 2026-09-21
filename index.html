@@ -4175,45 +4175,122 @@ window.startAll=async function(){
 
 
 <script>
-/* ===== غلاف البروفايل النظيف (نهائي) ===== */
+/* ===== غلاف البروفايل النظيف (نهائي + شريط تقدم + تحديث فوري) ===== */
 (function(){
   var DEFAULT_COVER = "https://cdn.phototourl.com/free/2026-09-21-ff7757de-fa66-4483-b351-18ae058ba66f.jpg";
 
-  // 1) عنصر اختيار صورة الغلاف
-  if (!el('coverPickInput')) {
-    var inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = 'image/*,.gif';
-    inp.style.display = 'none';
-    inp.id = 'coverPickInput';
-    inp.onchange = function(e) {
-      var f = e.target.files[0];
-      if (!f) return;
-      toast('⏳ جاري تحديث الغلاف...');
-      if (window._ccGif) {
-        window._ccGif(f, async function(d) {
-          var url = d;
-          if (String(d).indexOf('data:') === 0) {
-            url = await uploadMedia(d, f.type === 'image/gif' ? '.gif' : '.jpg');
-          }
-          await updateMe({ cover: url || d });
-          toast('تم تغيير الغلاف ✅');
-          _refreshCover();
-        });
+  // رفع مع شريط تقدم
+  async function uploadCoverWithProgress(dataOrFile, ext) {
+    try {
+      if (typeof showUpBar === 'function') showUpBar(true);
+      if (typeof setUpBar === 'function') setUpBar(5);
+
+      var blob;
+      if (typeof dataOrFile === 'string' && dataOrFile.indexOf('data:') === 0) {
+        blob = dataURLtoBlob(dataOrFile);
+      } else if (dataOrFile instanceof Blob || dataOrFile instanceof File) {
+        blob = dataOrFile;
       } else {
-        compressImg(f, async function(d) {
-          var url = await uploadMedia(d, '.jpg');
-          await updateMe({ cover: url || d });
-          toast('تم تغيير الغلاف ✅');
-          _refreshCover();
-        }, 900);
+        blob = dataOrFile;
       }
-      e.target.value = '';
-    };
-    document.body.appendChild(inp);
+
+      var fname = 'cov_' + Date.now() + '_' + Math.floor(Math.random()*9999) + (ext || '.jpg');
+      var fake = 8;
+      var timer = setInterval(function(){
+        fake = Math.min(fake + Math.random()*11, 88);
+        if (typeof setUpBar === 'function') setUpBar(Math.floor(fake));
+      }, 180);
+
+      var r = await sb.storage.from('stories').upload(fname, blob, { cacheControl: '31536000', upsert: false });
+      clearInterval(timer);
+
+      if (r.error) {
+        console.error(r.error);
+        if (typeof showUpBar === 'function') showUpBar(false);
+        return null;
+      }
+
+      if (typeof setUpBar === 'function') setUpBar(100);
+      setTimeout(function(){ if (typeof showUpBar === 'function') showUpBar(false); }, 350);
+
+      var pub = sb.storage.from('stories').getPublicUrl(fname);
+      return pub.data.publicUrl;
+    } catch(e) {
+      console.error(e);
+      if (typeof showUpBar === 'function') showUpBar(false);
+      return null;
+    }
   }
 
-  // 2) عنصر اختيار صورة الأفاتار (لو مش موجود)
+  // تحديث الغلاف فوراً في الواجهة بدون ريفرش
+  function applyCoverNow(url) {
+    try {
+      var c = el('upCover');
+      if (c) {
+        c.src = url || DEFAULT_COVER;
+        c.onclick = function(){ viewFullImage(c.src); };
+      }
+      // تحديث الكاش المحلي
+      if (me && usersCache[me.name]) {
+        usersCache[me.name].cover = url || null;
+        me.cover = url || null;
+      }
+    } catch(e) {}
+  }
+
+  // 1) عنصر اختيار صورة الغلاف
+  var oldInp = el('coverPickInput');
+  if (oldInp) oldInp.remove();
+
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*,.gif';
+  inp.style.display = 'none';
+  inp.id = 'coverPickInput';
+  inp.onchange = function(e) {
+    var f = e.target.files[0];
+    if (!f) return;
+    toast('⏳ جاري رفع الغلاف...');
+
+    var isGif = f.type === 'image/gif';
+
+    if (isGif) {
+      // GIF: ارفع الملف مباشرة مع شريط التقدم
+      uploadCoverWithProgress(f, '.gif').then(async function(url) {
+        if (!url) {
+          // fallback
+          var reader = new FileReader();
+          reader.onload = async function(ev) {
+            await updateMe({ cover: ev.target.result });
+            applyCoverNow(ev.target.result);
+            toast('تم تغيير الغلاف ✅');
+            closeModal('coverMenuModal');
+          };
+          reader.readAsDataURL(f);
+          return;
+        }
+        await updateMe({ cover: url });
+        applyCoverNow(url);
+        toast('تم تغيير الغلاف ✅');
+        closeModal('coverMenuModal');
+      });
+    } else {
+      // صورة عادية: ضغط ثم رفع مع شريط
+      compressImg(f, function(dataUrl) {
+        uploadCoverWithProgress(dataUrl, '.jpg').then(async function(url) {
+          var finalUrl = url || dataUrl;
+          await updateMe({ cover: finalUrl });
+          applyCoverNow(finalUrl);
+          toast('تم تغيير الغلاف ✅');
+          closeModal('coverMenuModal');
+        });
+      }, 900);
+    }
+    e.target.value = '';
+  };
+  document.body.appendChild(inp);
+
+  // 2) عنصر اختيار الأفاتار
   if (!el('profAvaInput')) {
     var ai = document.createElement('input');
     ai.type = 'file';
@@ -4225,7 +4302,7 @@ window.startAll=async function(){
       if (!f) return;
       toast('⏳ جاري تحديث الصورة...');
       compressImg(f, async function(d) {
-        var url = await uploadMedia(d, '.jpg');
+        var url = await (window.uploadMedia ? uploadMedia(d, '.jpg') : null);
         await updateMe({ avatar: url || d });
         toast('تم تغيير الصورة ✅');
         try { openUserProfile(me.name); } catch(e) {}
@@ -4236,16 +4313,21 @@ window.startAll=async function(){
     document.body.appendChild(ai);
   }
 
-  // 3) قائمة الإعدادات: تغيير / إزالة الغلاف
+  // 3) قائمة الإعدادات
   try {
+    var existing = el('coverMenuItem');
+    if (existing) existing.remove();
+    var existingModal = el('coverMenuModal');
+    if (existingModal) existingModal.remove();
+
     var lists = document.querySelectorAll('#s-settings .menu-list');
     var tgt = lists[lists.length - 1];
-    if (tgt && !el('coverMenuItem')) {
+    if (tgt) {
       var mi = document.createElement('div');
       mi.className = 'm-item';
       mi.id = 'coverMenuItem';
       mi.innerHTML = '<span>🖼️ غلاف البروفايل</span><span>👈</span>';
-      mi.onclick = function() { openModal('coverMenuModal'); };
+      mi.onclick = function(){ openModal('coverMenuModal'); };
       tgt.insertBefore(mi, tgt.firstChild);
 
       var md = document.createElement('div');
@@ -4254,34 +4336,29 @@ window.startAll=async function(){
       md.innerHTML = '<div class="m-card2" style="width:300px">'
         + '<h3>🖼️ غلاف البروفايل</h3>'
         + '<button style="background:var(--acc);color:#fff" onclick="closeModal(\'coverMenuModal\');el(\'coverPickInput\').click()">📷 اختيار / تغيير الغلاف</button>'
-        + '<button style="background:#7a8694;color:#fff" onclick="rmCover()">🗑️ إزالة الغلاف</button>'
+        + '<button style="background:#7a8694;color:#fff" onclick="rmCover()">🗑️ إزالة الغلاف (رجوع للافتراضي)</button>'
         + '<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'coverMenuModal\')">إغلاق</button>'
         + '</div>';
       document.body.appendChild(md);
     }
   } catch(e) {}
 
-  window.rmCover = function() {
-    updateMe({ cover: null }).then(function() {
-      toast('تم إزالة الغلاف');
+  // 4) إزالة الغلاف → يرجع للصورة الافتراضية فوراً
+  window.rmCover = async function() {
+    try {
+      await updateMe({ cover: null });
+      if (me) me.cover = null;
+      if (usersCache[me.name]) usersCache[me.name].cover = null;
+
+      applyCoverNow(DEFAULT_COVER);   // يرجع للافتراضي فوراً
+      toast('تم إزالة الغلاف — رجع للصورة الافتراضية');
       closeModal('coverMenuModal');
-      _refreshCover();
-    });
+    } catch(e) {
+      toast('خطأ في إزالة الغلاف');
+    }
   };
 
-  function _refreshCover() {
-    try {
-      if (el('userProfileModal') && el('userProfileModal').classList.contains('open') && window._profName) {
-        openUserProfile(window._profName);
-      }
-      if (me) {
-        try { updateProfile(); } catch(e) {}
-        try { renderOnline(); } catch(e) {}
-      }
-    } catch(e) {}
-  }
-
-  // 4) إعادة بناء نافذة البروفايل مع غلاف + كاميرا
+  // 5) إعادة بناء نافذة البروفايل
   var m = el('userProfileModal');
   if (!m) return;
 
@@ -4329,12 +4406,12 @@ window.startAll=async function(){
           ? '<span style="color:var(--grn)">● نشط الآن</span>'
           : '<span style="color:var(--mut)">● غير متصل</span>');
 
-      // الغلاف
-      var covSrc = u.cover || DEFAULT_COVER;
+      // الغلاف (افتراضي لو مفيش)
+      var covSrc = (u.cover && u.cover.length > 5) ? u.cover : DEFAULT_COVER;
       var c = el('upCover');
       if (c) {
         c.src = covSrc;
-        c.onclick = function() { if (covSrc) viewFullImage(covSrc); };
+        c.onclick = function(){ viewFullImage(covSrc); };
       }
 
       // الصورة الشخصية
@@ -4345,7 +4422,7 @@ window.startAll=async function(){
         else { av.style.display = 'none'; }
       }
 
-      // أزرار الكاميرا (فقط لصاحب الحساب)
+      // أزرار الكاميرا (صاحب الحساب فقط)
       var cc = el('upCoverCam'), ac = el('upAvaCam');
       if (isMine) {
         if (cc) {
@@ -4367,7 +4444,7 @@ window.startAll=async function(){
         if (ac) ac.style.display = 'none';
       }
 
-      // حلقة الستوري على الأفاتار
+      // حلقة الستوري
       var wrap = el('upAvaWrap');
       if (wrap) {
         sb.from('stories').select('id,views,stime').eq('author', name).gt('stime', Date.now() - 86400000).then(function(d) {
@@ -4390,7 +4467,7 @@ window.startAll=async function(){
               toast(list.length ? '👀 شفت استوريه خلاص' : '😴 مفيش استوري جديد');
             }
           };
-        }).catch(function() {});
+        }).catch(function(){});
       }
 
       upShowTab('media');
