@@ -3884,7 +3884,7 @@ try{
     md.innerHTML='<div class="m-card2" style="width:300px"><h3>🖼️ غلاف البروفايل</h3><button style="background:var(--acc);color:#fff" onclick="closeModal(\'coverMenuModal\');el(\'coverPickInput\').click()">📷 اختيار صورة غلاف</button><button style="background:#7a8694;color:#fff" onclick="rmCover()">🗑️ إزالة الغلاف</button><button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'coverMenuModal\')">إغلاق</button></div>';
     document.body.appendChild(md);
     var inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.style.display='none';inp.id='coverPickInput';
-    inp.onchange=function(e){var f=e.target.files[0];if(!f)return;toast('⏳ جاري تحديث الغلاف...');window._ccGif(f,function(d){updateMe({cover:d}).then(function(){toast('تم تغيير الغلاف ✅');_refreshProf();});});e.target.value='';};
+    inp.onchange=function(e){var f=e.target.files[0];if(!f)return;toast('⏳ جاري تحديث الغلاف...');window._ccGif(f,async function(d){var url=d;if(String(d).indexOf('data:')===0){url=await uploadMedia(d,f.type==='image/gif'?'.gif':'.jpg');}await updateMe({cover:url||d});toast('تم تغيير الغلاف ✅');_refreshProf();});e.target.value='';};
     document.body.appendChild(inp);
   }
 }catch(e){}
@@ -3989,7 +3989,7 @@ window._ccGif=function(file,cb){
 var _ruO=window.refreshUsers;
 window.refreshUsers=async function(){
   var r=await _ruO();
-  try{LS.setItem('users_cache',JSON.stringify(usersCache));}catch(e){}
+  try{try{var _uc={};for(var _k in usersCache){var _u=Object.assign({},usersCache[_k]);if(_u.avatar&&String(_u.avatar).indexOf('data:')===0)_u.avatar='';if(_u.cover&&String(_u.cover).indexOf('data:')===0)_u.cover='';_uc[_k]=_u;}LS.setItem('users_cache',JSON.stringify(_uc));}catch(e){}}catch(e){}
   return r;
 };
 /* عند الدخول: نعرض الكاش المحفوظ فوراً قبل أي طلب نت */
@@ -4043,7 +4043,7 @@ window.startAll=async function(){
 var _ruO=window.refreshUsers;
 window.refreshUsers=async function(){
   var r=await _ruO();
-  try{LS.setItem('users_cache',JSON.stringify(usersCache));}catch(e){}
+  try{try{var _uc={};for(var _k in usersCache){var _u=Object.assign({},usersCache[_k]);if(_u.avatar&&String(_u.avatar).indexOf('data:')===0)_u.avatar='';if(_u.cover&&String(_u.cover).indexOf('data:')===0)_u.cover='';_uc[_k]=_u;}LS.setItem('users_cache',JSON.stringify(_uc));}catch(e){}}catch(e){}
   return r;
 };
 })();
@@ -4052,7 +4052,7 @@ window.refreshUsers=async function(){
 /* ===== كاش صور الأعضاء: الصور الحقيقية تظهر فوراً ⚡ ===== */
 (function(){
 function _loadAva(){try{return JSON.parse(LS.getItem('ava_cache')||'{}');}catch(e){return{};}}
-function _saveAva(m){try{LS.setItem('ava_cache',JSON.stringify(m));}catch(e){try{var keys=Object.keys(m).slice(-40),small={};keys.forEach(function(k){small[k]=m[k];});LS.setItem('ava_cache',JSON.stringify(small));}catch(e2){}}}
+function _saveAva(m){try{var clean={};for(var k in m){if(m[k]&&String(m[k]).indexOf('data:')!==0)clean[k]=m[k];}var keys=Object.keys(clean).slice(-50),small={};keys.forEach(function(k){small[k]=clean[k];});LS.setItem('ava_cache',JSON.stringify(small));}catch(e){}}
 function _mergeAva(){
   try{
     var m=_loadAva();
@@ -4129,6 +4129,15 @@ async function _migAll(){
 var _caO=window.changeAvatar;
 window.changeAvatar=function(e){
   var f=e.target.files[0];if(!f)return;
+  toast('⏳ جاري رفع الصورة...');
+  compressImg(f,async function(d){
+    var url=await uploadMedia(d,'.jpg');
+    if(url){await updateMe({avatar:url});var s=el('setAva');if(s)s.innerHTML='<img src="'+url+'">';toast('تم تغيير الصورة ✅');}
+    else{await updateMe({avatar:d});var s2=el('setAva');if(s2)s2.innerHTML='<img src="'+d+'">';toast('تم (محلياً)');}
+  });
+  e.target.value='';
+};
+  var f=e.target.files[0];if(!f)return;
   compressImg(f,async function(d){
     toast('⏳ جاري رفع الصورة...');
     var url=await _up(d);
@@ -4152,8 +4161,60 @@ try{
 var _saM=window.startAll;
 window.startAll=async function(){
   var r=await _saM();
-  try{setTimeout(_migAll,3000);}catch(e){}
+  /* try{setTimeout(_migAll,3000);}catch(e){} */
   return r;
+};
+})();
+</script>
+<script>
+/* ===== إزالة ميزة الغلاف نهائياً + بروفايل نظيف وسريع ===== */
+(function(){
+try{
+  var cm=el('coverMenuItem');if(cm)cm.remove();
+  var cm2=el('coverMenuModal');if(cm2)cm2.remove();
+  var ci=el('coverPickInput');if(ci)ci.remove();
+}catch(e){}
+var m=el('userProfileModal');if(!m)return;
+m.innerHTML='<div style="max-width:100%;width:100%;height:100%;background:var(--bg);display:flex;flex-direction:column" onclick="event.stopPropagation()"><div style="flex:1;overflow-y:auto">'
++'<div style="position:relative;height:130px;background:var(--card);border-bottom:1px solid var(--line)"><button onclick="closeModal(\'userProfileModal\')" style="position:absolute;top:14px;left:14px;background:rgba(0,0,0,.55);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;z-index:5">✕</button><div id="upAvaWrap" style="position:absolute;bottom:-40px;right:18px;width:88px;height:88px;border-radius:50%;padding:4px;background:var(--card);border:3px solid #6b7280;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.55)"><img id="upAva" style="width:100%;height:100%;border-radius:50%;object-fit:cover"><div id="upAvaCam" style="position:absolute;bottom:-2px;left:-2px;width:30px;height:30px;border-radius:50%;background:var(--acc);border:2px solid var(--card);color:#fff;font-size:13px;cursor:pointer;z-index:4;display:none;align-items:center;justify-content:center">📷</div></div></div>'
++'<div style="padding:48px 16px 8px"><div id="upName" style="font-size:20px;font-weight:bold;margin-bottom:4px"></div><div id="upStatus" style="font-size:13px;color:var(--mut)"></div></div>'
++'<div style="padding:0 16px 10px"><div style="display:flex;border-radius:12px;overflow:hidden;border:1px solid var(--line)"><button id="upTabMedia" onclick="upShowTab(\'media\')" style="flex:1;padding:12px;border:none;background:var(--acc);color:#fff;font-size:14px;font-weight:bold">الصور</button><button id="upTabAudio" onclick="upShowTab(\'audio\')" style="flex:1;padding:12px;border:none;background:var(--card2);color:var(--txt);font-size:14px">التسجيلات</button></div></div>'
++'<div style="padding:0 12px 16px"><div id="upMediaBox" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div><div id="upAudioBox" style="display:none"></div></div></div></div>';
+var ai=el('profAvaInput');
+if(!ai){
+  ai=document.createElement('input');ai.type='file';ai.accept='image/*';ai.style.display='none';ai.id='profAvaInput';
+  ai.onchange=function(e){var f=e.target.files[0];if(!f)return;toast('⏳ جاري تحديث الصورة...');compressImg(f,function(d){updateMe({avatar:d}).then(function(){toast('تم تغيير الصورة ✅');try{openUserProfile(me.name);}catch(e){}try{updateProfile();}catch(e){}});});e.target.value='';};
+  document.body.appendChild(ai);
+}
+window.openUserProfile=function(name){
+  try{
+    var u=usersCache[name]||{};
+    var isMine=(me&&name===me.name);
+    el('upName').innerHTML=(window.styleName?styleName(u):escapeHtml(name))+' <span style="font-size:14px;color:var(--mut)">• '+(u.age||'--')+' سنة</span>';
+    el('upStatus').innerHTML=(u.status?escapeHtml(u.status)+'<br>':'')+((window.isOnline&&isOnline(u))?'<span style="color:var(--grn)">● نشط الآن</span>':'<span style="color:var(--mut)">● غير متصل</span>');
+    var avSrc=u.avatar||((window._defAva)?_defAva(u):'');
+    var av=el('upAva');
+    if(avSrc){av.style.display='block';av.src=avSrc;}else{av.style.display='none';}
+    var ac=el('upAvaCam');
+    if(isMine){ac.style.display='flex';ac.onclick=function(e){e.stopPropagation();el('profAvaInput').click();};}
+    else{ac.style.display='none';}
+    var wrap=el('upAvaWrap');
+    sb.from('stories').select('id,views,stime').eq('author',name).gt('stime',Date.now()-86400000).then(function(d){
+      var list=(d&&d.data)||[];
+      var unseen=false;
+      if(!isMine)for(var i=0;i<list.length;i++){var v=list[i].views||[];if(v.indexOf&&v.indexOf(me.name)===-1){unseen=true;break;}}
+      var green=(list.length>0)&&(isMine||unseen);
+      wrap.style.borderColor=green?'var(--grn)':'#6b7280';
+      wrap.style.boxShadow=green?'0 0 14px rgba(34,197,94,.6)':'0 4px 14px rgba(0,0,0,.55)';
+      wrap.onclick=function(){
+        if(green){closeModal('userProfileModal');openAuthorStories(name);}
+        else toast(list.length?'👀 شفت استوريه خلاص':'😴 مفيش استوري جديد');
+      };
+    }).catch(function(){});
+    upShowTab('media');
+    openModal('userProfileModal');
+    loadUserMedia(name);
+  }catch(e){}
 };
 })();
 </script>
