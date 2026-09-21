@@ -659,7 +659,7 @@ var SUPABASE_URL="https://mwdyfhusaqkeuxmimdlo.supabase.co";
 var SUPABASE_KEY="sb_publishable_owUUXMVbIwaKz9tx-ch9Yw_RUKKQ--w";
 var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-var OWNER_NAME='(medoyoutuber) 😂♥',ONLINE_TIMEOUT=12000;
+var OWNER_NAME='(medoyoutuber) 😂♥',ONLINE_TIMEOUT=40000;
 function isOwnerName(n){if(!n)return false;return String(n).indexOf('medoyoutuber')>-1;}
 function getDisplayName(u){if(!u)return 'مستخدم';return u.displayName||u.name;}
 function getMsgName(n){return (usersCache[n]&&usersCache[n].displayName)||n;}
@@ -809,7 +809,7 @@ function startHeartbeat(){
       if(usersCache[me.name])usersCache[me.name].lastSeen=Date.now();
     }catch(e){}
     renderOnline();
-  },8000);
+  },10000);
 }
 
 async function enter(u){
@@ -825,6 +825,22 @@ async function enter(u){
 }
 function logout(){
   if(hbTimer){clearInterval(hbTimer);hbTimer=null;}
+  // Mark offline immediately so others see her leave
+  if(me){
+    var oldTime = Date.now() - ONLINE_TIMEOUT - 5000;
+    try{
+      sb.from('users').update({last_seen:oldTime}).eq('name',me.name);
+      if(usersCache[me.name])usersCache[me.name].lastSeen = oldTime;
+    }catch(e){}
+    try{
+      fetch(SUPABASE_URL+'/rest/v1/users?name=eq.'+encodeURIComponent(me.name),{
+        method:'PATCH',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify({last_seen:oldTime}),
+        keepalive:true
+      });
+    }catch(e){}
+  }
   unsubscribeAll();
   me=null;usersCache={};convsCache=[];msgsCache=[];allRooms=[];wallCache=[];chat=null;navStack=[];
   LS.removeItem('session');
@@ -3163,7 +3179,7 @@ window.renderMsgContent=function(m){
     if(m&&m.type!=='system'&&m.from!=='نظام'){
       var t=new Date(m.time||Date.now());
       var ts=t.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'});
-      html+='<div style="font-size:10px;opacity:.6;text-align:left;margin-top:2px;direction:ltr;user-select:none">'+ts+'</div>';
+      html+='<div style="display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:3px;direction:ltr;user-select:none"><span style="font-size:10px;opacity:.55">'+ts+'</span></div>';
     }
   }catch(e){}
   return html;
@@ -3722,7 +3738,6 @@ window.openUserProfile=function(name){
 };
 })();
 </script>
-</body>
 <script>
 /* ===== الحل النهائي: نزول بيتابع تحميل الصور (ResizeObserver) ===== */
 (function(){
@@ -4137,15 +4152,6 @@ window.changeAvatar=function(e){
   });
   e.target.value='';
 };
-  var f=e.target.files[0];if(!f)return;
-  compressImg(f,async function(d){
-    toast('⏳ جاري رفع الصورة...');
-    var url=await _up(d);
-    if(url){await updateMe({avatar:url});var s=el('setAva');if(s)s.innerHTML='<img src="'+url+'">';toast('تم تغيير الصورة ✅');}
-    else{await updateMe({avatar:d});var s2=el('setAva');if(s2)s2.innerHTML='<img src="'+d+'">';}
-  });
-  e.target.value='';
-};
 try{
   var _pi=el('profAvaInput');
   if(_pi)_pi.onchange=function(e){
@@ -4166,57 +4172,236 @@ window.startAll=async function(){
 };
 })();
 </script>
+
+
 <script>
-/* ===== إزالة ميزة الغلاف نهائياً + بروفايل نظيف وسريع ===== */
+/* ===== غلاف البروفايل النظيف (نهائي) ===== */
 (function(){
-try{
-  var cm=el('coverMenuItem');if(cm)cm.remove();
-  var cm2=el('coverMenuModal');if(cm2)cm2.remove();
-  var ci=el('coverPickInput');if(ci)ci.remove();
-}catch(e){}
-var m=el('userProfileModal');if(!m)return;
-m.innerHTML='<div style="max-width:100%;width:100%;height:100%;background:var(--bg);display:flex;flex-direction:column" onclick="event.stopPropagation()"><div style="flex:1;overflow-y:auto">'
-+'<div style="position:relative;height:130px;background:var(--card);border-bottom:1px solid var(--line)"><button onclick="closeModal(\'userProfileModal\')" style="position:absolute;top:14px;left:14px;background:rgba(0,0,0,.55);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;z-index:5">✕</button><div id="upAvaWrap" style="position:absolute;bottom:-40px;right:18px;width:88px;height:88px;border-radius:50%;padding:4px;background:var(--card);border:3px solid #6b7280;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.55)"><img id="upAva" style="width:100%;height:100%;border-radius:50%;object-fit:cover"><div id="upAvaCam" style="position:absolute;bottom:-2px;left:-2px;width:30px;height:30px;border-radius:50%;background:var(--acc);border:2px solid var(--card);color:#fff;font-size:13px;cursor:pointer;z-index:4;display:none;align-items:center;justify-content:center">📷</div></div></div>'
-+'<div style="padding:48px 16px 8px"><div id="upName" style="font-size:20px;font-weight:bold;margin-bottom:4px"></div><div id="upStatus" style="font-size:13px;color:var(--mut)"></div></div>'
-+'<div style="padding:0 16px 10px"><div style="display:flex;border-radius:12px;overflow:hidden;border:1px solid var(--line)"><button id="upTabMedia" onclick="upShowTab(\'media\')" style="flex:1;padding:12px;border:none;background:var(--acc);color:#fff;font-size:14px;font-weight:bold">الصور</button><button id="upTabAudio" onclick="upShowTab(\'audio\')" style="flex:1;padding:12px;border:none;background:var(--card2);color:var(--txt);font-size:14px">التسجيلات</button></div></div>'
-+'<div style="padding:0 12px 16px"><div id="upMediaBox" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div><div id="upAudioBox" style="display:none"></div></div></div></div>';
-var ai=el('profAvaInput');
-if(!ai){
-  ai=document.createElement('input');ai.type='file';ai.accept='image/*';ai.style.display='none';ai.id='profAvaInput';
-  ai.onchange=function(e){var f=e.target.files[0];if(!f)return;toast('⏳ جاري تحديث الصورة...');compressImg(f,function(d){updateMe({avatar:d}).then(function(){toast('تم تغيير الصورة ✅');try{openUserProfile(me.name);}catch(e){}try{updateProfile();}catch(e){}});});e.target.value='';};
-  document.body.appendChild(ai);
-}
-window.openUserProfile=function(name){
-  try{
-    var u=usersCache[name]||{};
-    var isMine=(me&&name===me.name);
-    el('upName').innerHTML=(window.styleName?styleName(u):escapeHtml(name))+' <span style="font-size:14px;color:var(--mut)">• '+(u.age||'--')+' سنة</span>';
-    el('upStatus').innerHTML=(u.status?escapeHtml(u.status)+'<br>':'')+((window.isOnline&&isOnline(u))?'<span style="color:var(--grn)">● نشط الآن</span>':'<span style="color:var(--mut)">● غير متصل</span>');
-    var avSrc=u.avatar||((window._defAva)?_defAva(u):'');
-    var av=el('upAva');
-    if(avSrc){av.style.display='block';av.src=avSrc;}else{av.style.display='none';}
-    var ac=el('upAvaCam');
-    if(isMine){ac.style.display='flex';ac.onclick=function(e){e.stopPropagation();el('profAvaInput').click();};}
-    else{ac.style.display='none';}
-    var wrap=el('upAvaWrap');
-    sb.from('stories').select('id,views,stime').eq('author',name).gt('stime',Date.now()-86400000).then(function(d){
-      var list=(d&&d.data)||[];
-      var unseen=false;
-      if(!isMine)for(var i=0;i<list.length;i++){var v=list[i].views||[];if(v.indexOf&&v.indexOf(me.name)===-1){unseen=true;break;}}
-      var green=(list.length>0)&&(isMine||unseen);
-      wrap.style.borderColor=green?'var(--grn)':'#6b7280';
-      wrap.style.boxShadow=green?'0 0 14px rgba(34,197,94,.6)':'0 4px 14px rgba(0,0,0,.55)';
-      wrap.onclick=function(){
-        if(green){closeModal('userProfileModal');openAuthorStories(name);}
-        else toast(list.length?'👀 شفت استوريه خلاص':'😴 مفيش استوري جديد');
-      };
-    }).catch(function(){});
-    upShowTab('media');
-    openModal('userProfileModal');
-    loadUserMedia(name);
-  }catch(e){}
-};
+  var DEFAULT_COVER = "https://cdn.phototourl.com/free/2026-09-21-ff7757de-fa66-4483-b351-18ae058ba66f.jpg";
+
+  // 1) عنصر اختيار صورة الغلاف
+  if (!el('coverPickInput')) {
+    var inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*,.gif';
+    inp.style.display = 'none';
+    inp.id = 'coverPickInput';
+    inp.onchange = function(e) {
+      var f = e.target.files[0];
+      if (!f) return;
+      toast('⏳ جاري تحديث الغلاف...');
+      if (window._ccGif) {
+        window._ccGif(f, async function(d) {
+          var url = d;
+          if (String(d).indexOf('data:') === 0) {
+            url = await uploadMedia(d, f.type === 'image/gif' ? '.gif' : '.jpg');
+          }
+          await updateMe({ cover: url || d });
+          toast('تم تغيير الغلاف ✅');
+          _refreshCover();
+        });
+      } else {
+        compressImg(f, async function(d) {
+          var url = await uploadMedia(d, '.jpg');
+          await updateMe({ cover: url || d });
+          toast('تم تغيير الغلاف ✅');
+          _refreshCover();
+        }, 900);
+      }
+      e.target.value = '';
+    };
+    document.body.appendChild(inp);
+  }
+
+  // 2) عنصر اختيار صورة الأفاتار (لو مش موجود)
+  if (!el('profAvaInput')) {
+    var ai = document.createElement('input');
+    ai.type = 'file';
+    ai.accept = 'image/*';
+    ai.style.display = 'none';
+    ai.id = 'profAvaInput';
+    ai.onchange = function(e) {
+      var f = e.target.files[0];
+      if (!f) return;
+      toast('⏳ جاري تحديث الصورة...');
+      compressImg(f, async function(d) {
+        var url = await uploadMedia(d, '.jpg');
+        await updateMe({ avatar: url || d });
+        toast('تم تغيير الصورة ✅');
+        try { openUserProfile(me.name); } catch(e) {}
+        try { updateProfile(); } catch(e) {}
+      });
+      e.target.value = '';
+    };
+    document.body.appendChild(ai);
+  }
+
+  // 3) قائمة الإعدادات: تغيير / إزالة الغلاف
+  try {
+    var lists = document.querySelectorAll('#s-settings .menu-list');
+    var tgt = lists[lists.length - 1];
+    if (tgt && !el('coverMenuItem')) {
+      var mi = document.createElement('div');
+      mi.className = 'm-item';
+      mi.id = 'coverMenuItem';
+      mi.innerHTML = '<span>🖼️ غلاف البروفايل</span><span>👈</span>';
+      mi.onclick = function() { openModal('coverMenuModal'); };
+      tgt.insertBefore(mi, tgt.firstChild);
+
+      var md = document.createElement('div');
+      md.className = 'modal';
+      md.id = 'coverMenuModal';
+      md.innerHTML = '<div class="m-card2" style="width:300px">'
+        + '<h3>🖼️ غلاف البروفايل</h3>'
+        + '<button style="background:var(--acc);color:#fff" onclick="closeModal(\'coverMenuModal\');el(\'coverPickInput\').click()">📷 اختيار / تغيير الغلاف</button>'
+        + '<button style="background:#7a8694;color:#fff" onclick="rmCover()">🗑️ إزالة الغلاف</button>'
+        + '<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'coverMenuModal\')">إغلاق</button>'
+        + '</div>';
+      document.body.appendChild(md);
+    }
+  } catch(e) {}
+
+  window.rmCover = function() {
+    updateMe({ cover: null }).then(function() {
+      toast('تم إزالة الغلاف');
+      closeModal('coverMenuModal');
+      _refreshCover();
+    });
+  };
+
+  function _refreshCover() {
+    try {
+      if (el('userProfileModal') && el('userProfileModal').classList.contains('open') && window._profName) {
+        openUserProfile(window._profName);
+      }
+      if (me) {
+        try { updateProfile(); } catch(e) {}
+        try { renderOnline(); } catch(e) {}
+      }
+    } catch(e) {}
+  }
+
+  // 4) إعادة بناء نافذة البروفايل مع غلاف + كاميرا
+  var m = el('userProfileModal');
+  if (!m) return;
+
+  m.innerHTML = '<div style="max-width:100%;width:100%;height:100%;background:var(--bg);display:flex;flex-direction:column" onclick="event.stopPropagation()">'
+    + '<div style="flex:1;overflow-y:auto">'
+    + '<div style="position:relative">'
+    +   '<div style="position:relative;height:220px;overflow:hidden;background:#111">'
+    +     '<img id="upCover" style="width:100%;height:100%;object-fit:cover;cursor:pointer">'
+    +     '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08) 40%,var(--bg) 100%);pointer-events:none"></div>'
+    +     '<div id="upCoverCam" style="position:absolute;bottom:14px;left:14px;width:40px;height:40px;border-radius:50%;background:rgba(0,0,0,.65);border:2px solid #fff;color:#fff;font-size:17px;cursor:pointer;z-index:4;display:none;align-items:center;justify-content:center">📷</div>'
+    +   '</div>'
+    +   '<button onclick="closeModal(\'userProfileModal\')" style="position:absolute;top:14px;left:14px;background:rgba(0,0,0,.55);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;z-index:5">✕</button>'
+    +   '<div id="upAvaWrap" style="position:absolute;bottom:-44px;right:18px;width:92px;height:92px;border-radius:50%;padding:4px;background:var(--card);border:3px solid #6b7280;box-shadow:0 4px 14px rgba(0,0,0,.55);cursor:pointer">'
+    +     '<img id="upAva" style="width:100%;height:100%;border-radius:50%;object-fit:cover">'
+    +     '<div id="upAvaCam" style="position:absolute;bottom:-2px;left:-2px;width:30px;height:30px;border-radius:50%;background:var(--acc);border:2px solid var(--card);color:#fff;font-size:13px;cursor:pointer;z-index:4;display:none;align-items:center;justify-content:center">📷</div>'
+    +   '</div>'
+    + '</div>'
+    + '<div style="padding:52px 16px 8px">'
+    +   '<div id="upName" style="font-size:20px;font-weight:bold;margin-bottom:4px"></div>'
+    +   '<div id="upStatus" style="font-size:13px;color:var(--mut)"></div>'
+    + '</div>'
+    + '<div style="padding:0 16px 10px"><div style="display:flex;border-radius:12px;overflow:hidden;border:1px solid var(--line)">'
+    +   '<button id="upTabMedia" onclick="upShowTab(\'media\')" style="flex:1;padding:12px;border:none;background:var(--acc);color:#fff;font-size:14px;font-weight:bold">الصور</button>'
+    +   '<button id="upTabAudio" onclick="upShowTab(\'audio\')" style="flex:1;padding:12px;border:none;background:var(--card2);color:var(--txt);font-size:14px">التسجيلات</button>'
+    + '</div></div>'
+    + '<div style="padding:0 12px 16px">'
+    +   '<div id="upMediaBox" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"></div>'
+    +   '<div id="upAudioBox" style="display:none"></div>'
+    + '</div>'
+    + '</div></div>';
+
+  window._profName = '';
+
+  window.openUserProfile = function(name) {
+    try {
+      var u = usersCache[name] || {};
+      window._profName = name;
+      var isMine = (me && name === me.name);
+
+      el('upName').innerHTML = (window.styleName ? styleName(u) : escapeHtml(getDisplayName(u) || name))
+        + ' <span style="font-size:14px;color:var(--mut)">• ' + (u.age || '--') + ' سنة</span>';
+
+      el('upStatus').innerHTML = (u.status ? escapeHtml(u.status) + '<br>' : '')
+        + ((window.isOnline && isOnline(u))
+          ? '<span style="color:var(--grn)">● نشط الآن</span>'
+          : '<span style="color:var(--mut)">● غير متصل</span>');
+
+      // الغلاف
+      var covSrc = u.cover || DEFAULT_COVER;
+      var c = el('upCover');
+      if (c) {
+        c.src = covSrc;
+        c.onclick = function() { if (covSrc) viewFullImage(covSrc); };
+      }
+
+      // الصورة الشخصية
+      var avSrc = u.avatar || (window._defAva ? _defAva(u) : '');
+      var av = el('upAva');
+      if (av) {
+        if (avSrc) { av.style.display = 'block'; av.src = avSrc; }
+        else { av.style.display = 'none'; }
+      }
+
+      // أزرار الكاميرا (فقط لصاحب الحساب)
+      var cc = el('upCoverCam'), ac = el('upAvaCam');
+      if (isMine) {
+        if (cc) {
+          cc.style.display = 'flex';
+          cc.onclick = function(e) {
+            e.stopPropagation();
+            el('coverPickInput').click();
+          };
+        }
+        if (ac) {
+          ac.style.display = 'flex';
+          ac.onclick = function(e) {
+            e.stopPropagation();
+            el('profAvaInput').click();
+          };
+        }
+      } else {
+        if (cc) cc.style.display = 'none';
+        if (ac) ac.style.display = 'none';
+      }
+
+      // حلقة الستوري على الأفاتار
+      var wrap = el('upAvaWrap');
+      if (wrap) {
+        sb.from('stories').select('id,views,stime').eq('author', name).gt('stime', Date.now() - 86400000).then(function(d) {
+          var list = (d && d.data) || [];
+          var unseen = false;
+          if (!isMine) {
+            for (var i = 0; i < list.length; i++) {
+              var v = list[i].views || [];
+              if (v.indexOf && v.indexOf(me.name) === -1) { unseen = true; break; }
+            }
+          }
+          var green = (list.length > 0) && (isMine || unseen);
+          wrap.style.borderColor = green ? 'var(--grn)' : '#6b7280';
+          wrap.style.boxShadow = green ? '0 0 14px rgba(34,197,94,.6)' : '0 4px 14px rgba(0,0,0,.55)';
+          wrap.onclick = function() {
+            if (green) {
+              closeModal('userProfileModal');
+              openAuthorStories(name);
+            } else {
+              toast(list.length ? '👀 شفت استوريه خلاص' : '😴 مفيش استوري جديد');
+            }
+          };
+        }).catch(function() {});
+      }
+
+      upShowTab('media');
+      openModal('userProfileModal');
+      loadUserMedia(name);
+    } catch(e) {
+      console.error(e);
+    }
+  };
 })();
 </script>
+
 </body>
 </html>
