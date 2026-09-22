@@ -4823,5 +4823,526 @@ return;window.GAMES_LIST.push(
 try{renderGamesList();}catch(e){}
 })();
 </script>
+<script>
+/* ===== لوحة أبطال الألعاب 🏆 ===== */
+(function(){
+var sm=null;
+function _ensureModal(){
+  if(sm)return;
+  sm=document.createElement('div');sm.id='gameScoreModal';sm.className='modal';
+  sm.innerHTML='<div class="m-card2" style="width:320px"><h3 id="gsTitle">🏆</h3><div id="gsInputRow" style="display:flex;gap:8px;align-items:center"><input id="gsInput" type="number" placeholder="اكتب نتيجتك" style="flex:1;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:16px;font-weight:bold;text-align:center"><button class="adm-btn grn" onclick="saveGameScore()" style="flex-shrink:0">💾 حفظ</button></div><div id="gsMyBest" style="font-size:11px;color:var(--mut);text-align:center;margin:6px 0"></div><div id="gsList" style="max-height:240px;overflow-y:auto"></div><button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'gameScoreModal\')">إغلاق</button></div>';
+  document.body.appendChild(sm);
+}
+var _curGame='';
+window.showScoreModal=function(g){
+  if(!me)return toast('سجل دخولك أولاً');
+  _curGame=g||'';_ensureModal();
+  el('gsTitle').innerText='🏆 '+_curGame;
+  el('gsInputRow').style.display='flex';
+  el('gsInput').value='';
+  window._loadGameScores();
+  openModal('gameScoreModal');
+};
+window._loadGameScores=async function(){
+  var list=el('gsList');
+  list.innerHTML='<div style="text-align:center;color:var(--mut);padding:10px">جاري التحميل...</div>';
+  var d=await sb.from('game_scores').select('*').eq('game',_curGame).order('score',{ascending:false}).limit(10);
+  var rows=d.data||[];
+  var mine=rows.find(function(r){return r.player===me.name;});
+  el('gsMyBest').innerText=mine?('أفضل نتيجتك: '+mine.score):'لم تسجل نتيجة بعد';
+  if(!rows.length){list.innerHTML='<div style="text-align:center;color:var(--mut);padding:10px">لا توجد نتائج — كن أول بطل! 🏆</div>';return;}
+  var medals=['🥇','🥈','🥉'];
+  var h='';
+  rows.forEach(function(r,i){
+    var del=(window.isOwner&&isOwner())?' <button class="xbtn" style="padding:1px 6px;font-size:10px" onclick="delGameScore('+r.id+')">🗑️</button>':'';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 6px;border-bottom:1px solid var(--line)"><span style="font-size:13px;font-weight:bold">'+(medals[i]||('#'+(i+1)))+' '+escapeHtml(getMsgName(r.player))+'</span><span style="font-size:14px;font-weight:900;color:var(--acc)">'+r.score+del+'</span></div>';
+  });
+  list.innerHTML=h;
+};
+window.saveGameScore=async function(){
+  var v=parseInt(el('gsInput').value);
+  if(isNaN(v)||v<0)return toast('اكتب رقم صحيح');
+  await sb.from('game_scores').insert({player:me.name,game:_curGame,score:v,created_at:Date.now()});
+  toast('🏆 تم حفظ نتيجتك!');
+  window._loadGameScores();
+};
+window.delGameScore=async function(id){
+  if(!isOwner())return;
+  await sb.from('game_scores').delete().eq('id',id);
+  window._loadGameScores();
+};
+window.showChamps=async function(){
+  _ensureModal();
+  el('gsTitle').innerText='🏆 أبطال شات سونيك';
+  el('gsInputRow').style.display='none';
+  el('gsMyBest').innerText='';
+  var list=el('gsList');
+  list.innerHTML='<div style="text-align:center;color:var(--mut);padding:10px">جاري التحميل...</div>';
+  var d=await sb.from('game_scores').select('*').order('score',{ascending:false}).limit(1000);
+  var best={};
+  (d.data||[]).forEach(function(r){var k=r.player+'||'+r.game;if(!best[k]||r.score>best[k].score)best[k]=r;});
+  var agg={};
+  for(var k in best){var r=best[k];if(!agg[r.player])agg[r.player]={player:r.player,total:0,games:0};agg[r.player].total+=r.score;agg[r.player].games++;}
+  var arr=Object.values(agg).sort(function(a,b){return b.total-a.total;});
+  if(!arr.length){list.innerHTML='<div style="text-align:center;color:var(--mut);padding:12px">لا توجد نتائج بعد 🏆</div>';return;}
+  var medals=['🥇','🥈','🥉'];
+  var h='';
+  arr.slice(0,15).forEach(function(r,i){
+    h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 6px;border-bottom:1px solid var(--line)"><span style="font-size:18px">'+(medals[i]||('#'+(i+1)))+'</span><div style="flex:1"><div style="font-size:13px;font-weight:bold">'+escapeHtml(getMsgName(r.player))+'</div><div style="font-size:10px;color:var(--mut)">'+r.games+' لعبة</div></div><div style="font-size:15px;font-weight:900;color:var(--acc)">'+r.total+'</div></div>';
+  });
+  list.innerHTML=h;
+};
+var _rgO=window.renderGamesList;
+window.renderGamesList=function(){
+  var r=_rgO();
+  try{
+    var box=el('gamesListBox');
+    if(box&&box.parentElement&&!el('champBtn')){
+      var b=document.createElement('button');
+      b.id='champBtn';b.className='lbtn';b.style.marginBottom='12px';
+      b.innerText='🏆 لوحة أبطال شات سونيك';
+      b.onclick=window.showChamps;
+      box.parentElement.insertBefore(b,box);
+    }
+  }catch(e){}
+  return r;
+};
+function _addScoreBtn(){
+  try{
+    if(el('gameScoreBtn'))return;
+    var nm=el('gamePlayName');if(!nm)return;
+    var b=document.createElement('button');
+    b.id='gameScoreBtn';
+    b.style.cssText='background:var(--grn);border:none;color:#fff;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:bold;cursor:pointer;flex-shrink:0';
+    b.innerText='🏆 نتيجتك';
+    b.onclick=function(){window.showScoreModal(el('gamePlayName').innerText);};
+    nm.parentElement.insertBefore(b,nm.parentElement.lastChild);
+  }catch(e){}
+}
+var _ogp=window.openGamePlay;
+window.openGamePlay=function(g){var r=_ogp(g);setTimeout(_addScoreBtn,60);return r;};
+})();
+</script>
+<script>
+/* ===== إصلاح لوحة السكور: فوق اللعبة + نتايج كل عضو 🏆 ===== */
+(function(){
+var sm=null;
+function _ensure(){
+  if(!sm){
+    sm=el('gameScoreModal');
+    if(!sm){
+      sm=document.createElement('div');sm.id='gameScoreModal';sm.className='modal';
+      sm.innerHTML='<div class="m-card2" style="width:320px"><h3 id="gsTitle">🏆</h3><div id="gsInputRow" style="display:flex;gap:8px;align-items:center"><input id="gsInput" type="number" placeholder="اكتب نتيجتك" style="flex:1;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:16px;font-weight:bold;text-align:center"><button class="adm-btn grn" onclick="saveGameScore()" style="flex-shrink:0">💾 حفظ</button></div><div id="gsMyBest" style="font-size:11px;color:var(--mut);text-align:center;margin:6px 0"></div><div id="gsList" style="max-height:240px;overflow-y:auto"></div><button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'gameScoreModal\')">إغلاق</button></div>';
+      document.body.appendChild(sm);
+    }
+  }
+  sm.style.zIndex='1300';
+}
+var _cur='';
+window.showScoreModal=function(g){
+  if(!me)return toast('سجل دخولك أولاً');
+  _cur=g||'';_ensure();
+  el('gsTitle').innerText='🏆 '+_cur;
+  el('gsInputRow').style.display='flex';
+  el('gsInput').value='';
+  window._loadGameScores();
+  openModal('gameScoreModal');
+};
+window._loadGameScores=async function(){
+  var list=el('gsList');
+  list.innerHTML='<div style="text-align:center;color:var(--mut);padding:10px">جاري التحميل...</div>';
+  var d=await sb.from('game_scores').select('*').eq('game',_cur).order('score',{ascending:false}).limit(10);
+  var rows=d.data||[];
+  var mine=rows.find(function(r){return r.player===me.name;});
+  el('gsMyBest').innerText=mine?('أفضل نتيجتك: '+mine.score):'لم تسجل نتيجة بعد';
+  if(!rows.length){list.innerHTML='<div style="text-align:center;color:var(--mut);padding:10px">لا توجد نتائج — كن أول بطل! 🏆</div>';return;}
+  var medals=['🥇','🥈','🥉'];
+  var h='';
+  rows.forEach(function(r,i){
+    var del=(window.isOwner&&isOwner())?' <button class="xbtn" style="padding:1px 6px;font-size:10px" onclick="delGameScore('+r.id+')">🗑️</button>':'';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 6px;border-bottom:1px solid var(--line)"><span style="font-size:13px;font-weight:bold">'+(medals[i]||('#'+(i+1)))+' '+escapeHtml(getMsgName(r.player))+'</span><span style="font-size:14px;font-weight:900;color:var(--acc)">'+r.score+del+'</span></div>';
+  });
+  list.innerHTML=h;
+};
+window.saveGameScore=async function(){
+  var v=parseInt(el('gsInput').value);
+  if(isNaN(v)||v<0)return toast('اكتب رقم صحيح');
+  var _r=await sb.from('game_scores').insert({player:me.name,game:_cur,score:v,created_at:Date.now()});
+  if(_r&&_r.error){console.error('save err',_r.error);return toast('❌ خطأ: '+_r.error.message);}
+  toast('🏆 تم حفظ نتيجتك!');
+  window._loadGameScores();
+};
+window.delGameScore=async function(id){
+  if(!isOwner())return;
+  await sb.from('game_scores').delete().eq('id',id);
+  window._loadGameScores();
+};
+window.showChamps=async function(){
+  _ensure();
+  el('gsTitle').innerText='🏆 أبطال شات سونيك';
+  el('gsInputRow').style.display='none';
+  el('gsMyBest').innerText='';
+  var list=el('gsList');
+  list.innerHTML='<div style="text-align:center;color:var(--mut);padding:10px">جاري التحميل...</div>';
+  var d=await sb.from('game_scores').select('*').order('score',{ascending:false}).limit(2000);
+  var byP={};
+  (d.data||[]).forEach(function(r){
+    if(!byP[r.player])byP[r.player]={};
+    if(!byP[r.player][r.game]||r.score>byP[r.player][r.game].score)byP[r.player][r.game]=r.score;
+  });
+  var arr=[];
+  for(var p in byP){
+    var tot=0,games=0;
+    for(var g in byP[p]){tot+=byP[p][g];games++;}
+    arr.push({p:p,tot:tot,games:games,det:byP[p]});
+  }
+  arr.sort(function(a,b){return b.tot-a.tot;});
+  if(!arr.length){list.innerHTML='<div style="text-align:center;color:var(--mut);padding:12px">لا توجد نتائج بعد 🏆</div>';return;}
+  var medals=['🥇','🥈','🥉'];
+  var h='';
+  arr.forEach(function(r,i){
+    var det='';
+    for(var g in r.det)det+='<div style="font-size:10px;color:var(--mut);margin:2px 0">🎮 '+escapeHtml(g)+' : <b style="color:var(--acc)">'+r.det[g]+'</b></div>';
+    h+='<div style="padding:8px 6px;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">'+(medals[i]||('#'+(i+1)))+'</span><div style="flex:1;font-size:13px;font-weight:bold">'+escapeHtml(getMsgName(r.p))+'</div><div style="font-size:15px;font-weight:900;color:var(--acc)">'+r.tot+'</div></div><div style="margin-top:4px;padding-right:26px">'+det+'</div></div>';
+  });
+  list.innerHTML=h;
+};
+function _bind(){
+  var b=el('gameScoreBtn');
+  if(!b||b._ok)return;
+  b._ok=true;
+  b.style.cursor='pointer';
+  b.addEventListener('click',function(e){
+    e.stopPropagation();
+    window.showScoreModal(el('gamePlayName')?el('gamePlayName').innerText:'');
+  },true);
+}
+var _ogp=window.openGamePlay;
+window.openGamePlay=function(g){var r=_ogp(g);setTimeout(_bind,80);setTimeout(_bind,400);return r;};
+setInterval(_bind,1000);
+})();
+</script>
+<script>
+/* ===== حماية السكور من التزوير 🛡️ ===== */
+(function(){
+var _sgO=window.saveGameScore;
+window.saveGameScore=async function(){
+  if(!me)return toast('سجل دخولك أولاً');
+  var v=parseInt(el('gsInput').value);
+  if(isNaN(v)||v<0)return toast('اكتب رقم صحيح');
+  /* 1) منع التكرار السريع: تسجيل كل 5 دقايق كحد أقصى */
+  var key='gs_cd_'+me.name+'||'+_cur;
+  var last=parseInt(LS.getItem(key)||'0');
+  var left=300000-(Date.now()-last);
+  if(last&&left>0){
+    var m=Math.ceil(left/60000);
+    return toast('⏳ استنى '+m+' دقيقة قبل تسجيل نتيجة جديدة');
+  }
+  /* 2) منع القفزات الوهمية: النتيجة الجديدة مش تتعدي 3 أضعاف أفضل نتيجة */
+  var pb=await sb.from('game_scores').select('score').eq('player',me.name).eq('game',_cur).order('score',{ascending:false}).limit(1);
+  var best=(pb.data&&pb.data[0])?pb.data[0].score:0;
+  if(best>0&&v>best*3)return toast('🚫 زيادة مشبوهة! أقصى مسموح تقريباً: '+Math.floor(best*3));
+  if(best===0&&v>100000)return toast('🚫 أول نتيجة مش ممكن تكون أكتر من 100 ألف');
+  /* 3) التسجيل الفعلي */
+  var _r=await sb.from('game_scores').insert({player:me.name,game:_cur,score:v,created_at:Date.now()});
+  if(_r&&_r.error)return toast('❌ خطأ: '+_r.error.message);
+  try{LS.setItem(key,String(Date.now()));}catch(e){}
+  toast('🏆 تم حفظ نتيجتك!');
+  window._loadGameScores();
+};
+})();
+</script>
+<script>
+/* ===== إصلاح زرار الحفظ النهائي 🔧 ===== */
+(function(){
+window.saveGameScore=async function(){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    var inp=el('gsInput');
+    if(!inp)return toast('⚠️ اللوحة مش مفتوحة صح — اقفلها وافتحها تاني');
+    var v=parseInt(inp.value);
+    if(isNaN(v)||v<0)return toast('اكتب رقم صحيح');
+    var key='gs_cd_'+me.name+'||'+_cur;
+    var last=parseInt(LS.getItem(key)||'0');
+    var left=300000-(Date.now()-last);
+    if(last&&left>0){
+      var m=Math.ceil(left/60000);
+      return toast('⏳ استنى '+m+' دقيقة قبل تسجيل نتيجة جديدة');
+    }
+    var pb=await sb.from('game_scores').select('score').eq('player',me.name).eq('game',_cur).order('score',{ascending:false}).limit(1);
+    var best=(pb.data&&pb.data[0])?pb.data[0].score:0;
+    if(best>0&&v>best*3)return toast('🚫 زيادة مشبوهة! أقصى مسموح تقريباً: '+Math.floor(best*3));
+    if(best===0&&v>100000)return toast('🚫 أول نتيجة مش ممكن تكون أكتر من 100 ألف');
+    var _r=await sb.from('game_scores').insert({player:me.name,game:_cur,score:v,created_at:Date.now()});
+    if(_r&&_r.error){console.error('save err',_r.error);return toast('❌ خطأ: '+_r.error.message);}
+    try{LS.setItem(key,String(Date.now()));}catch(e){}
+    toast('🏆 تم حفظ نتيجتك!');
+    window._loadGameScores();
+  }catch(e){
+    console.error('save exc',e);
+    toast('❌ خطأ: '+e.message);
+  }
+};
+var _bT=null,_bN=0;
+function _bind(){
+  var b=el('gsInput');
+  if(!b||!b.parentElement)return;
+  var btns=b.parentElement.querySelectorAll('button');
+  var btn=btns.length?btns[0]:null;
+  if(!btn||btn._fixed)return;
+  btn._fixed=true;
+  var nb=btn.cloneNode(true);
+  btn.parentNode.replaceChild(nb,btn);
+  nb.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();window.saveGameScore();},true);
+}
+var _iv=setInterval(function(){_bind();_bN++;if(_bN>300)clearInterval(_iv);},200);
+})();
+</script>
+<script>
+/* ===== إصلاح نهائي لحفظ السكور 🔧 ===== */
+(function(){
+function _gameName(){
+  var t=el('gsTitle');
+  return t?String(t.innerText).replace('🏆','').trim():'';
+}
+window.saveGameScore=async function(){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    var inp=el('gsInput');
+    if(!inp)return toast('⚠️ اقفل اللوحة وافتحها تاني');
+    var v=parseInt(inp.value);
+    if(isNaN(v)||v<0)return toast('اكتب رقم صحيح');
+    var game=_gameName();
+    var key='gs_cd_'+me.name+'||'+game;
+    var last=parseInt(LS.getItem(key)||'0');
+    var left=300000-(Date.now()-last);
+    if(last&&left>0){var m=Math.ceil(left/60000);return toast('⏳ استنى '+m+' دقيقة قبل تسجيل نتيجة جديدة');}
+    var pb=await sb.from('game_scores').select('score').eq('player',me.name).eq('game',game).order('score',{ascending:false}).limit(1);
+    var best=(pb.data&&pb.data[0])?pb.data[0].score:0;
+    if(best>0&&v>best*3)return toast('🚫 زيادة مشبوهة! أقصى مسموح تقريباً: '+Math.floor(best*3));
+    if(best===0&&v>100000)return toast('🚫 أول نتيجة مش ممكن تكون أكتر من 100 ألف');
+    var r=await sb.from('game_scores').insert({player:me.name,game:game,score:v,created_at:Date.now()});
+    if(r&&r.error){console.error('save err',r.error);return toast('❌ خطأ: '+r.error.message);}
+    try{LS.setItem(key,String(Date.now()));}catch(e){}
+    toast('🏆 تم حفظ نتيجتك!');
+    try{window._loadGameScores();}catch(e){}
+  }catch(e){
+    console.error('save exc',e);
+    toast('❌ خطأ: '+e.message);
+  }
+};
+var _n=0;
+var _iv=setInterval(function(){
+  try{
+    var inp=el('gsInput');
+    if(!inp||!inp.parentElement){return;}
+    var btns=inp.parentElement.querySelectorAll('button');
+    var btn=btns.length?btns[0]:null;
+    if(btn&&!btn._fx){
+      btn._fx=true;
+      var nb=btn.cloneNode(true);
+      nb.removeAttribute('onclick');
+      btn.parentNode.replaceChild(nb,btn);
+      nb.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();window.saveGameScore();},true);
+      clearInterval(_iv);
+    }
+    _n++;if(_n>300)clearInterval(_iv);
+  }catch(e){}
+},200);
+})();
+</script>
+<script>
+/* ===== إخفاء عناصر السكور ===== */
+(function(){
+setInterval(function(){
+  try{
+    var sb=el('gameScoreBtn');if(sb)sb.style.display='none';
+  }catch(e){}
+},700);
+try{
+  var champ=el('champBtn');if(champ)champ.remove();
+  var _rgO=window.renderGamesList;
+  window.renderGamesList=function(){
+    var r=_rgO();
+    try{var c=el('champBtn');if(c)c.remove();}catch(e){}
+    return r;
+  };
+}catch(e){}
+})();
+</script>
+<script>
+/* ===== ألعاب GameMonetize 🎮 ===== */
+(function(){
+window.GAMES_LIST.push(
+{name:'Zombie Catchers',desc:'اصطد الزومبي وأنقذ كوكب الأرض واجمع العملات',icon:'🧟',color:'#16a085',img:'https://img.gamemonetize.com/u1nspb6d6k05iahz4oc3qtbl0my3cwfi/512x384.jpg',url:'https://html5.gamemonetize.co/u1nspb6d6k05iahz4oc3qtbl0my3cwfi/'}
+);
+try{renderGamesList();}catch(e){}
+})();
+</script>
+<script>
+/* ===== ألعاب GameMonetize 🎮 ===== */
+(function(){
+window.GAMES_LIST.push(
+{name:'Slash FRVR',desc:'قطّع الكرات بضغطة واحدة واصنع أطول قطع متتالي',icon:'⚽',color:'#c0392b',img:'https://img.gamemonetize.com/zq0kl2wz1k7i0j1u83lyokfzun3ualss/512x384.jpg',url:'https://html5.gamemonetize.co/zq0kl2wz1k7i0j1u83lyokfzun3ualss/'}
+);
+try{renderGamesList();}catch(e){}
+})();
+</script>
+<script>
+/* ===== ألعاب Famobi 🎮 ===== */
+(function(){
+window.GAMES_LIST.push(
+{name:'Cut the Rope 2',desc:'قص الحبال ووصّل الحلوى لـ Om Nom في 160 مرحلة',icon:'🍬',color:'#8bc34a',img:'https://img.cdn.famobi.com/portal/html5games/images/tmp/CutTheRope2Teaser.jpg?v=0.2-9fd556a0',url:'https://play.famobi.com/cut-the-rope-2'}
+);
+try{renderGamesList();}catch(e){}
+})();
+</script>
+<script>
+/* ===== تعديل نصوص صفحة الافتتاح: الألعاب + التجاهل + الأصدقاء فقط ===== */
+(function(){
+var _n=0;
+var _iv=setInterval(function(){
+  try{
+    /* 1) كارت الألعاب: نشيل "وتحدي أصحابك" — مفيش تحديات حالياً */
+    var cards=document.querySelectorAll('.lpCard, .lpFAQ');
+    for(var i=0;i<cards.length;i++){
+      var t=cards[i].innerText||'';
+      /* كارت الألعاب */
+      if(t.indexOf('ألعاب تفاعلية')>-1){
+        var b=cards[i].querySelector('.lpB');
+        if(b&&b.innerText.indexOf('تحدى')>-1){
+          b.innerText='قسم ألعاب كامل داخل الموقع — العب وقت ما تحب.';
+        }
+      }
+      /* 2) سؤال تجاهل المزعجين: نشيل الحظر ونجيب التجاهل + الأصدقاء فقط */
+      if(t.indexOf('تجاهل الأشخاص المزعجين')>-1){
+        var b2=cards[i].querySelector('.lpB');
+        if(b2){
+          b2.innerText='يمكنك تجاهل أي شخص مزعج عن طريق فتح ملفه الشخصي والضغط على "🙈 تجاهل الرسائل" من قائمة الشات. بهذه الطريقة تختفي رسائله وإشعاراته من عندك نهائياً دون حظر أو حذف، ويمكنك إلغاء التجاهل في أي وقت من الإعدادات → الخصوصية → قائمة التجاهل. وكذلك يمكنك تفعيل خيار "🔒 الأصدقاء فقط" فلا يستطيع غير أصدقائك إرسال رسائل إليك نهائياً.';
+        }
+      }
+    }
+    _n++;
+    if(_n>150)clearInterval(_iv);
+  }catch(e){}
+},700);
+})();
+</script>
+<script>
+/* ===== تصحيح سؤال المزعجين: الأصدقاء فقط فقط ===== */
+(function(){
+var _n=0;
+var _iv=setInterval(function(){
+  try{
+    var faqs=document.querySelectorAll('.lpFAQ');
+    for(var i=0;i<faqs.length;i++){
+      if((faqs[i].innerText||'').indexOf('المزعجين')>-1){
+        var b=faqs[i].querySelector('.lpB');
+        if(b&&b.innerText.indexOf('تجاهل')>-1){
+          b.innerText='يمكنك تفعيل خيار "🔒 الأصدقاء فقط" من الإعدادات → الخصوصية، وبكده لن يستطيع غير أصدقائك إرسال رسائل إليك نهائياً — أي رسالة من شخص غير صديق لن تصلك إطلاقاً، حتى ردود الحالات.';
+        }
+      }
+    }
+    _n++;
+    if(_n>150)clearInterval(_iv);
+  }catch(e){}
+},700);
+})();
+</script>
+<script>
+/* ===== صفحات الشروط/الخصوصية/القواعد — ستايل صفحات مستقلة بنفسجية متوهجة ===== */
+(function(){
+var PAGES={
+terms:{t:'📜 شروط الاستخدام — شات سونيك',b:'1) دخولك واستخدامك للموقع يعني موافقتك الكاملة على هذه الشروط.\n2) يمنع منعاً باتاً الكلام المسيء أو السباب أو الطائفية أو التحريض على الكره أو أي محتوى مخالف.\n3) يمنع نشر الروابط والإعلانات داخل الشات إلا بإذن الإدارة.\n4) يمنع استخدام أسماء نابية أو مخلة بالآداب.\n5) يمنع نشر صور أو فيديوهات غير لائقة.\n6) احترم جميع الأعضاء والمشرفين، وقرارات الإدارة نهائية.\n7) المخالفة تعرض صاحبها للكتم أو الطرد أو الحظر النهائي حسب جسامتها.'},
+safety:{t:'🛡️ سياسة الأمان — شات سونيك',b:'1) لا تشارك بياناتك الشخصية (رقم الهاتف، العنوان، بيانات البنك أو المحافظ) مع أي شخص مهما كانت الثقة.\n2) لا تشارك كلمة مرورك مع أي أحد، والإدارة لن تطلبها منك أبداً.\n3) أبلغ الإدارة فوراً عن أي سلوك مزعج عبر زر الإبلاغ 🚨.\n4) المحادثات الخاصة سرية وتخضع لرقابة إدارية لضمان سلامة الجميع.\n5) أي جهاز مخالف يتم حظره نهائياً للحفاظ على بيئة آمنة.\n6) تذكر دائماً: ما تنشره على الإنترنت قد يبقى للأبد.'},
+rules:{t:'🔨 قواعد الشات — شات سونيك',b:'1) ممنوع نشر روابط خارجية أو إعلانات.\n2) ممنوع استخدام ألقاب نابية أو مسيئة.\n3) احترم الجميع ولا تلاحق أي عضو بالإزعاج.\n4) ممنوع الطائفية والتحريض والسباب بأي شكل.\n5) ممنوع نشر صور غير لائقة أو تضليل الآخرين.\n6) ممنوع انتحال شخصية الإدارة أو أسماء الأعضاء.\n7) المخالفة الأولى تنبيه، وتكرارها يعرضك للكتم أو الطرد أو الحظر.'}
+};
+var ov=null;
+function _build(){
+  if(ov)return;
+  ov=document.createElement('div');
+  ov.id='lpPageOverlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:9999;background:#08030f;display:none;overflow-y:auto';
+  ov.innerHTML='<div style="position:sticky;top:0;background:#0d0518;border-bottom:1px solid rgba(255,79,216,.35);display:flex;justify-content:center;align-items:center;gap:16px;padding:13px 8px;z-index:2">'
+  +'<button onclick="lpPage(\'home\')" style="background:none;border:none;color:#ffb8ec;font-size:12px;font-weight:bold;cursor:pointer">الرئيسية</button>'
+  +'<button onclick="lpPage(\'terms\')" id="lnkTerms" style="background:none;border:none;color:#ffb8ec;font-size:12px;cursor:pointer">شروط الاستخدام</button>'
+  +'<button onclick="lpPage(\'safety\')" id="lnkSafety" style="background:none;border:none;color:#ffb8ec;font-size:12px;cursor:pointer">سياسة الأمان</button>'
+  +'<button onclick="lpPage(\'rules\')" id="lnkRules" style="background:none;border:none;color:#ffb8ec;font-size:12px;cursor:pointer">قواعد الشات</button>'
+  +'<a href="https://t.me/medosonic" target="_blank" style="color:#ffb8ec;font-size:12px;font-weight:bold;text-decoration:none">اتصل بنا</a>'
+  +'</div>'
+  +'<div style="max-width:640px;margin:26px auto;padding:0 14px">'
+  +'<div style="position:relative;border:1px solid rgba(255,79,216,.65);border-radius:10px;box-shadow:0 0 26px rgba(255,79,216,.22),inset 0 0 26px rgba(255,79,216,.07);padding:22px 18px;background:rgba(20,6,30,.5)">'
+  +'<button onclick="lpPage(\'home\')" style="position:absolute;top:12px;left:12px;background:none;border:none;color:#ffb8ec;font-size:17px;cursor:pointer;font-weight:bold">✕</button>'
+  +'<h2 id="lpPageT" style="color:#ff9fe0;font-size:21px;font-weight:900;text-shadow:0 0 16px rgba(255,79,216,.55);margin:0 0 14px;text-align:right"></h2>'
+  +'<p id="lpPageB" style="color:rgba(255,255,255,.94);font-size:13px;line-height:2.1;white-space:pre-line;text-align:right;margin:0"></p>'
+  +'</div></div>';
+  document.body.appendChild(ov);
+}
+window.lpPage=function(k){
+  _build();
+  if(k==='home'){ov.style.display='none';return;}
+  var p=PAGES[k];if(!p)return;
+  el('lpPageT').innerText=p.t;
+  el('lpPageB').innerText=p.b;
+  ['Terms','Safety','Rules'].forEach(function(x){var l=el('lnk'+x);if(l)l.style.fontWeight=(k==='terms'&&x==='Terms')||(k==='safety'&&x==='Safety')||(k==='rules'&&x==='Rules')?'bold':'normal';});
+  ov.style.display='block';
+  ov.scrollTop=0;
+};
+/* الزراير القديمة في صفحة الافتتاح تفتح الصفحات الجديدة */
+window.lpDoc=function(k){window.lpPage(k);};
+})();
+</script>
+<script>
+/* ===== 🔔 إشعار التحديث التلقائي ===== */
+(function(){
+var VK='app_ver_current';
+function _check(){
+  try{
+    fetch('version.txt?t='+Date.now(),{cache:'no-store'})
+    .then(function(r){return r.ok?r.text():null;})
+    .then(function(v){
+      if(!v)return;
+      v=v.trim();
+      if(!v)return;
+      var cur=LS.getItem(VK);
+      if(!cur){LS.setItem(VK,v);return;}
+      if(v!==cur){
+        if(el('updBar'))return;
+        LS.setItem('app_ver_new',v);
+        var bar=document.createElement('div');
+        bar.id='updBar';
+        bar.style.cssText='position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#8b5cf6,#6d28d9);color:#fff;padding:13px 16px;text-align:center;font-size:13px;font-weight:bold;z-index:99999;cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.5)';
+        bar.innerHTML='🔄 تحديث جديد متاح — اضغط هنا لتحديث شات سونيك';
+        bar.onclick=function(){
+          try{LS.setItem(VK,LS.getItem('app_ver_new')||v);}catch(e){}
+          location.reload(true);
+        };
+        document.body.appendChild(bar);
+      }
+    }).catch(function(){});
+  }catch(e){}
+}
+_check();
+setInterval(_check,300000);
+})();
+</script>
+<script>
+/* ===== ألعاب Famobi 🎮 ===== */
+(function(){
+window.GAMES_LIST.push(
+{name:'Jelly Collapse',desc:'اجمع الهلاميات المتشابهة وانهارها في تحدي ممتع',icon:'🫧',color:'#22c55e',img:'https://assets.abcya.com/webp_b2eaf41f-0561-4727-863d-9c683ce19baf.jpg',url:'https://play.famobi.com/jelly-collapse'}
+);
+try{renderGamesList();}catch(e){}
+})();
+</script>
+<script>
+/* ===== ألعاب Famobi 🎮 ===== */
+(function(){
+window.GAMES_LIST.push(
+{name:'Emergency Surgery',desc:'دورك طبيب الطوارئ — أجرِ العمليات بنفسك في وقت ضاغط',icon:'🏥',color:'#ef4444',img:'https://img.cdn.famobi.com/portal/html5games/images/tmp/EmergencySurgeryTeaser.jpg?v=0.2-9fd556a0',url:'https://play.famobi.com/emergency-surgery'}
+);
+try{renderGamesList();}catch(e){}
+})();
+</script>
 </body>
 </html>
