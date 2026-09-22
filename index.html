@@ -244,7 +244,7 @@ input[type=range]{width:100%}
 <div class="auth-body">
 <div class="pane" id="pane-guest">
 <div class="ig"><label>أكتب الاسم المستعار</label><input id="gName" placeholder="أكتب الاسم المستعار"></div>
-<div class="ig"><label>السن</label><input id="gAge" type="number" placeholder="مثال: 25"></div>
+<div class="ig"><label>السن</label><select id="gAge"></select></div>
 <div class="ig"><label>النوع</label><select id="gGender"><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option></select></div>
 <div class="ig"><label>الدولة</label><select id="gCountry"></select></div>
 <button class="lbtn" onclick="loginGuest()">دخول</button>
@@ -257,7 +257,7 @@ input[type=range]{width:100%}
 <div class="pane" id="pane-register">
 <div class="ig"><label>اسم العضوية</label><input id="rName" placeholder="اكتب اسم العضوية"></div>
 <div class="ig"><label>كلمة المرور</label><input id="rPass" type="password" placeholder="اكتب كلمه المرور"></div>
-<div class="ig"><label>السن</label><input id="rAge" type="number" placeholder="22"></div>
+<div class="ig"><label>السن</label><select id="rAge"></select></div>
 <div class="ig"><label>النوع</label><select id="rGender"><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option></select></div>
 <div class="ig"><label>الدولة</label><select id="rCountry"></select></div>
 <button class="lbtn" onclick="register()">تسجيل العضوية ودخول</button>
@@ -3228,13 +3228,7 @@ try{renderGamesList();}catch(e){}
 (function(){
 /* ➕ لإضافة لعبة جديدة: انسخ سطر وشكله وغير الاسم والرابط */
 window.GAMES_LIST=[
- {name:'Bubble Rush 2',desc:'فرقع الفقاعات واجمع النقط',icon:'🫧',color:'#1e90ff',img:'https://cdn.phototourl.com/free/2026-09-20-0bfd88f7-e1de-4d7e-b9a9-68acea02747b.jpg',url:'https://html5.gamedistribution.com/aec6808b88504f39b6523776908c6e14/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'تطابق الصور',desc:'طلّع الزوجين المتشابهين قبل ما يخلص الوقت',icon:'🃏',color:'#8e44ad',img:'https://img.gamedistribution.com/9c2d1c162cd34b5b98f654cdd0ffb1bd-512x384.jpg',url:'https://html5.gamedistribution.com/9c2d1c162cd34b5b98f654cdd0ffb1bd/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'Knife Hit',desc:'اغرس السكاكين في التفاحة ومتخترقش سكينة',icon:'🔪',color:'#c0392b',img:'https://static.keygames.com/6/112986/92803/672x448/knife-hit.webp',url:'https://html5.gamedistribution.com/10264b8b01ee439aa834a1782baec669/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'ترتيب العناصر',desc:'رتّب الألوان والعناصر في الأماكن الصح',icon:'🎯',color:'#16a085',img:'https://play-lh.googleusercontent.com/wxolV0qVcYVhMaptufoXJd7drEvySo5Hgs0vkO1Q1a_79QIORHxnzy0t4eFuOUzFq_0b3RojQPl9-kiX9ifvv1s=w240-h480-rw',url:'https://html5.gamedistribution.com/7037b5a9bd36452ab195486677004120/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'انقذ الحيوان',desc:'اسحب الحواجز وانقذ الحيوان من الخطر',icon:'🐾',color:'#e67e22',img:'https://img.gamedistribution.com/f56ea48b72e84a3f8fefc7dee2910e25-512x512.jpg',url:'https://html5.gamedistribution.com/f56ea48b72e84a3f8fefc7dee2910e25/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'Candy Jewels',desc:'طابق الحلوى المجوهرات وكسّر الأرقام',icon:'🍬',color:'#e91e63',img:'https://play-lh.googleusercontent.com/T7TBi6ImfbT7dvggMFbj0pAkD0mYGgQf38gRFHWtAqRhPmWHACnVSIHEc1QT36nVR6R_UsLLLCSYqFqcgPs5fg',url:'https://html5.gamedistribution.com/139b8e0290914556898663a6f2311817/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'},
-{name:'Forest Tile Match',desc:'طابق بلاطات الغابة الرائعة واصنع تطابقات ثلاثية',icon:'🌲',color:'#27ae60',img:'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRSHluDiXlK0moBcG4Um3XxhdhThNjbqh5V30gtW9h-YQ&s=10',url:'https://html5.gamedistribution.com/3ef8dda8916d4867b20db49a7e23286d/?gd_sdk_referrer_url=https://medosonic20-lgtm.github.io/chat-sonic/'}
+ {name:'Candy Crush Saga King',desc:'طابق 3 حلويات وفجر الشوكولاتة في آلاف المراحل',icon:'🍬',color:'#e91e63',img:'https://img.gamemonetize.com/ushitaltif0ig5by3w54p4cy9sd3yptt/512x384.jpg',url:'https://html5.gamemonetize.co/ushitaltif0ig5by3w54p4cy9sd3yptt/'}
 ];
 if(!el('gamePlayModal')){
   var gm=document.createElement('div');
@@ -4572,6 +4566,261 @@ img.addEventListener('touchend',function(e){
 /* أول ما تفتح أي صورة جديدة = ترجع طبيعية */
 var _vfO=window.viewFullImage;
 window.viewFullImage=function(src){reset();return _vfO(src);};
+})();
+</script>
+<script>
+/* ===== باتش: حبة "رسائل جديدة" ⬇️ زي واتساب ===== */
+(function(){
+var _cnt=0;
+var pill=document.createElement('div');
+pill.id='newMsgPill';
+pill.style.cssText='position:fixed;bottom:118px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;padding:9px 20px;border-radius:26px;font-size:13px;font-weight:bold;cursor:pointer;z-index:95;display:none;box-shadow:0 4px 14px rgba(0,0,0,.5);white-space:nowrap;border:1px solid rgba(255,255,255,.2)';
+pill.onclick=function(){
+  _cnt=0;pill.style.display='none';
+  try{
+    var b=el('chatBox');
+    userScrolledUp=false;
+    b.scrollTop=b.scrollHeight;
+    var k=b.querySelectorAll('.bub');
+    if(k.length&&k[k.length-1].scrollIntoView){try{k[k.length-1].scrollIntoView({behavior:'smooth',block:'end'});}catch(e){}}
+  }catch(e){}
+};
+document.body.appendChild(pill);
+var _apN=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apN(m);
+  try{
+    if(m&&m.from&&me&&m.from!==me.name&&m.type!=='system'&&chat){
+      var b=el('chatBox');
+      var away=(b.scrollHeight-b.scrollTop-b.clientHeight)>350;
+      if(away||userScrolledUp){
+        _cnt++;
+        pill.innerText='↓ '+(_cnt===1?'رسالة جديدة':_cnt+' رسائل جديدة');
+        pill.style.display='block';
+        if(me.sndOther!==false&&!document.hidden){try{beep(900);}catch(e){}}
+      }
+    }
+  }catch(e){}
+  return r;
+};
+try{
+  var b=el('chatBox');
+  b.addEventListener('scroll',function(){
+    try{
+      if((b.scrollHeight-b.scrollTop-b.clientHeight)<150){_cnt=0;pill.style.display='none';}
+    }catch(e){}
+  },{passive:true});
+}catch(e){}
+var _sm=window.subMsgs;
+window.subMsgs=async function(){
+  _cnt=0;pill.style.display='none';
+  return _sm();
+};
+})();
+</script>
+<script>
+/* ===== تحسين خلفية شاشة الدخول: أوضح وأجمل للزائر ===== */
+(function(){
+try{
+  var st=document.createElement('style');
+  st.textContent='#loginModal .login-card{background:rgba(10,15,30,.88)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.18)!important;box-shadow:0 8px 40px rgba(0,0,0,.6)}#loginModal .auth-body{background:transparent}#loginModal .auth-tabs{background:rgba(0,0,0,.35)!important}';
+  document.head.appendChild(st);
+}catch(e){}
+})();
+</script>
+<script>
+/* ===== صفحة الافتتاح الكاملة (للزائر قبل الدخول) 🎨 ===== */
+(function(){
+var LOGO='https://cdn.phototourl.com/free/2026-08-20-2a069be3-55a5-4282-8e93-9d370070400b.png';
+var BG='https://cdn.phototourl.com/free/2026-09-18-fb7fe613-5e96-4c2a-ab72-b4f4cc12f7fb.jpg';
+var YT='https://youtube.com/@medosonic20?si=3VrimbKDb-fAXLvh';
+function _build(){
+  if(me||el('landingPage'))return;
+  var d=document.createElement('div');
+  d.id='landingPage';
+  d.style.cssText='position:fixed;inset:0;z-index:9998;overflow-y:auto;background:linear-gradient(rgba(5,2,15,.78),rgba(5,2,15,.88)),url('+BG+') center/cover fixed';
+  d.innerHTML='<div style="min-height:100%;display:flex;flex-direction:column;align-items:center;padding:34px 16px 50px;text-align:center">'
+  +'<img src="'+LOGO+'" style="width:130px;height:130px;object-fit:contain;border-radius:26px;box-shadow:0 0 46px rgba(255,0,120,.55),0 0 90px rgba(140,0,255,.35);animation:lpPulse 1.6s ease-in-out infinite alternate">'
+  +'<h1 style="color:#ff4fd8;font-size:44px;font-weight:900;margin:14px 0 4px;text-shadow:0 0 22px rgba(255,79,216,.75),0 2px 6px #000;font-family:system-ui">شات سونيك ⚡</h1>'
+  +'<p style="color:#ffd6f5;font-size:16px;font-weight:bold;text-shadow:0 1px 5px #000;margin-bottom:8px">💜 أقوى دردشة عربية — سونيك ورفاقه 💜</p>'
+  +'<p style="color:rgba(255,255,255,.85);font-size:13px;margin-bottom:22px;text-shadow:0 1px 4px #000">شات بنات | شات شباب | دردشة عامة | حالات | ألعاب 🎮</p>'
+  +'<div style="width:100%;max-width:560px;background:rgba(8,4,18,.72);border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:18px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">'
+  +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">'
+  +'<button onclick="lpOpen(\'member\')" style="padding:13px 6px;border:none;border-radius:12px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;font-size:14px;font-weight:bold;cursor:pointer">🚪 دخول</button>'
+  +'<button onclick="lpOpen(\'register\')" style="padding:13px 6px;border:none;border-radius:12px;background:linear-gradient(135deg,#ff2f92,#c0137a);color:#fff;font-size:14px;font-weight:bold;cursor:pointer">👤+ تسجيل حساب</button>'
+  +'<button onclick="lpOpen(\'guest\')" style="padding:13px 6px;border:none;border-radius:12px;background:#15151f;border:1px solid rgba(255,255,255,.2);color:#fff;font-size:14px;font-weight:bold;cursor:pointer">👥 دخول الزوار</button>'
+  +'<button style="display:none!important" onclick="void 0" style="padding:13px 6px;border:none;border-radius:12px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;font-size:14px;font-weight:bold;cursor:pointer">📲 احصل على التطبيق</button>'
+  +'<button onclick="window.open(\''+YT+'\',\'_blank\')" style="grid-column:span 2;padding:13px 6px;border:none;border-radius:12px;background:linear-gradient(135deg,#ff0000,#b91c1c);color:#fff;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px"><svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" fill="#fff" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>اشترك في قناتي</button>'
+  +'</div></div>'
+  +'<div style="width:100%;max-width:560px;background:rgba(8,4,18,.72);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:16px;margin-top:16px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)">'
+  +'<p style="color:rgba(255,255,255,.92);font-size:12.5px;line-height:2;margin:0;text-align:justify">شات سونيك هي دردشة عربية مجانية تجمع الشباب والبنات في بيئة آمنة وممتعة. تواصل مع أصدقاء جدد من كل الدول العربية، أرسل حالات وصور وتسجيلات صوتية، العب ألعاب مع أصحابك، وشارك إبداعاتك على الحائط. دردشة مصرية وعربية بنظام مراقبة لحماية أعضائها، مع غرف دردشة عامة ومحادثات خاصة مشفرة.</p>'
+  +'<p style="color:rgba(255,255,255,.55);font-size:11px;margin:10px 0 0;text-align:center">شات بنات | دردشة بنات | دردشة عربية | شات مصري | دردشة بدون تسجيل | شات سونيك ⚡</p>'
+  +'</div>'
+  +'<p style="color:rgba(255,255,255,.4);font-size:11px;margin-top:18px">⚡ جميع الحقوق محفوظة © 2026 شات سونيك — حقوق وتراخيص Medo Sonic</p>'
+  +'</div>';
+  document.body.appendChild(d);
+  var st=document.createElement('style');
+  st.textContent='@keyframes lpPulse{0%{transform:scale(1)}100%{transform:scale(1.06)}}';
+  document.head.appendChild(st);
+}
+window.lpOpen=function(tab){
+  try{var d=el('landingPage');if(d)d.remove();}catch(e){}
+  try{el('loginModal').classList.remove('hide');}catch(e){}
+  try{
+    var tabs=document.querySelectorAll('#loginModal .auth-tab');
+    var map={guest:0,member:1,register:2};
+    if(tabs[map[tab]])tabs[map[tab]].click();
+  }catch(e){}
+};
+var _lm=el('loginModal');
+_lm.classList.add('hide');
+var _prv=window.loginGuest,_prm=window.loginMember,_prg=window.register;
+window.loginGuest=async function(){var r=await _prv();try{if(me){var d=el('landingPage');if(d)d.remove();}}catch(e){}return r;};
+window.loginMember=async function(){var r=await _prm();try{if(me){var d=el('landingPage');if(d)d.remove();}}catch(e){}return r;};
+window.register=async function(){var r=await _prg();try{if(me){var d=el('landingPage');if(d)d.remove();}}catch(e){}return r;};
+var _chk=function(){if(!me)_build();};
+_chk();
+})();
+</script>
+<script>
+/* ===== تعبئة قوائم العمر (16 - 100) 🎂 ===== */
+(function(){
+function _fill(id){
+  var s=el(id);if(!s)return;
+  var h='<option value="" disabled selected>اختار سنك</option>';
+  for(var i=16;i<=100;i++)h+='<option value="'+i+'">'+i+' سنة</option>';
+  s.innerHTML=h;
+}
+try{_fill('rAge');_fill('gAge');}catch(e){}
+})();
+</script>
+<script>
+/* ===== قسم المميزات والأسئلة الشائعة في صفحة الافتتاح (شات سونيك) 🎨 ===== */
+(function(){
+try{
+if(!el('lpFeatCSS')){
+var st=document.createElement('style');st.id='lpFeatCSS';
+st.textContent='.lpH{color:#ff9fe0;text-align:center;font-size:19px;font-weight:900;text-shadow:0 0 14px rgba(255,79,216,.5);margin:8px 0 2px}.lpGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.lpCard{background:rgba(18,6,28,.72);border:1px solid rgba(255,79,216,.28);border-radius:14px;padding:14px 12px;text-align:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}.lpW{text-align:right}.lpW>div{display:flex;gap:12px;align-items:flex-start}.lpW .lpIc{margin-bottom:0}.lpIc{font-size:30px;margin-bottom:6px;filter:drop-shadow(0 0 8px rgba(255,79,216,.7))}.lpT{color:#ffb8ec;font-weight:bold;font-size:14.5px;margin-bottom:4px}.lpB{color:rgba(255,255,255,.88);font-size:12px;line-height:1.95}.lpBtn{margin-top:10px;background:rgba(255,79,216,.12);border:1px solid rgba(255,79,216,.45);color:#ffb8ec;border-radius:10px;padding:8px 16px;font-size:12px;font-weight:bold;cursor:pointer}.lpFAQ{background:rgba(18,6,28,.72);border:1px solid rgba(255,79,216,.28);border-radius:14px;padding:16px 14px;text-align:right}';
+document.head.appendChild(st);
+}
+}catch(e){}
+window.lpDoc=function(k){
+var D={
+terms:{t:'📜 شروط الاستخدام — شات سونيك',b:'1) دخولك واستخدامك للموقع يعني موافقتك الكاملة على هذه الشروط.\n2) يمنع منعاً باتاً: الكلام المسيء، السباب، الطائفية، التحريض على الكره، أو أي محتوى مخالف.\n3) يمنع نشر الروابط والإعلانات داخل الشات إلا بإذن الإدارة.\n4) يمنع استخدام أسماء نابية أو مخلة بالآداب.\n5) يمنع نشر صور أو فيديوهات غير لائقة.\n6) احترم جميع الأعضاء والمشرفين، والقرارات الإدارية نهائية.\n7) المخالفة تعرض صاحبها للكتم أو الطرد أو الحظر النهائي حسب جسامتها.'},
+safety:{t:'🛡️ سياسة الأمان — شات سونيك',b:'1) لا تشارك بياناتك الشخصية (رقم الهاتف، العنوان، بيانات البنك أو المحافظ) مع أي شخص مهما كانت الثقة.\n2) لا تشارك كلمة مرورك مع أي أحد، والإدارة لن تطلبها منك أبداً.\n3) أبلغ الإدارة فوراً عن أي سلوك مزعج عبر زر الإبلاغ 🚨.\n4) المحادثات الخاصة سرية، وتخضع لرقابة إدارية لضمان سلامة الجميع.\n5) أي جهاز مخالف يتم حظره نهائياً للحفاظ على بيئة آمنة.\n6) تذكر دائماً: ما تنشره على الإنترنت قد يبقى للأبد.'},
+rules:{t:'🔨 قواعد الشات',b:'1) ممنوع نشر روابط خارجية أو إعلانات.\n2) ممنوع استخدام ألقاب نابية أو مسيئة.\n3) احترم الجميع ولا تلاحق أي عضو بالإزعاج.\n4) ممنوع الطائفية والتحريض والسباب بأي شكل.\n5) ممنوع نشر صور غير لائقة أو تضليل الآخرين.\n6) ممنوع انتحال شخصية الإدارة أو أسماء الأعضاء.\n7) المخالفة الأولى تنبيه، وتكرارها يعرضك للكتم أو الطرد أو الحظر.'}
+};
+var c=D[k];if(!c)return;
+var m=el('lpDocModal');
+if(!m){
+m=document.createElement('div');m.id='lpDocModal';m.className='modal';
+m.innerHTML='<div class="m-card2" style="width:330px;max-height:82vh"><h3 id="lpDocT"></h3><div id="lpDocB" style="font-size:12.5px;line-height:2.1;color:var(--txt);white-space:pre-line;text-align:right;overflow-y:auto;max-height:52vh"></div><button style="background:var(--acc);color:#fff" onclick="closeModal(\'lpDocModal\')">فهمت ✅</button></div>';
+document.body.appendChild(m);
+}
+el('lpDocT').innerText=c.t;
+el('lpDocB').innerText=c.b;
+m.classList.add('open');
+};
+var _done=false;
+function _build(){
+if(_done)return;
+var d=el('landingPage');if(!d)return;
+var inner=d.children[0];if(!inner)return;
+if(el('lpFeatures')){_done=true;return;}
+var s=document.createElement('div');
+s.id='lpFeatures';
+s.style.cssText='width:100%;max-width:560px;margin-top:18px;display:flex;flex-direction:column;gap:14px';
+var h='';
+h+='<h2 class="lpH">🎁 اللي ستحصل عليه فعلاً عند استخدام شات سونيك؟</h2>';
+h+='<div class="lpGrid">';
+h+='<div class="lpCard"><div class="lpIc">👥</div><div class="lpT">مجتمع متنوع</div><div class="lpB">أعضاء من مختلف الدول العربية يجتمعون في مكان واحد.</div></div>';
+h+='<div class="lpCard"><div class="lpIc">🛡️</div><div class="lpT">واجهة سهلة الاستخدام</div><div class="lpB">صفحة خفيفة ومتجاولة تعمل على الهاتف والكمبيوتر.</div></div>';
+h+='<div class="lpCard"><div class="lpIc">⭐</div><div class="lpT">تحديثات مستمرة</div><div class="lpB">تطوير دائم للواجهة والمميزات بشكل دوري.</div></div>';
+h+='<div class="lpCard"><div class="lpIc">🔒</div><div class="lpT">دردشة آمنة</div><div class="lpB">خصوصية وآمان وتنبيه دائم بعدم مشاركة البيانات الحساسة.</div></div>';
+h+='</div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">📋</div><div style="flex:1"><div class="lpT">شروط الاستخدام</div><div class="lpB">يمنع الكلام المسيء أو الطائفي أو المخالف، ويمنع إرسال روابط أو إعلانات مزعجة. يجب احترام جميع الأعضاء والمشرفين داخل الدردشة.</div><button class="lpBtn" onclick="lpDoc(\'terms\')">قراءة جميع الشروط</button></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">🛡️</div><div style="flex:1"><div class="lpT">سياسة الأمان</div><div class="lpB">خصوصيتك وبياناتك لا يتم مشاركتها مع أي جهة خارجية، مع مراقبة إدارية لضمان بيئة آمنة للجميع وإمكانية الإبلاغ الفوري.</div><button class="lpBtn" onclick="lpDoc(\'safety\')">قراءة سياسة الأمان</button></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">🔨</div><div style="flex:1"><div class="lpT">قواعد الشات</div><div class="lpB">عدم نشر روابط خارجية، عدم استخدام ألقاب نابية، احترام الأعضاء والمشرفين، وعدم تكرار الرسائل.</div><button class="lpBtn" onclick="lpDoc(\'rules\')">عرض القواعد</button></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">👤</div><div style="flex:1"><div class="lpT">الملف الشخصي</div><div class="lpB">يمكنك تعديل ملفك الشخصي بسهولة: اسمك، صورتك، حالتك، عمرك، جنسك ودولتك، بالإضافة إلى لون اسمك الخاص.</div></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">💬</div><div style="flex:1"><div class="lpT">الرسائل الخاصة</div><div class="lpB">محادثات خاصة مع الأصدقاء، ردود ورياكشنز على الرسائل، إشعارات الرسائل الجديدة، ورد على الحالات مباشرة.</div></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">🔔</div><div style="flex:1"><div class="lpT">إشعارات الدردشة</div><div class="lpB">تنبيهات فورية للرسائل الجديدة والإشعارات المهمة، حتى لو كنت تتصفح شاشة أخرى في الموقع.</div></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">⏱️</div><div style="flex:1"><div class="lpT">حالات 24 ساعة</div><div class="lpB">انشر صورك وفيديوهاتك وحالاتك النصية، تختفي تلقائياً بعد 24 ساعة، وتعرف مين شاف حالتك 👁️.</div></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">🖼️</div><div style="flex:1"><div class="lpT">مشاركة الصور</div><div class="lpB">مشاركة الصور مباشرة من الإنترنت أو من جهازك الشخصي مع أصدقائك والجميع.</div></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">🎵</div><div style="flex:1"><div class="lpT">الصوتيات</div><div class="lpB">سجل صوتك وأرسله في المحادثات الخاصة بضغطة واحدة، واستمع لتسجيلات أصدقائك مباشرة.</div></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">🎬</div><div style="flex:1"><div class="lpT">مشاركة الفيديوهات</div><div class="lpB">شارك فيديوهات يوتيوب المفضلة لديك على حائط الإبداع لتشاهدها الجميع مباشرة.</div></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">🎮</div><div style="flex:1"><div class="lpT">ألعاب تفاعلية</div><div class="lpB">قسم ألعاب كامل داخل الموقع — العب وتحدى أصحابك وقت ما تحب.</div></div></div></div>';
+h+='<div class="lpCard lpW"><div><div class="lpIc">🔐</div><div style="flex:1"><div class="lpT">الأمان والخصوصية</div><div class="lpB">شات سونيك يضمن لك حماية أمان بياناتك الشخصية، حيث يتم تشفير جميع البيانات والمعلومات ولا يتم مشاركتها مع أي جهة خارجية. لكن احرص دائماً على عدم مشاركة معلومات حساسة على ملفك الشخصي.</div></div></div></div>';
+h+='<h2 class="lpH" style="margin-top:10px">❓ أسئلة شائعة</h2>';
+h+='<div class="lpFAQ"><div class="lpT">🎁 ما الذي ستحصل عليه فعلاً عند استخدام شات سونيك؟</div><div class="lpB">تخصيص لون اسمك في الدردشة، إرسال رسائل غير محدودة سواء كانت خاصة أو عامة، مشاركة الصور من المعرض أو بالكاميرا مباشرة، إرسال تسجيلات صوتية، رموز سمايلي وستيكرات، الرد على رسالة معينة والرياكشنز عليها، تجاهل وحظر أي شخص مزعج، تغيير صورتك الشخصية وحالتك وعمرك، البحث عن أي مستخدم في قائمة المتواجدين، حالات تظهر لمدة 24 ساعة وتعرف مين شافها، وألعاب تلعبها مع أصحابك داخل الموقع.</div></div>';
+h+='<div class="lpFAQ"><div class="lpT">🚫 كيفية تجاهل الأشخاص المزعجين؟</div><div class="lpB">يمكنك تجاهل أي شخص مزعج عن طريق فتح ملفه الشخصي والضغط على زر "حظر". بهذه الطريقة، لن يتسنى لك أو له رؤية رسائل بعضكما، وستحذف المحادثة من الطرفين وتظهر للإدارة للمراجعة.</div></div>';
+h+='<div class="lpFAQ"><div class="lpT">⚠️ كيف أتجنب الخطر؟</div><div class="lpB">استخدم أسماء لائقة ومناسبة. احترم قوانين شات سونيك والمشاركين الآخرين في الدردشة. تجنب الإساءة لأي شخص أو التعدي على أي مذهب ديني. لا تشارك بياناتك الشخصية (رقم هاتفك، عنوانك، حساباتك البنكية) مع أحد.</div></div>';
+s.innerHTML=h;
+var cp=null;
+var ps=inner.querySelectorAll('p');
+for(var i=0;i<ps.length;i++){if((ps[i].innerText||'').indexOf('جميع الحقوق')>-1){cp=ps[i];break;}}
+if(cp)inner.insertBefore(s,cp);else inner.appendChild(s);
+_done=true;
+}
+var _n=0;
+var _iv=setInterval(function(){_build();_n++;if(_done||_n>200)clearInterval(_iv);},600);
+})();
+</script>
+<script>
+/* ===== 🔒 الأصدقاء فقط ===== */
+(function(){
+/* 1) المفتاح في الخصوصية */
+try{
+  var sp=el('s-privacy');
+  if(sp&&!el('pFriendsOnly')){
+    var anchor=sp.querySelector('.m-item');
+    var row=document.createElement('div');
+    row.className='set-row';
+    row.innerHTML='<div><h4>🔒 الأصدقاء فقط</h4><p>لن يستطيع غير أصدقائك إرسال رسائل إليك نهائياً</p></div><label class="sw"><input type="checkbox" id="pFriendsOnly" onchange="setPref(\'friendsOnly\',this.checked)"><span class="sl"></span></label>';
+    if(anchor)sp.insertBefore(row,anchor);else sp.appendChild(row);
+  }
+}catch(e){}
+function _sync(){
+  try{if(me&&el('pFriendsOnly'))el('pFriendsOnly').checked=(me.friendsOnly===true);}catch(e){}
+}
+setInterval(_sync,1500);
+/* 2) فحص الصلاحية */
+function _canSend(target){
+  try{
+    if(!me)return true;
+    if(isOwnerName(target)||isAdmin())return true;
+    var tu=usersCache[target];
+    if(!tu||tu.friendsOnly!==true)return true;
+    return (tu.friends&&tu.friends.indexOf(me.name)>-1);
+  }catch(e){return true;}
+}
+window._canSendTo=_canSend;
+/* 3) منع الإرسال */
+var _sm=window.sendMsg;
+window.sendMsg=async function(){
+  try{
+    if(chat&&chat.type==='user'&&!_canSend(chat.id)){
+      return toast('🔒 هذا المستخدم يستقبل رسائل الأصدقاء فقط');
+    }
+  }catch(e){}
+  return _sm();
+};
+/* 4) منع الرد على الحالات */
+var _ssr=window.sendStoryReply;
+window.sendStoryReply=function(author,sid,stype){
+  try{
+    if(author!==me.name&&!_canSend(author))return toast('🔒 هذا المستخدم يستقبل رسائل الأصدقاء فقط');
+  }catch(e){}
+  return _ssr(author,sid,stype);
+};
+})();
+</script>
+<script>
+/* ===== ألعاب GameMonetize 🎮 ===== */
+(function(){
+return;window.GAMES_LIST.push(
+{name:'Candy Crush Saga King',desc:'طابق 3 حلويات وفجر الشوكولاتة في آلاف المراحل',icon:'🍬',color:'#e91e63',img:'https://img.gamemonetize.com/ushitaltif0ig5by3w54p4cy9sd3yptt/512x384.jpg',url:'https://html5.gamemonetize.co/ushitaltif0ig5by3w54p4cy9sd3yptt/'}
+);
+try{renderGamesList();}catch(e){}
 })();
 </script>
 </body>
