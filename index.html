@@ -659,7 +659,7 @@ var SUPABASE_URL="https://mwdyfhusaqkeuxmimdlo.supabase.co";
 var SUPABASE_KEY="sb_publishable_owUUXMVbIwaKz9tx-ch9Yw_RUKKQ--w";
 var sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-var OWNER_NAME='(medoyoutuber) 😂♥',ONLINE_TIMEOUT=40000;
+var OWNER_NAME='(medoyoutuber) 😂♥',ONLINE_TIMEOUT=60000;
 function isOwnerName(n){if(!n)return false;return String(n).indexOf('medoyoutuber')>-1;}
 function getDisplayName(u){if(!u)return 'مستخدم';return u.displayName||u.name;}
 function getMsgName(n){return (usersCache[n]&&usersCache[n].displayName)||n;}
@@ -2425,7 +2425,7 @@ el('chatBox').addEventListener('load',function(e){if(e.target&&e.target.tagName=
 /* ===== إدارة الحضور الفوري ===== */
 function _markGone(){
   if(!me)return;
-  var oldTime = Date.now() - ONLINE_TIMEOUT - 10000;
+  var oldTime = Date.now();
   try{
     fetch(SUPABASE_URL+'/rest/v1/users?name=eq.'+encodeURIComponent(me.name),{
       method:'PATCH',
@@ -3003,10 +3003,10 @@ window.renderMsgContent=function(m){
 var SONIC='https://cdn.phototourl.com/free/2026-09-18-fb7fe613-5e96-4c2a-ab72-b4f4cc12f7fb.jpg';
 function _ageOK(v){var n=parseInt(v);return !isNaN(n)&&n>=16&&n<=100;}
 function _sArr(v){return Array.isArray(v)?v:[];}
-function _ava60(u){if(u&&u.avatar)return'<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover">';return getAvatar(u||{});}
+function _ava60(u){return getAvatar(u||{});}
 
 /* ---------- 1) الصورة الافتراضية (سونيك) ---------- */
-window._defAva=function(u){return (u&&u.gender==='أنثى')?'https://cdn.phototourl.com/free/2026-09-20-11612f11-f096-47b1-aa4d-76830caca2de.jpg':'https://cdn.phototourl.com/free/2026-09-20-9822ccb5-81a0-45e3-a666-f3e1813c5c27.jpg';};window.getAvatar=function(u){if(u&&u.avatar)return'<img src="'+u.avatar+'">';return'<img src="'+_defAva(u)+'" style="width:100%;height:100%;object-fit:cover">';};
+window._defAva=function(u){return (u&&u.gender==='أنثى')?'https://cdn.phototourl.com/free/2026-09-23-9e2a1f47-8318-4b74-8e74-2a643e156af6.jpg':'https://cdn.phototourl.com/free/2026-09-23-e466167c-d14c-4d49-bf5e-dac6c612bc8e.jpg';};window.getAvatar=function(u){var _d=_defAva(u);if(u&&u.avatar&&String(u.avatar).length>50)return'<img src="'+u.avatar+'" data-df="'+_d+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-df\')" style="width:100%;height:100%;object-fit:cover">';return'<img src="'+_d+'" style="width:100%;height:100%;object-fit:cover">';};
 var _oupO=window.openUserProfile;
 window.openUserProfile=function(name){try{_oupO(name);}catch(e){}var u=usersCache[name];if(u&&!u.avatar){var a=el('upAva');if(a){a.style.display='block';a.src=_defAva(u);}}};
 
@@ -5344,5 +5344,105 @@ window.GAMES_LIST.push(
 try{renderGamesList();}catch(e){}
 })();
 </script>
+<script>
+/* ===== حماية الصور الافتراضية: لو الجديدة فشلت نرجع لسونيك ===== */
+(function(){
+var FALLBACK='https://cdn.phototourl.com/free/2026-09-18-fb7fe613-5e96-4c2a-ab72-b4f4cc12f7fb.jpg';
+var _defO=window._defAva;
+if(_defO){
+  var _c={};
+  window._defAva=function(u){
+    var g=(u&&u.gender==='أنثى')?'F':'M';
+    var url=_defO(u);
+    if(_c[g]==='bad')return FALLBACK;
+    return url;
+  };
+}
+/* فحص جودة الروابط عند التشغيل */
+['M','F'].forEach(function(g){
+  var url=(g==='M')
+    ?'https://cdn.phototourl.com/free/2026-09-23-e466167c-d14c-4d49-bf5e-dac6c612bc8e.jpg'
+    :'https://cdn.phototourl.com/free/2026-09-23-9e2a1f47-8318-4b74-8e74-2a643e156af6.jpg';
+  var img=new Image();
+  img.onload=function(){_c[g]='ok';};
+  img.onerror=function(){
+    _c[g]='bad';
+    try{
+      document.querySelectorAll('img').forEach(function(im){
+        if(im.src===url){im.src=FALLBACK;im.onerror=null;}
+      });
+      renderOnline&&renderOnline();
+    }catch(e){}
+  };
+  img.src=url;
+});
+/* حماية إضافية: أي صورة افتراضية تفشل في أي مكان = سونيك */
+document.addEventListener('error',function(e){
+  var t=e.target;
+  if(!t||t.tagName!=='IMG')return;
+  if(t.dataset.fb)return;
+  if(t.src&&t.src.indexOf('cdn.phototourl.com')>-1){
+    var isDef=(t.src.indexOf('2026-09-23')>-1||t.src.indexOf('2026-09-20-98')>-1||t.src.indexOf('2026-09-20-11')>-1);
+    if(isDef){t.dataset.fb='1';t.src=FALLBACK;}
+  }
+},true);
+})();
+</script>
+<script>
+/* ===== شريط تقدم حقيقي لرفع الصور الشخصية (نظام مستقل) ===== */
+(function(){
+function _uploadReal(blob){
+  return new Promise(function(resolve){
+    try{
+      var fname='ava_'+Date.now()+'_'+Math.floor(Math.random()*9999)+'.jpg';
+      var fake=0;
+      var timer=setInterval(function(){
+        fake=Math.min(fake+Math.random()*8,90);
+        setUpBar(Math.floor(fake));
+      },200);
+      sb.storage.from('stories').upload(fname,blob,{cacheControl:'31536000',upsert:false}).then(function(r){
+        clearInterval(timer);
+        if(r.error){console.error('up err',r.error);resolve(null);return;}
+        setUpBar(100);
+        setTimeout(function(){showUpBar(false);},500);
+        resolve(sb.storage.from('stories').getPublicUrl(fname).data.publicUrl);
+      });
+    }catch(e){clearInterval(timer);resolve(null);}
+  });
+}
+function _wire(input){
+  if(!input||input._upReal)return;
+  input._upReal=true;
+  input.addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    compressImg(f,async function(d){
+      try{
+        showUpBar(true);setUpBar(0);
+        toast('⏳ جاري رفع الصورة...');
+        var url=await _uploadReal(dataURLtoBlob(d));
+        var fin=url||d;
+        await updateMe({avatar:fin});
+        toast('تم تغيير الصورة ✅');
+        try{openUserProfile(me.name);}catch(e){}
+        try{updateProfile();}catch(e){}
+      }catch(err){
+        showUpBar(false);
+        toast('❌ خطأ في الرفع: '+err.message);
+      }
+    });
+  },true);
+}
+var _n=0;
+var _iv=setInterval(function(){
+  try{
+    _wire(el('profAvaInput'));
+    var ava=document.getElementById('avaInput');
+    if(ava)_wire(ava);
+    _n++;if(_n>400)clearInterval(_iv);
+  }catch(e){}
+},250);
+})();
+</script>
+
 </body>
 </html>
