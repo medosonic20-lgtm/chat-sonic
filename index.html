@@ -5443,6 +5443,27 @@ var _iv=setInterval(function(){
 },250);
 })();
 </script>
+<script>
+/* ===== إصلاح: صاحب الجلسة المحفوظة يدخل مباشرة بدون صفحة الافتتاح ===== */
+(function(){
+var _saved=LS.getItem('session');
+if(!_saved)return;
+/* فيه جلسة محفوظة — صفحة الافتتاح ممنوع تظهر خالص */
+var _n=0;
+var _iv=setInterval(function(){
+  try{
+    var d=el('landingPage');
+    if(d)d.remove();
+    if(me){
+      try{el('loginModal').classList.add('hide');}catch(e){}
+      clearInterval(_iv);
+    }
+  }catch(e){}
+  _n++;
+  if(_n>150)clearInterval(_iv);
+},200);
+})();
+</script>
 
 </body>
 </html>
