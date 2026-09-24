@@ -5464,6 +5464,87 @@ var _iv=setInterval(function(){
 },200);
 })();
 </script>
-
+<script>
+/* ===== جلسة أوفلاين: دخول فوري بدون نت + مزامنة لما يرجع ===== */
+(function(){
+var SK='offline_session';
+function _saveOff(u){
+  try{LS.setItem(SK,JSON.stringify({name:u.name,data:u,t:Date.now()}));}catch(e){}
+}
+function _getOff(){try{return JSON.parse(LS.getItem(SK)||'null');}catch(e){return null;}}
+/* 1) عند الدخول أو استرجاع الجلسة: احفظ نسخة محلية */
+var _enO=window.enter;
+window.enter=function(u){
+  try{_saveOff(u);}catch(e){}
+  return _enO(u);
+};
+var _stO=window.startAll;
+window.startAll=async function(){
+  try{if(me)_saveOff(me);}catch(e){}
+  return _stO();
+};
+/* 2) عند فتح الموقع: لو الجلسة السحابية فشلت، استخدم المحلية */
+var _csO=window.checkSession;
+window.checkSession=function(){
+  return _csO().catch(function(){
+    try{
+      var o=_getOff();
+      if(o&&o.data){
+        me=o.data;usersCache[o.name]=o.data;
+        el('loginModal').classList.add('hide');
+        try{var d=el('landingPage');if(d)d.remove();}catch(e){}
+        try{applyPrefsUI();updateProfile();}catch(e){}
+        try{renderOnline();}catch(e){}
+        toast('📴 دخلت بوضع أوفلاين — هيتزامن لما يرجع النت');
+      }
+    }catch(e){}
+  });
+};
+/* لو مش فيه checkSession أصلاً: نلف الاسترجاع المباشر */
+if(!window.checkSession){
+  window.checkSession=async function(){
+    try{
+      var saved=LS.getItem('session');
+      if(!saved||me)return;
+      var u=null;
+      try{u=await Promise.race([SDB.getUser(saved),new Promise(function(_,rj){setTimeout(function(){rj(new Error('timeout'));},4000);})]);}catch(e){}
+      if(u&&!u.banned){
+        me=u;usersCache[u.name]=u;
+        el('loginModal').classList.add('hide');
+        applyPrefsUI();updateProfile();
+        me.dev=deviceId();me.dtype=deviceType();me.browser=browserName();me.ip=myIP;me.lastSeen=Date.now();
+        SDB.saveUser(me.name,me);
+        startHeartbeat();startAll();checkDeviceOrIPBan();
+      }else{
+        LS.removeItem('session');
+        throw new Error('no cloud session');
+      }
+    }catch(e){
+      var o=_getOff();
+      if(o&&o.data&&LS.getItem('session')===o.name){
+        me=o.data;usersCache[o.name]=o.data;
+        el('loginModal').classList.add('hide');
+        try{var d2=el('landingPage');if(d2)d2.remove();}catch(e2){}
+        try{applyPrefsUI();updateProfile();renderOnline();}catch(e2){}
+        toast('📴 دخلت بوضع أوفلاين — هيتزامن لما يرجع النت');
+      }
+    }
+  };
+}
+/* 3) عند رجوع النت: تحديث السجل والظهور */
+window.addEventListener('online',function(){
+  try{
+    if(me){
+      me.lastSeen=Date.now();
+      sb.from('users').update({last_seen:Date.now()}).eq('name',me.name);
+      startHeartbeat();
+      toast('📡 النت رجع — تم تفعيل حضورك');
+      renderOnline();
+    }
+  }catch(e){}
+});
+})();
+</script>
+</body>
 </body>
 </html>
