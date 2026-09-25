@@ -5,6 +5,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
 <title>شات سونيك - دردشة عربية مجانية | Chat Sonic</title>
+<link rel="icon" type="image/jpeg" href="https://cdn.phototourl.com/member/2026-09-25-ab9966bc-d687-408c-9d25-f3a38a7b11a4.jpg">
+<link rel="apple-touch-icon" href="https://cdn.phototourl.com/member/2026-09-25-ab9966bc-d687-408c-9d25-f3a38a7b11a4.jpg">
+<link rel="icon" type="image/jpeg" href="https://cdn.phototourl.com/member/2026-09-25-ab9966bc-d687-408c-9d25-f3a38a7b11a4.jpg">
+<link rel="apple-touch-icon" href="https://cdn.phototourl.com/member/2026-09-25-ab9966bc-d687-408c-9d25-f3a38a7b11a4.jpg">
 <meta name="description" content="شات سونيك: دردشة عربية مجانية للتحدث مع أصدقاء جدد من مصر والوطن العربي. محادثات خاصة، غرف دردشة، حالات، ألعاب والمزيد - انضم الآن مجاناً!">
 <meta name="keywords" content="شات, دردشة, شات عربي, شات مصري, دردشة مجانية, شات سونيك, chat sonic">
 <meta property="og:title" content="⚡ شات سونيك - دردشة عربية مجانية">
@@ -5545,6 +5549,129 @@ window.addEventListener('online',function(){
 });
 })();
 </script>
-</body>
+<script>
+/* ===== أيقونة الموقع في جوجل والمتصفح ===== */
+(function(){
+try{
+  if(!document.querySelector('link[rel="icon"]')){
+    var l=document.createElement('link');
+    l.rel='icon';l.type='image/jpeg';
+    l.href='https://cdn.phototourl.com/member/2026-09-25-ab9966bc-d687-408c-9d25-f3a38a7b11a4.jpg';
+    document.head.appendChild(l);
+  }
+  if(!document.querySelector('link[rel="apple-touch-icon"]')){
+    var l2=document.createElement('link');
+    l2.rel='apple-touch-icon';
+    l2.href='https://cdn.phototourl.com/member/2026-09-25-ab9966bc-d687-408c-9d25-f3a38a7b11a4.jpg';
+    document.head.appendChild(l2);
+  }
+}catch(e){}
+})();
+</script>
+<script>
+/* ===== شاشة الفراغ الذكية: لما مفيش أحد متصل 🪐 ===== */
+(function(){
+var MYURL='https://medosonic20-lgtm.github.io/chat-sonic/';
+var _t=el('usersList');
+if(!_t)return;
+var _mo=new MutationObserver(function(){
+  try{
+    var t=_t.innerText||'';
+    var isEmpty=(t.indexOf('لا يوجد مستخدمين متصلين')>-1);
+    var ex=el('emptyPromo');
+    if(isEmpty&&!ex){
+      var d=document.createElement('div');
+      d.id='emptyPromo';
+      d.style.cssText='text-align:center;padding:50px 20px;color:var(--txt)';
+      d.innerHTML='<div style="font-size:15px;line-height:2.4">'
+      +'قائمة الأشخاص النشطين فارغة الآن ! 🔔<br>'
+      +'ماذا عن مشاركة الموقع مع الآخرين ؟<br>'
+      +'لتجعل القائمة ممتلئة معاً 🚀</div>'
+      +'<div onclick="try{navigator.clipboard.writeText(\''+MYURL+'\').then(function(){toast(\'📋 تم نسخ الرابط ✅\');},function(){toast(\''+MYURL+'\');});}catch(e){toast(\''+MYURL+'\');}" '
+      +'style="display:inline-flex;align-items:center;gap:8px;margin-top:16px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.5);border-radius:26px;padding:12px 20px;cursor:pointer">'
+      +'<span style="color:#34d399;font-size:13px;font-weight:bold;direction:ltr">'+MYURL+'</span>'
+      +'<span style="background:#34d399;color:#0f172a;border-radius:6px;padding:4px 7px;font-size:13px">📋</span></div>';
+      _t.appendChild(d);
+    }else if(!isEmpty&&ex){
+      ex.remove();
+    }
+  }catch(e){}
+});
+_mo.observe(_t,{childList:true,subtree:true,characterData:true});
+})();
+</script>
+<script>
+/* ===== 🎉 احتفالية كونفيتي عند نسخ رابط المشاركة ===== */
+(function(){
+var MYURL='https://medosonic20-lgtm.github.io/chat-sonic/';
+var COLORS=['#ff4fd8','#22c55e','#0ea5e9','#eab308','#ef4444','#8b5cf6','#14b8a6','#f97316'];
+var _confRunning=false;
+window._confettiBurst=function(){
+  if(_confRunning)return;
+  _confRunning=true;
+  var cv=document.createElement('canvas');
+  cv.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:99998';
+  document.body.appendChild(cv);
+  var ctx=cv.getContext('2d');
+  function _rs(){cv.width=innerWidth;cv.height=innerHeight;}
+  _rs();
+  var parts=[];
+  for(var i=0;i<140;i++){
+    parts.push({
+      x:Math.random()*cv.width,
+      y:-20-Math.random()*cv.height*0.5,
+      w:5+Math.random()*7,
+      h:8+Math.random()*10,
+      c:COLORS[Math.floor(Math.random()*COLORS.length)],
+      vy:2+Math.random()*3.5,
+      vx:-1.5+Math.random()*3,
+      rot:Math.random()*Math.PI,
+      vr:-0.12+Math.random()*0.24,
+      ribbon:Math.random()<0.12,
+      rl:30+Math.random()*50
+    });
+  }
+  var t0=Date.now();
+  function _draw(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    var alive=false;
+    parts.forEach(function(p){
+      p.y+=p.vy;p.x+=p.vx+Math.sin(p.y/28)*0.7;p.rot+=p.vr;
+      if(p.y<cv.height+30)alive=true;
+      ctx.save();
+      ctx.translate(p.x,p.y);ctx.rotate(p.rot);
+      if(p.ribbon){
+        ctx.strokeStyle=p.c;ctx.lineWidth=5;ctx.lineCap='round';
+        ctx.beginPath();ctx.moveTo(0,0);
+        ctx.quadraticCurveTo(Math.sin(p.y/15)*12,p.rl/2,Math.cos(p.y/22)*8,p.rl);
+        ctx.stroke();
+      }else{
+        ctx.fillStyle=p.c;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+      }
+      ctx.restore();
+    });
+    if(alive&&Date.now()-t0<5000){requestAnimationFrame(_draw);}
+    else{cv.remove();_confRunning=false;}
+  }
+  _draw();
+};
+/* وتر للنقطة الخضرا في شاشة الفراغ */
+var _n=0;
+var _iv=setInterval(function(){
+  try{
+    var p=el('emptyPromo');
+    if(p&&!p.dataset.conf){
+      p.dataset.conf='1';
+      p.addEventListener('click',function(){
+        toast('📋 تم نسخ الرابط — شكراً لمشاركتك 🎉');
+        window._confettiBurst();
+      },true);
+    }
+    _n++;if(_n>200)clearInterval(_iv);
+  }catch(e){}
+},600);
+})();
+</script>
+
 </body>
 </html>
