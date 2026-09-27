@@ -6566,5 +6566,231 @@ window.spyConv=async function(convId,a,b){
 };
 })();
 </script>
+<script>
+/* ===== إصلاح نهائي: زرار + في القصص + نافذة إضافة الحالة ===== */
+(function(){
+  var SCOLORS=['#0f172a','#1e3a8a','#312e81','#6d28d9','#86198f','#9d174d','#9a3412','#065f46','#111827','#450a0a'];
+  var _cur=SCOLORS[0];
+
+  /* بناء نافذة الإضافة نظيفة (بشكل مطابق للتصميم البنفسجي) */
+  function build(){
+    var old=el('storyComposerModal');
+    if(old)old.remove();
+    var cp=document.createElement('div');
+    cp.id='storyComposerModal';
+    cp.className='modal';
+    var chips='';
+    SCOLORS.forEach(function(c,i){
+      chips+='<div class="scChip" data-c="'+c+'" style="min-width:34px;width:34px;height:34px;border-radius:50%;background:'+c+';cursor:pointer;border:2px solid '+(i===0?'#fff':'transparent')+';flex-shrink:0"></div>';
+    });
+    cp.innerHTML='<div class="m-card2" style="width:330px;max-height:85vh;overflow-y:auto">'
+      +'<h3 style="color:#a78bfa">✨ إضافة حالة</h3>'
+      +'<button style="background:#8b5cf6;color:#fff" onclick="scPickMedia()">📷 صورة أو فيديو</button>'
+      +'<button style="background:#8b5cf6;color:#fff" onclick="scShowText()">📝 نص</button>'
+      +'<div id="scTextWrap" style="display:none">'
+      +'<div id="scPrev" style="border-radius:12px;padding:14px;background:'+SCOLORS[0]+';margin-bottom:8px">'
+      +'<textarea id="scText" placeholder="اكتب حالتك..." style="width:100%;background:transparent;border:none;outline:none;color:#fff;font-size:18px;text-align:center;resize:none;min-height:100px;font-weight:bold"></textarea></div>'
+      +'<div style="display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px" id="scColors">'+chips+'</div>'
+      +'<button style="background:var(--grn);color:#fff" onclick="scPublish()">✅ نشر الحالة</button>'
+      +'</div>'
+      +'<button style="background:transparent;color:var(--red);border:1px solid var(--red)!important" onclick="closeModal(\'storyComposerModal\')">❌ إلغاء</button>'
+      +'</div>';
+    cp.onclick=function(e){if(e.target===cp)closeModal('storyComposerModal');};
+    document.body.appendChild(cp);
+    var cb=el('scColors');
+    if(cb){
+      Array.prototype.forEach.call(cb.children,function(d){
+        d.onclick=function(){
+          _cur=d.getAttribute('data-c');
+          el('scPrev').style.background=_cur;
+          Array.prototype.forEach.call(cb.children,function(k){k.style.borderColor='transparent';});
+          d.style.borderColor='#fff';
+        };
+      });
+    }
+  }
+
+  /* فتح النافذة */
+  window.openStoryComposer=function(){
+    try{
+      if(!me)return toast('سجل دخولك أولاً');
+      build();
+      var t=el('scText');if(t)t.value='';
+      var w=el('scTextWrap');if(w)w.style.display='none';
+      var m=el('storyComposerModal');
+      if(m)m.classList.add('open');
+    }catch(e){toast('خطأ: '+e.message);}
+  };
+
+  /* اختيار صورة/فيديو من الجهاز */
+  window.scPickMedia=function(){
+    closeModal('storyComposerModal');
+    try{storyInputEl.click();}catch(e){toast('جرب تاني');}
+  };
+
+  /* كتابة نص */
+  window.scShowText=function(){
+    var w=el('scTextWrap');if(w)w.style.display='block';
+    setTimeout(function(){try{el('scText').focus();}catch(e){}},60);
+  };
+
+  /* نشر الحالة النصية */
+  window.scPublish=function(){
+    var t=el('scText');var txt=t?(t.value||'').trim():'';
+    if(!txt)return toast('اكتب حالتك الأول');
+    var sid='st'+Date.now()+Math.floor(Math.random()*999);
+    sb.from('stories').insert({id:sid,author:me.name,img:_cur+'|||'+txt,stype:'text',stime:Date.now()}).then(function(r){
+      if(r.error)return toast('خطأ: '+r.error.message);
+      toast('تم نشر حالتك ✅');
+      closeModal('storyComposerModal');
+      try{renderStories();}catch(e){}
+    });
+  };
+
+  /* ربط مضمون بزرار + (يلتقط الضغطة مهما حصل) */
+  document.addEventListener('click',function(e){
+    try{
+      var t=e.target;
+      if(!t||!t.closest)return;
+      var hit=t.closest('[onclick*="openStoryComposer"]');
+      if(hit){
+        e.preventDefault();e.stopPropagation();
+        window.openStoryComposer();
+      }
+    }catch(err){}
+  },true);
+})();
+</script>
+<script>
+/* ===== الحل الجذري: زرار + القصص (كان من غير أمر فتح خالص) ===== */
+(function(){
+  function _arr(v){return Array.isArray(v)?v:[];}
+  function _st(){try{return JSON.parse(LS.getItem('stories_settings')||'{}');}catch(e){return{};}}
+
+  /* ---------- نافذة إضافة الحالة (مدمجة عشان الباتش لوحده كفاية) ---------- */
+  var SCOLORS=['#0f172a','#1e3a8a','#312e81','#6d28d9','#86198f','#9d174d','#9a3412','#065f46','#111827','#450a0a'];
+  var _cur=SCOLORS[0];
+  function buildComposer(){
+    var old=el('storyComposerModal');if(old)old.remove();
+    var cp=document.createElement('div');cp.id='storyComposerModal';cp.className='modal';
+    var chips='';SCOLORS.forEach(function(c,i){chips+='<div class="scChip" data-c="'+c+'" style="min-width:34px;width:34px;height:34px;border-radius:50%;background:'+c+';cursor:pointer;border:2px solid '+(i===0?'#fff':'transparent')+';flex-shrink:0"></div>';});
+    cp.innerHTML='<div class="m-card2" style="width:330px;max-height:85vh;overflow-y:auto">'
+    +'<h3 style="color:#a78bfa">✨ إضافة حالة</h3>'
+    +'<button style="background:#8b5cf6;color:#fff" onclick="scPickMedia()">📷 صورة أو فيديو</button>'
+    +'<button style="background:#8b5cf6;color:#fff" onclick="scShowText()">📝 نص</button>'
+    +'<div id="scTextWrap" style="display:none">'
+    +'<div id="scPrev" style="border-radius:12px;padding:14px;background:'+SCOLORS[0]+';margin-bottom:8px">'
+    +'<textarea id="scText" placeholder="اكتب حالتك..." style="width:100%;background:transparent;border:none;outline:none;color:#fff;font-size:18px;text-align:center;resize:none;min-height:100px;font-weight:bold"></textarea></div>'
+    +'<div style="display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px" id="scColors">'+chips+'</div>'
+    +'<button style="background:var(--grn);color:#fff" onclick="scPublish()">✅ نشر الحالة</button>'
+    +'</div>'
+    +'<button style="background:transparent;color:var(--red);border:1px solid var(--red)!important" onclick="closeModal(\'storyComposerModal\')">❌ إلغاء</button>'
+    +'</div>';
+    cp.onclick=function(e){if(e.target===cp)closeModal('storyComposerModal');};
+    document.body.appendChild(cp);
+    var cb=el('scColors');
+    Array.prototype.forEach.call(cb.children,function(d){
+      d.onclick=function(){
+        _cur=d.getAttribute('data-c');el('scPrev').style.background=_cur;
+        Array.prototype.forEach.call(cb.children,function(k){k.style.borderColor='transparent';});
+        d.style.borderColor='#fff';
+      };
+    });
+  }
+  window.openStoryComposer=function(){
+    try{
+      if(!me)return toast('سجل دخولك أولاً');
+      buildComposer();
+      el('scText').value='';el('scTextWrap').style.display='none';
+      el('storyComposerModal').classList.add('open');
+    }catch(e){toast('خطأ: '+e.message);}
+  };
+  window.scPickMedia=function(){closeModal('storyComposerModal');try{storyInputEl.click();}catch(e){toast('جرب تاني');}};
+  window.scShowText=function(){el('scTextWrap').style.display='block';setTimeout(function(){try{el('scText').focus();}catch(e){}},60);};
+  window.scPublish=function(){
+    var t=el('scText');var txt=t?(t.value||'').trim():'';
+    if(!txt)return toast('اكتب حالتك الأول');
+    var sid='st'+Date.now()+Math.floor(Math.random()*999);
+    sb.from('stories').insert({id:sid,author:me.name,img:_cur+'|||'+txt,stype:'text',stime:Date.now()}).then(function(r){
+      if(r.error)return toast('خطأ: '+r.error.message);
+      toast('تم نشر حالتك ✅');closeModal('storyComposerModal');try{renderStories();}catch(e){}
+    });
+  };
+
+  /* ---------- رسم الشريط بزرار + عليه أمر فتح شغال ---------- */
+  function _ensureBars(){
+    try{
+      if(!el('storiesBarMsgs')){
+        var m=document.createElement('div');m.id='storiesBarMsgs';
+        m.style.cssText='display:none;gap:10px;overflow-x:auto;padding:8px 4px;margin-bottom:8px';
+        var msgs=el('s-msgs');if(msgs)msgs.insertBefore(m,msgs.firstChild);
+      }
+    }catch(e){}
+  }
+  window.renderStories=async function(){
+    try{
+      if(!me)return;
+      _ensureBars();
+      var d=await sb.from('stories').select('*').gt('stime',Date.now()-86400000).order('stime',{ascending:true});
+      if(d.error)return;
+      var items=(d.data||[]);var s=_st();
+      if(s.friendsOnly===true)items=items.filter(function(x){return x.author===me.name||(me.friends&&me.friends.indexOf(x.author)>-1);});
+      var groups={},order=[];
+      items.forEach(function(x){if(!groups[x.author]){groups[x.author]=[];order.push(x.author);}groups[x.author].push(x);});
+      order.sort(function(a,b){return (groups[b][groups[b].length-1].stime||0)-(groups[a][groups[a].length-1].stime||0);});
+      var mine=order.filter(function(a){return a===me.name;});
+      var frs=order.filter(function(a){return a!==me.name&&me.friends&&me.friends.indexOf(a)>-1;});
+      var oth=order.filter(function(a){return a!==me.name&&(!me.friends||me.friends.indexOf(a)===-1);});
+      var ADD='<div onclick="openStoryComposer()" style="min-width:64px;display:flex;flex-direction:column;align-items:center;cursor:pointer;flex-shrink:0"><div style="width:56px;height:56px;border-radius:50%;border:2px dashed var(--acc);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--acc)">+</div><span style="font-size:9px;color:var(--mut);margin-top:3px">إضافة</span></div>';
+      function chip(author,list,isMine){
+        var u=usersCache[author];
+        var ava=isMine?getAvatar(me):((u&&u.avatar)?'<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover">':getAvatar(u||{}));
+        var allSeen=true;
+        if(!isMine)for(var i=0;i<list.length;i++){if(_arr(list[i].views).indexOf(me.name)===-1){allSeen=false;break;}}
+        var ring=isMine?'var(--acc)':(allSeen?'#6b7280':'var(--grn)');
+        var badge=list.length>1?'<span style="position:absolute;top:-4px;left:-2px;background:var(--acc);color:#fff;border-radius:10px;min-width:20px;height:18px;line-height:18px;font-size:10px;padding:0 4px;font-weight:bold">'+list.length+'</span>':'';
+        var sub=isMine?'<span onclick="event.stopPropagation();showStoryViewersAll()" style="font-size:9px;color:var(--acc);font-weight:bold;cursor:pointer">👁️ '+list.reduce(function(t,x){return t+_arr(x.views).length;},0)+'</span>':'<span style="font-size:9px;color:var(--mut)">'+timeLeft(list[list.length-1].stime)+'</span>';
+        return '<div onclick="openAuthorStories(\''+String(author).replace(/'/g,"\\'")+'\')" style="position:relative;min-width:64px;display:flex;flex-direction:column;align-items:center;cursor:pointer;flex-shrink:0"><div style="position:relative"><div style="width:56px;height:56px;border-radius:50%;border:3px solid '+ring+';padding:2px;overflow:hidden;background:var(--card2)">'+ava+'</div>'+badge+'</div><span style="font-size:10px;color:var(--txt);margin-top:3px;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(isMine?'حالتي':escapeHtml(getMsgName(author)))+'</span>'+sub+'</div>';
+      }
+      function sec(title,list,isMine){
+        if(!list.length)return'';
+        var h='<div style="min-width:100%"><div style="font-size:10px;color:var(--mut);font-weight:bold;padding:0 4px 4px">'+title+'</div><div style="display:flex;gap:10px">';
+        list.forEach(function(a){h+=chip(a,groups[a],isMine);});
+        return h+'</div></div>';
+      }
+      var html='<div style="display:flex;gap:10px;align-items:flex-start;overflow-x:auto;width:100%">'+ADD+sec('⭐ حالتي',mine,true)+sec('👥 أصدقائي',frs,false)+sec('🌍 الجميع',oth,false)+'</div>';
+      var bar=el('storiesBar'),bar2=el('storiesBarMsgs');
+      if(bar){bar.innerHTML=html;bar.style.display=(s.showOnline===false)?'none':'flex';}
+      if(bar2){bar2.innerHTML=html;bar2.style.display=(s.showMsgs===true)?'flex':'none';}
+    }catch(e){}
+  };
+
+  /* ---------- شبكة أمان: الضغطة على أول عنصر في الشريط = زرار + أكيد ---------- */
+  document.addEventListener('click',function(e){
+    try{
+      var t=e.target;
+      if(!t||!t.closest)return;
+      var bar=t.closest('#storiesBar, #storiesBarMsgs');
+      if(!bar)return;
+      var m=el('storyComposerModal');
+      if(m&&m.classList.contains('open'))return;
+      var chipEl=t.closest('[onclick*="openAuthorStories"],[onclick*="showStoryViewers"]');
+      if(chipEl)return;
+      var row=bar.firstElementChild;
+      if(!row)return;
+      var add=row.firstElementChild;
+      if(add&&(add===t||add.contains(t))){
+        e.preventDefault();e.stopPropagation();
+        window.openStoryComposer();
+      }
+    }catch(err){}
+  },true);
+
+  /* ---------- تشغيل ---------- */
+  var _saF=window.startAll;
+  window.startAll=async function(){var r=await _saF();try{renderStories();}catch(e){}return r;};
+  setTimeout(function(){try{if(me)renderStories();}catch(e){}},2000);
+})();
+</script>
 </body>
 </html>
