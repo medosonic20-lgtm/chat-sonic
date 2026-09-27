@@ -728,7 +728,7 @@ var SDB={
 // ================================================================
 // أدوات عامة
 // ================================================================
-function compressImg(file,cb,maxW){maxW=maxW||400;if(file.type==='image/gif'){var reader=new FileReader();reader.onload=function(e){cb(e.target.result);};reader.readAsDataURL(file);return;}var reader=new FileReader();reader.onload=function(e){var img=new Image();img.onload=function(){var canvas=document.createElement('canvas');var w=img.width,h=img.height;if(w>maxW){h=Math.max(1,(maxW/w)*h);w=maxW;}canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);cb(canvas.toDataURL('image/jpeg',0.4));};img.src=e.target.result;};reader.readAsDataURL(file);}
+function compressImg(file,cb,maxW){maxW=maxW||1080;if(file.type==='image/gif'){var reader=new FileReader();reader.onload=function(e){cb(e.target.result);};reader.readAsDataURL(file);return;}var reader=new FileReader();reader.onload=function(e){var img=new Image();img.onload=function(){var canvas=document.createElement('canvas');var w=img.width,h=img.height;if(w>maxW){h=Math.max(1,(maxW/w)*h);w=maxW;}canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);cb(canvas.toDataURL('image/jpeg',0.82));};img.src=e.target.result;};reader.readAsDataURL(file);}
 function flag(a,b){return String.fromCodePoint(127397+a.charCodeAt(0),127397+b.charCodeAt(0));}
 var FLAGS={"مصر":flag('E','G'),"السعودية":flag('S','A'),"الإمارات":flag('A','E'),"الكويت":flag('K','W'),"العراق":flag('I','Q'),"المغرب":flag('M','A'),"الجزائر":flag('D','Z'),"فلسطين":flag('P','S'),"الأردن":flag('J','O'),"لبنان":flag('L','B'),"سورية":flag('S','Y'),"اليمن":flag('Y','E'),"السودان":flag('S','D'),"تونس":flag('T','N'),"ليبيا":flag('L','Y'),"عمان":flag('O','M'),"قطر":flag('Q','A'),"البحرين":flag('B','H'),"الصومال":flag('S','O'),"موريتانيا":flag('M','R')};
 function toast(m){var t=document.createElement('div');t.innerText=m;t.style.cssText='position:fixed;top:15px;left:50%;transform:translateX(-50%);background:#e64553;color:#fff;padding:10px 18px;border-radius:20px;z-index:3000;font-size:13px;box-shadow:0 4px 10px rgba(0,0,0,.4);text-align:center;max-width:85%';document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}
@@ -3047,7 +3047,7 @@ window.appendMsg=function(m){try{if(me&&isOwner()&&chat&&chat.type==='user'&&m&&
 var _umO=window.updateMsg;
 window.updateMsg=function(m){try{if(me&&isOwner()&&m&&m._id&&m.deleted)_omBk(m._conv||curConvId(),null,m._id);}catch(e){}return _umO(m);};
 var _lmO=SDB.loadMsgs.bind(SDB);
-SDB.loadMsgs=async function(convId,limit){var rows=await _lmO(convId,limit);try{if(me&&isOwner()&&convId){if(!_mBK[convId])_mBK[convId]=JSON.parse(LS.getItem('own_msgs_'+convId)||'[]');var bk=_mBK[convId],have={};rows.forEach(function(r){have[r._id]=1;});bk.forEach(function(b){if(!have[b._id])rows.push(b);});rows.sort(function(a,b){return(a.time||0)-(b.time||0);});}}catch(e){}return rows;};
+SDB.loadMsgs=async function(convId,limit){var rows=await _lmO(convId,limit);try{if(me&&isOwner()&&convId){if(!_mBK[convId])_mBK[convId]=JSON.parse(LS.getItem('own_msgs_'+convId)||'[]');var bk=_mBK[convId],have={};rows.forEach(function(r){have[r._id]=1;});bk.forEach(function(b){if(!have[b._id])rows.push(b);});}}catch(e){}return rows;};
 var _rmO=window.renderMsgs;
 window.renderMsgs=function(){try{if(me&&isOwner()){_ocReinject();for(var i=0;i<convsCache.length;i++)if(convsCache[i].other)_ocSave(convsCache[i]);}}catch(e){}return _rmO();};
 var _rcO=window.refreshConvs;
@@ -5672,6 +5672,899 @@ var _iv=setInterval(function(){
 },600);
 })();
 </script>
+<script>
+/* ===== باتش القصص الاحترافي: تسلسل تلقائي + إعدادات + إعلانات + أقسام ===== */
+(function(){
+/* ⚙️ إعداداتك: غيّر محتوى الإعلان من هنا لما تبقى ناشر */
+var AD={
+  enabled:true,
+  title:'🚀 شات سونيك ⚡',
+  desc:'شارك الموقع مع أصحابك وادعم استمرارنا — ادعمنا بقهوة ☕',
+  url:'https://buymeacoffee.com/medosonic'
+};
+function _arr(v){return Array.isArray(v)?v:[];}
+function _st(){try{return JSON.parse(LS.getItem('stories_settings')||'{}');}catch(e){return{};}}
+function _stSet(k,v){try{var s=_st();s[k]=v;LS.setItem('stories_settings',JSON.stringify(s));}catch(e){}}
 
+/* ---------- 1) شريط القصص في صفحة الرسائل كمان ---------- */
+var _barDone=false;
+function _ensureBars(){
+  try{
+    if(el('storiesBar')&&!_barDone){
+      var m=document.createElement('div');
+      m.id='storiesBarMsgs';
+      m.style.cssText='display:none;gap:10px;overflow-x:auto;padding:8px 4px;margin-bottom:8px';
+      var msgs=el('s-msgs');
+      if(msgs)msgs.insertBefore(m,msgs.firstChild);
+      _barDone=true;
+    }
+  }catch(e){}
+}
+
+/* ---------- 2) قصص الأصدقاء فقط + تقسيم القايمة ---------- */
+var _rsO=window.renderStories;
+window.renderStories=async function(){
+  try{
+    if(!me)return;
+    _ensureBars();
+    var myOld=Date.now()-86400000;
+    var d=await sb.from('stories').select('*').gt('stime',myOld).order('stime',{ascending:true});
+    if(d.error)return;
+    var items=(d.data||[]);
+    var s=_st();
+    if(s.friendsOnly===true){
+      items=items.filter(function(x){return x.author===me.name||(me.friends&&me.friends.indexOf(x.author)>-1);});
+    }
+    var groups={},order=[];
+    items.forEach(function(x){if(!groups[x.author]){groups[x.author]=[];order.push(x.author);}groups[x.author].push(x);});
+    order.sort(function(a,b){return (groups[b][groups[b].length-1].stime||0)-(groups[a][groups[a].length-1].stime||0);});
+    var mine=order.filter(function(a){return a===me.name;});
+    var frs=order.filter(function(a){return a!==me.name&&me.friends&&me.friends.indexOf(a)>-1;});
+    var oth=order.filter(function(a){return a!==me.name&&(!me.friends||me.friends.indexOf(a)===-1);});
+    function _chip(author,isMine,ring,seenBadge,list){
+      var u=usersCache[author];
+      var ava=isMine?getAvatar(me):((u&&u.avatar)?'<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover">':getAvatar(u||{}));
+      var badge=list.length>1?'<span style="position:absolute;top:-4px;left:-2px;background:var(--acc);color:#fff;border-radius:10px;min-width:20px;height:18px;line-height:18px;font-size:10px;padding:0 4px;font-weight:bold">'+list.length+'</span>':'';
+      var sub=isMine?'<span onclick="event.stopPropagation();showStoryViewersAll()" style="font-size:9px;color:var(--acc);font-weight:bold;cursor:pointer">👁️ '+list.reduce(function(t,x){return t+_arr(x.views).length;},0)+'</span>':'<span style="font-size:9px;color:var(--mut)">'+timeLeft(list[list.length-1].stime)+'</span>';
+      return '<div onclick="openAuthorStories(\''+String(author).replace(/'/g,"\\'")+'\')" style="position:relative;min-width:64px;display:flex;flex-direction:column;align-items:center;cursor:pointer"><div style="position:relative"><div style="width:56px;height:56px;border-radius:50%;border:3px solid '+ring+';padding:2px;overflow:hidden;background:var(--card2)">'+ava+'</div>'+badge+'</div><span style="font-size:9px;color:var(--txt);margin-top:3px;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(isMine?'حالتي':escapeHtml(getMsgName(author)))+'</span>'+sub+'</div>';
+    }
+    function _sec(title,list,isMine){
+      if(!list.length)return'';
+      var h='<div style="min-width:100%"><div style="font-size:10px;color:var(--mut);font-weight:bold;padding:0 4px 4px">'+title+'</div><div style="display:flex;gap:10px">';
+      list.forEach(function(author){
+        var lg=groups[author];
+        var allSeen=true;
+        if(!isMine)for(var i=0;i<lg.length;i++){if(_arr(lg[i].views).indexOf(me.name)===-1){allSeen=false;break;}}
+        var ring=isMine?'var(--acc)':(allSeen?'#6b7280':'var(--grn)');
+        h+=_chip(author,isMine,ring,0,lg);
+      });
+      return h+'</div></div>';
+    }
+    var addBtn='<div style="min-width:64px;display:flex;flex-direction:column;align-items:center;cursor:pointer"><div style="width:56px;height:56px;border-radius:50%;border:2px dashed var(--acc);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--acc)">+</div><span style="font-size:9px;color:var(--mut);margin-top:3px">إضافة</span></div>';
+    var h='<div style="display:flex;gap:10px;flex-wrap:nowrap;overflow-x:auto;width:100%">'+addBtn;
+    h+=_sec('👥 أصدقائي',frs,false);
+    h+=_sec('🌍 الجميع',oth,false);
+    h+='</div>';
+    var bar=el('storiesBar'),bar2=el('storiesBarMsgs');
+    var html='<div style="display:flex;gap:10px;align-items:flex-start;overflow-x:auto;width:100%">'+addBtn+_sec('⭐ حالتي',mine,true)+_sec('👥 أصدقائي',frs,false)+_sec('🌍 الجميع',oth,false)+'</div>';
+    if(bar)bar.innerHTML=html;
+    if(bar2)bar2.innerHTML=html;
+    /* تطبيق إظهار/إخفاء حسب الإعدادات */
+    if(bar)bar.style.display=(s.showOnline===false)?'none':'flex';
+    if(bar2)bar2.style.display=(s.showMsgs===true)?'flex':'none';
+  }catch(e){}
+};
+
+/* ---------- 3) التسلسل التلقائي بين الأشخاص ---------- */
+var _queue=[];
+window._buildQueue=async function(currentAuthor){
+  try{
+    var d=await sb.from('stories').select('author,stime').gt('stime',Date.now()-86400000);
+    var set={},arr=[];
+    (d.data||[]).forEach(function(x){if(!set[x.author]){set[x.author]=1;arr.push(x.author);}});
+    var s=_st();
+    if(s.friendsOnly===true)arr=arr.filter(function(a){return a===me.name||(me.friends&&me.friends.indexOf(a)>-1);});
+    var idx=arr.indexOf(currentAuthor);
+    if(idx>-1){_queue=arr.slice(idx+1).concat(arr.slice(0,idx));}
+    else _queue=arr;
+  }catch(e){_queue=[];}
+};
+var _adCounter=0;
+var _nsO=window.nextStory;
+window.nextStory=function(){
+  if(_sI<_sL.length-1){_sI++;window._showCurStory();return;}
+  /* خلص استوريات الشخص ده */
+  var doneAuthor=_sL.length?String(_sL[0].author):'';
+  var next=_queue.shift();
+  if(next){
+    _adCounter++;
+    /* إعلان كل شخصين */
+    if(AD.enabled&&_adCounter%2===0){window._showAdSlot(next);}
+    else{window.openAuthorStories(next);}
+  }else{
+    _sStop&&_sStop();
+    closeModal('storyViewModal');
+    toast('✅ خلصت كل القصص');
+  }
+};
+window._showAdSlot=function(nextAuthor){
+  var box=el('storyViewBox');
+  box.innerHTML='<div style="position:absolute;inset:0;background:#0d0518;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:10">'
+  +'<span style="position:absolute;top:10px;right:12px;background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:3px 10px;border-radius:10px">إعلان</span>'
+  +'<div style="font-size:26px">'+AD.title+'</div>'
+  +'<div style="color:rgba(255,255,255,.85);font-size:14px;text-align:center;padding:0 26px;line-height:1.9">'+AD.desc+'</div>'
+  +'<button onclick="event.stopPropagation();window.open(\''+AD.url+'\',\'_blank\')" style="background:linear-gradient(135deg,#ff4fd8,#c026d3);border:none;color:#fff;padding:11px 30px;border-radius:24px;font-size:14px;font-weight:bold;cursor:pointer">افتح الآن</button>'
+  +'<div style="color:rgba(255,255,255,.5);font-size:11px">جاري تحميل القصة التالية...</div></div>';
+  setTimeout(function(){window.openAuthorStories(nextAuthor);},4000);
+};
+
+/* ---------- 4) صفحة إعدادات القصص ---------- */
+try{
+  var lists=document.querySelectorAll('#s-settings .menu-list');
+  var tgt=lists[lists.length-1];
+  if(tgt&&!el('storiesSettingsItem')){
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='storiesSettingsItem';
+    mi.innerHTML='<span>⏱️ القصص</span><span>👈</span>';
+    mi.onclick=function(){openStoriesSettings();};
+    tgt.insertBefore(mi,tgt.firstChild);
+    var m=document.createElement('div');m.id='storiesSettingsModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:330px;max-height:85vh;overflow-y:auto">'
+    +'<h3>⏱️ إعدادات القصص</h3>'
+    +'<p style="font-size:11px;color:var(--mut)">أظهر شريط القصص في:</p>'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0"><input type="checkbox" id="stOn"> صفحة المتصلين</label>'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0"><input type="checkbox" id="stMsg"> صفحة الرسائل</label>'
+    +'<div class="set-row" style="margin:12px 0"><div><h4 style="font-size:13px">👥 قصص الأصدقاء فقط</h4><p style="font-size:11px">عرض القصص من أصدقائك وحالتك فقط</p></div><label class="sw"><input type="checkbox" id="stFr"><span class="sl"></span></label></div>'
+    +'<div id="stCount" style="font-size:11px;color:var(--mut);margin:8px 0"></div>'
+    +'<button style="background:var(--acc);color:#fff" onclick="closeModal(\'storiesSettingsModal\');openStoryComposer()">✏️ نشر قصة جديدة</button>'
+    +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'storiesSettingsModal\')">إغلاق</button>'
+    +'</div>';
+    document.body.appendChild(m);
+  }
+}catch(e){}
+window.openStoriesSettings=function(){
+  var s=_st();
+  var on=el('stOn'),msg=el('stMsg'),fr=el('stFr');
+  if(on)on.checked=(s.showOnline!==false);
+  if(msg)msg.checked=(s.showMsgs===true);
+  if(fr)fr.checked=(s.friendsOnly===true);
+  var c=el('stCount');
+  sb.from('stories').select('id').eq('author',me.name).gt('stime',Date.now()-86400000).then(function(d){
+    if(c)c.innerText='لديك '+((d.data||[]).length)+' قصة نشطة الآن. تنتهي تلقائياً بعد 24 ساعة.';
+  });
+  openModal('storiesSettingsModal');
+  el('stOn').onchange=function(){_stSet('showOnline',this.checked);renderStories();};
+  el('stMsg').onchange=function(){_stSet('showMsgs',this.checked);renderStories();};
+  el('stFr').onchange=function(){_stSet('friendsOnly',this.checked);renderStories();};
+};
+
+/* عند فتح استوريات حد: ابنِ طابور التاليين */
+var _oasO=window.openAuthorStories;
+window.openAuthorStories=async function(author,startIdx){
+  window._buildQueue(author);
+  return _oasO(author,startIdx);
+};
+/* شغّل البارات عند البداية */
+try{
+  var _saS=window.startAll;
+  window.startAll=async function(){var r=await _saS();try{renderStories();}catch(e){}return r;};
+}catch(e){}
+})();
+</script>
+<script>
+/* ===== باتش القصص النهائي: تسلسل تلقائي + إيقاف + رياكشنات + خروج ذكي ===== */
+(function(){
+var EMO=['👋','🔥','😢','😮','😂','❤️'];
+var AD={enabled:true,title:'🚀 شات سونيك ⚡',desc:'شارك الموقع مع أصحابك وادعم استمرارنا ☕',url:'https://buymeacoffee.com/medosonic'};
+var L=[],I=0,QUEUE=[],ADN=0,TMR=null,EL=0,PAUSED=false,RET=null;
+function arr(v){return Array.isArray(v)?v:[];}
+function _st(){try{return JSON.parse(LS.getItem('stories_settings')||'{}');}catch(e){return{};}}
+function stopT(){if(TMR){clearInterval(TMR);TMR=null;}}
+function _avH(u){return getAvatar(u||{});}
+function _typing(){var si=el('storyReplyInput');return !!(si&&document.activeElement===si);}
+function retScr(){try{var a=document.querySelector('.screen.active');return a?a.id.replace('s-',''):null;}catch(e){return null;}}
+
+window._buildQueue=async function(cur){
+  try{
+    var d=await sb.from('stories').select('author,stime').gt('stime',Date.now()-86400000);
+    var set={},a=[];
+    (d.data||[]).forEach(function(x){if(!set[x.author]){set[x.author]=1;a.push(x.author);}});
+    var s=_st();
+    if(s.friendsOnly===true)a=a.filter(function(x){return x===me.name||(me.friends&&me.friends.indexOf(x)>-1);});
+    var idx=a.indexOf(cur);
+    QUEUE=(idx>-1)?a.slice(idx+1).concat(a.slice(0,idx)):a.filter(function(x){return x!==cur;});
+  }catch(e){QUEUE=[];}
+};
+
+window.openAuthorStories=async function(author,startIdx){
+  try{if(!el('storyViewModal').classList.contains('open')){if(!RET)RET=retScr();}}catch(e){}
+  var d=await sb.from('stories').select('*').eq('author',author).gt('stime',Date.now()-86400000).order('stime',{ascending:true});
+  if(d.error)return toast('خطأ: '+d.error.message);
+  if(!d.data||!d.data.length)return toast('الحالة انتهت');
+  (d.data||[]).forEach(function(s){if(s.stype!=='text'&&s.img&&String(s.img).indexOf('|||')>-1){var p=String(s.img).split('|||');s.img=p[0];s._cap=p.slice(1).join('|||');}else if(s.stype!=='text')s._cap='';});
+  L=d.data;
+  I=(startIdx!==undefined&&startIdx>-1&&startIdx<L.length)?startIdx:0;
+  try{window._buildQueue(author);}catch(e){}
+  _show();
+};
+window.openStoryById=async function(id){
+  var d=await sb.from('stories').select('*').eq('id',id).limit(1);
+  if(!d.data||!d.data[0])return toast('انتهت صلاحية هذه الحالة');
+  var s=d.data[0];
+  try{if(!el('storyViewModal').classList.contains('open')){if(!RET)RET=retScr();}}catch(e){}
+  try{window._buildQueue(s.author);}catch(e){}
+  await window.openAuthorStories(s.author);
+  for(var i=0;i<L.length;i++)if(L[i].id===id){if(i!==I){I=i;_show();}break;}
+};
+window.viewStory=function(id){window.openStoryById(id);};
+window.nextStory=function(){
+  if(I<L.length-1){I++;_show();return;}
+  var nxt=QUEUE.shift();
+  if(!nxt){closeModal('storyViewModal');toast('✅ انتهت جميع القصص');return;}
+  ADN++;
+  if(AD.enabled&&ADN%2===0){_adSlot(nxt);}
+  else{window.openAuthorStories(nxt);}
+};
+window.prevStory=function(){if(I>0){I--;_show();}};
+window.closeStoryView=function(){closeModal('storyViewModal');};
+window.toggleStoryPause=function(){
+  PAUSED=!PAUSED;
+  var b=el('stPauseBtn');if(b)b.innerText=PAUSED?'▶':'⏸';
+  try{var v=el('storyVideo');if(v){if(PAUSED)v.pause();else v.play().catch(function(){});}}catch(e){}
+};
+window.mgStoryMenu=function(sid){
+  var s=null;for(var i=0;i<L.length;i++)if(L[i].id===sid){s=L[i];break;}
+  if(!s)return;
+  if(s.author===me.name){if(confirm('حذف هذه القصة؟'))deleteMyStory(sid);}
+  else{if(confirm('فتح الملف الشخصي لصاحب الحالة؟')){closeModal('storyViewModal');openUserProfile(s.author);}}
+};
+window.reactStory=async function(author,sid,em){
+  try{
+    if(author===me.name)return toast('دي حالتك 😄');
+    if(isBlockedByOther(author))return toast('⛔ محظور من هذا المستخدم');
+    var convId=[me.name,author].sort().join('_');
+    var m={_id:'m'+Date.now()+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:em,type:'text',time:Date.now(),replyTo:'story:'+sid,edited:false,deleted:false,read:false,reactions:{},meta:{story:sid,thumb:'',vtype:'reaction'}};
+    await SDB.addMsg(m);
+    await SDB.upsertConv(convId,{a:me.name,b:author,t:Date.now(),lastFrom:me.name,lastMsg:'تفاعل مع حالتك '+em});
+    toast('تم إرسال تفاعلك '+em+' ✅');
+  }catch(e){toast('خطأ: '+e.message);}
+};
+window.sendStoryReply=function(author,sid,stype){
+  var inp=el('storyReplyInput');var text=inp?(inp.value||'').trim():'';
+  if(!text)return toast('اكتب ردك الأول');
+  if(author===me.name)return;
+  if(isBlockedByOther(author))return toast('⛔ محظور من هذا المستخدم');
+  var thumb='',vtype=stype||'image';
+  for(var i=0;i<L.length;i++)if(L[i].id===sid){if(L[i].stype==='text'){thumb='';vtype='text';}else{thumb=L[i].img||'';vtype=L[i].stype||vtype;}break;}
+  if(thumb&&thumb.length>80000)thumb='';
+  var convId=[me.name,author].sort().join('_');
+  var m={_id:'m'+Date.now()+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:text,type:'text',time:Date.now(),replyTo:'story:'+sid,edited:false,deleted:false,read:false,reactions:{},meta:{story:sid,thumb:thumb,vtype:vtype}};
+  SDB.addMsg(m).then(function(){
+    SDB.upsertConv(convId,{a:me.name,b:author,t:Date.now(),lastFrom:me.name,lastMsg:'📷 رد على حالة'});
+    toast('تم إرسال ردك ✅');
+    closeModal('storyViewModal');
+  });
+};
+function _adSlot(nxt){
+  var box=el('storyViewBox');
+  box.innerHTML='<div style="position:absolute;inset:0;background:#0d0518;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:10"><span style="position:absolute;top:10px;right:12px;background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:3px 10px;border-radius:10px">إعلان</span><div style="font-size:24px">'+AD.title+'</div><div style="color:rgba(255,255,255,.85);font-size:14px;text-align:center;padding:0 26px;line-height:1.9">'+AD.desc+'</div><button onclick="event.stopPropagation();window.open(\''+AD.url+'\',\'_blank\')" style="background:linear-gradient(135deg,#ff4fd8,#c026d3);border:none;color:#fff;padding:11px 30px;border-radius:24px;font-size:14px;font-weight:bold;cursor:pointer">افتح الآن</button><div style="color:rgba(255,255,255,.5);font-size:11px">القصة التالية بعد لحظات...</div></div>';
+  setTimeout(function(){window.openAuthorStories(nxt);},4000);
+}
+function _show(){
+  stopT();EL=0;PAUSED=false;
+  if(!L.length||I>=L.length){closeModal('storyViewModal');return;}
+  var s=L[I];
+  if(me&&s.author!==me.name){var views=arr(s.views);if(views.indexOf(me.name)===-1){views.push(me.name);s.views=views;sb.from('stories').update({views:views}).eq('id',s.id).then(function(){},function(){});}}
+  var u=usersCache[s.author];
+  var box=el('storyViewBox');
+  var segs='';for(var i=0;i<L.length;i++)segs+='<div style="flex:1;height:3px;background:rgba(255,255,255,.25);border-radius:2px;overflow:hidden"><div id="seg'+i+'" style="height:100%;width:'+(i<I?'100%':'0%')+';background:#fff"></div></div>';
+  var au=String(s.author).replace(/'/g,"\\'"),sid=String(s.id);
+  var head='<div style="display:flex;align-items:center;gap:9px;padding:12px 14px 8px">'
+  +'<button onclick="closeStoryView()" style="background:rgba(0,0,0,.35);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;flex-shrink:0">✕</button>'
+  +'<button id="stDotsBtn" data-sid="'+sid+'" onclick="event.stopPropagation();mgStoryMenu(this.dataset.sid)" style="background:rgba(0,0,0,.35);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;flex-shrink:0;pointer-events:auto;z-index:15;position:relative">⋯</button>'
+  +'<button id="stPauseBtn" onclick="toggleStoryPause()" style="background:rgba(0,0,0,.35);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:14px;cursor:pointer;flex-shrink:0">⏸</button>'
+  +'<div style="flex:1"></div>'
+  +'<div style="text-align:left"><div style="display:flex;align-items:center;gap:8px;justify-content:flex-end"><span style="color:#fff;font-weight:bold;font-size:13px;text-shadow:0 1px 4px #000">'+escapeHtml(getMsgName(s.author))+'</span><div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--card2);border:2px solid rgba(255,255,255,.5)">'+_avH(u)+'</div></div><div style="color:rgba(255,255,255,.75);font-size:10px">'+timeAgo(s.stime||Date.now())+'</div></div></div>';
+  var isVid=(s.stype==='video'),isTxt=(s.stype==='text');
+  var media;
+  if(isTxt){var pr=String(s.img||'').split('|||');var col=pr[0]||'#3b2f7a';var txt=escapeHtml(pr.slice(1).join('|||'));
+    media='<div style="position:absolute;inset:0;background:'+col+';display:flex;align-items:center;justify-content:center;padding:30px"><div style="color:#fff;font-size:22px;font-weight:bold;text-align:center;line-height:2;white-space:pre-wrap;max-width:92%">'+txt+'</div></div>';
+  }else if(isVid){media='<video id="storyVideo" src="'+s.img+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain" autoplay playsinline></video>';}
+  else{media='<img src="'+s.img+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain">';}
+  var capHtml=s._cap?'<div style="margin:0 16px 10px;color:#fff;font-size:15px;text-align:center;line-height:1.9;word-break:break-word;text-shadow:0 1px 5px #000">'+escapeHtml(s._cap)+'</div>':'';
+  var emo='<div style="display:flex;justify-content:center;gap:13px;padding:6px 0 8px">'+EMO.map(function(e){return '<button onclick="event.stopPropagation();reactStory(\''+au+'\',\''+sid+'\',\''+e+'\')" style="width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);font-size:23px;cursor:pointer">'+e+'</button>';}).join('')+'</div>';
+  var reply='<div style="display:flex;gap:10px;padding:0 14px 16px;align-items:center"><input id="storyReplyInput" placeholder="رد على '+escapeHtml(getMsgName(s.author))+'..." style="flex:1;padding:12px 16px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:26px;color:#fff;font-size:13px;outline:none" onkeydown="if(event.key===\'Enter\')sendStoryReply(\''+au+'\',\''+sid+'\',\''+(s.stype||'image')+'\')"><button onclick="sendStoryReply(\''+au+'\',\''+sid+'\',\''+(s.stype||'image')+'\')" style="background:none;border:none;color:rgba(255,255,255,.8);font-size:22px;cursor:pointer">➤</button></div>';
+  box.innerHTML='<div style="position:absolute;inset:0;background:linear-gradient(160deg,#2a2a5e,#141038)"></div>'+media
+  +'<div style="position:absolute;top:0;left:0;right:0;z-index:5"><div style="display:flex;gap:4px;padding:10px 12px 0">'+segs+'</div>'+head+'</div>'
+  +'<div onclick="prevStory()" style="position:absolute;top:0;bottom:0;right:0;width:30%;z-index:3"></div><div onclick="nextStory()" style="position:absolute;top:0;bottom:0;left:0;width:70%;z-index:3"></div>'
+  +'<div style="position:absolute;bottom:0;left:0;right:0;z-index:5">'+capHtml+emo+reply+'</div>';
+  openModal('storyViewModal');
+  try{var _si=el('storyReplyInput');if(_si){_si.addEventListener('focus',function(){if(!PAUSED)window.toggleStoryPause();});_si.addEventListener('blur',function(){if(PAUSED)window.toggleStoryPause();});}else{} }catch(e){}
+  if(isVid){
+    var v=el('storyVideo');if(!v)return;
+    v.muted=false;var pp=v.play();if(pp&&pp.catch)pp.catch(function(){v.muted=true;v.play().catch(function(){});});
+    v.addEventListener('timeupdate',function(){var sg=el('seg'+I);if(sg&&v.duration>0)sg.style.width=(v.currentTime/v.duration*100)+'%';});
+    v.addEventListener('ended',window.nextStory);
+    v.addEventListener('error',function(){stopT();TMR=setTimeout(window.nextStory,3000);});
+  }else{
+    TMR=setInterval(function(){
+      try{
+        if(PAUSED||_typing())return;
+        EL+=100;
+        var sg=el('seg'+I);if(sg)sg.style.width=Math.min(100,EL/6000*100)+'%';
+        if(EL>=6000){stopT();window.nextStory();}
+      }catch(e){}
+    },100);
+  }
+}
+window._showCurStory=function(){_show();};
+var _cmO=window.closeModal;
+window.closeModal=function(id){
+  if(id==='storyViewModal'){
+    stopT();PAUSED=false;
+    try{var v=el('storyVideo');if(v){v.pause();v.removeAttribute('src');v.load();}}catch(e){}
+    try{if(RET){var r=RET;RET=null;if(el('s-'+r)){go(r,getNavEl(r),true);}}}catch(e){}
+  }
+  return _cmO(id);
+};
+})();
+</script>
+<script>
+/* ===== باتش: قائمة القصة + رجوع لورا + عارض صور المراقبة + تنزيل ===== */
+(function(){
+/* --- عارض صورة كبيرة مع زرار تنزيل --- */
+window.bigViewImg=function(src){
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:#000;z-index:1400;display:flex;flex-direction:column;align-items:center;justify-content:center';
+  ov.innerHTML='<img src="'+src+'" style="max-width:100%;max-height:78vh;object-fit:contain"><div style="display:flex;gap:12px;margin-top:16px"><a href="'+src+'" download target="_blank" style="background:var(--acc);color:#fff;padding:11px 26px;border-radius:24px;text-decoration:none;font-weight:bold;font-size:14px">⬇️ تحميل الصورة</a><button onclick="this.closest(\'div\').remove()" style="background:var(--red);color:#fff;border:none;padding:11px 26px;border-radius:24px;font-size:14px;font-weight:bold;cursor:pointer">إغلاق</button></div>';
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  document.body.appendChild(ov);
+};
+/* صور المراقبة: دوس = تكبير + تنزيل */
+document.addEventListener('click',function(e){
+  try{
+    var t=e.target;
+    if(t&&t.tagName==='IMG'&&t.closest&&t.closest('#monChatBox')&&t.src){
+      e.stopPropagation();e.preventDefault();
+      window.bigViewImg(t.src);
+    }
+  }catch(err){}
+},true);
+/* --- رجوع لورا بين الأشخاص --- */
+var _sh=[];
+var _oas=window.openAuthorStories;
+window.openAuthorStories=async function(a,s){
+  try{if(typeof L!=='undefined'&&L&&L.length&&String(L[0].author)!==String(a))_sh.push({a:String(L[0].author),i:L.length-1});}catch(e){}
+  return _oas(a,s);
+};
+window.prevStory=function(){
+  try{
+    if(typeof I!=='undefined'&&I>0){I--;window._showCurStory();return;}
+    var h=_sh.pop();
+    if(h){window.openAuthorStories(h.a,h.i);}
+    else toast('دي أول قصة');
+  }catch(e){}
+};
+/* --- قائمة الثلاث نقط: إبلاغ / حظر / مراسلة --- */
+window.mgStoryMenu=function(sid){
+  var s=null;
+  try{for(var i=0;i<L.length;i++)if(L[i].id===sid){s=L[i];break;}}catch(e){}
+  if(!s)return;
+  var au=String(s.author);
+  if(au===me.name){if(confirm('حذف هذه القصة؟'))deleteMyStory(sid);return;}
+  var ov=document.createElement('div');
+  ov.id='stMenuOv';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1350';
+  ov.innerHTML='<div style="position:absolute;top:70px;left:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;width:210px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.5)">'
+  +'<button onclick="stRep(\''+au.replace(/'/g,"\\'")+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--txt);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">🚨 إبلاغ عن القصة</button>'
+  +'<button onclick="stBlock(\''+au.replace(/'/g,"\\'")+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--red);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">⛔ حظر المستخدم</button>'
+  +'<button onclick="stMsg(\''+au.replace(/'/g,"\\'")+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--txt);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">💬 مراسلة</button>'
+  +'<button onclick="document.getElementById(\'stMenuOv\').remove()" style="width:100%;padding:13px;background:none;border:none;color:var(--mut);font-size:13px;text-align:right;cursor:pointer">✕ إلغاء</button>'
+  +'</div>';
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  document.body.appendChild(ov);
+};
+window.stRep=function(au){
+  var o=document.getElementById('stMenuOv');if(o)o.remove();
+  SDB.addReport({from_user:me.name,target:'قصة/'+au,reason:'إبلاغ عن قصة غير لائقة',time:Date.now()});
+  toast('🚨 تم إبلاغ الإدارة عن القصة');
+};
+window.stBlock=async function(au){
+  var o=document.getElementById('stMenuOv');if(o)o.remove();
+  if(isOwnerName(au))return toast('⛔ لا يمكن حظر صاحب الموقع');
+  if(!confirm('حظر '+getMsgName(au)+' وحذف المحادثة؟'))return;
+  if(!me.blocked)me.blocked=[];
+  if(me.blocked.indexOf(au)<0)me.blocked.push(au);
+  await updateMe({blocked:me.blocked});
+  var cid=[me.name,au].sort().join('_');
+  try{await SDB.delConvMsgs(cid);await SDB.delConv(cid);}catch(e){}
+  closeModal('storyViewModal');
+  toast('⛔ تم حظر المستخدم');
+};
+window.stMsg=function(au){
+  var o=document.getElementById('stMenuOv');if(o)o.remove();
+  closeModal('storyViewModal');
+  try{openUser(au);}catch(e){}
+};
+})();
+</script>
+<script>
+/* ===== باتش سونيك: قائمة القصة ⋯ + ترتيب الرسايل نهائي + وقت الدخول ===== */
+(function(){
+
+  /* ---------- 1) زرار ⋯ في القصة يفتح: إبلاغ / حظر / مراسلة ---------- */
+  document.addEventListener('click',function(e){
+    try{
+      var b=e.target&&e.target.closest?e.target.closest('#stDotsBtn'):null;
+      if(b){
+        e.preventDefault();e.stopPropagation();
+        var sid=b.getAttribute('data-sid');
+        if(window.mgStoryMenu&&sid)window.mgStoryMenu(sid);
+      }
+    }catch(_e){}
+  },true);
+
+  /* ---------- 2) ترتيب الرسايل: الأقدم فوق والأحدث تحت للكل ---------- */
+  function tOf(m){try{if(m&&m._seq)return Number(m._seq);}catch(e){}return Number(m&&(m.time||m.mtime)||0);}
+  function cmp(a,b){var d=tOf(a)-tOf(b);return d!==0?d:String(a._id).localeCompare(String(b._id));}
+
+  var _r2mPrev=window.rowToMsg;
+  window.rowToMsg=function(r){var m=_r2mPrev(r);try{if(r&&r.seq!=null)m._seq=Number(r.seq);}catch(e){}return m;};
+
+  var _lmPrev=SDB.loadMsgs;
+  SDB.loadMsgs=async function(convId,limit){
+    var rows=await _lmPrev(convId,limit);
+    try{rows.sort(cmp);}catch(e){}
+    return rows;
+  };
+
+  /* لو رسالة وصلت بترتيب غلط → إعادة رسم مرتبة فوراً */
+  var _rendering=false,_rrT=null;
+  function rerenderSorted(){
+    clearTimeout(_rrT);
+    _rrT=setTimeout(function(){
+      try{
+        if(!chat)return;
+        var b=el('chatBox');if(!b)return;
+        var nearBottom=(b.scrollHeight-b.scrollTop-b.clientHeight)<160;
+        var seen={},clean=[];
+        msgsCache.forEach(function(m){if(m&&m._id&&!seen[m._id]){seen[m._id]=1;clean.push(m);}});
+        clean.sort(cmp);
+        msgsCache=clean;
+        _rendering=true;
+        b.innerHTML='';
+        for(var i=0;i<msgsCache.length;i++){try{window.appendMsg(msgsCache[i]);}catch(e){}}
+        _rendering=false;
+        if(nearBottom||!userScrolledUp){userScrolledUp=false;b.scrollTop=b.scrollHeight;}
+      }catch(e){_rendering=false;}
+    },150);
+  }
+
+  var _apPrev=window.appendMsg;
+  window.appendMsg=function(m){
+    if(_rendering)return _apPrev(m);
+    try{
+      if(chat&&msgsCache&&msgsCache.length>1){
+        var idx=-1;
+        for(var i=msgsCache.length-1;i>=0;i--){if(msgsCache[i]._id===m._id){idx=i;break;}}
+        if(idx>0&&tOf(m)<tOf(msgsCache[idx-1])){rerenderSorted();return;}
+      }
+    }catch(e){}
+    return _apPrev(m);
+  };
+
+  /* ---------- 3) وقت الدخول في جدول الأعضاء ---------- */
+  function fmtLT(t){try{if(!t)return '—';var d=new Date(Number(t));return d.toLocaleDateString('ar-EG',{day:'2-digit',month:'2-digit'})+' • '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});}catch(e){return '—';}}
+
+  var _enPrev=window.enter;
+  window.enter=async function(u){try{if(u)u.loginTime=Date.now();}catch(e){}return _enPrev(u);};
+
+  var _saPrev=window.startAll;
+  window.startAll=async function(){
+    var r=await _saPrev();
+    try{if(me&&!me.loginTime){me.loginTime=Date.now();SDB.patchUser(me.name,{loginTime:me.loginTime});}}catch(e){}
+    return r;
+  };
+
+  try{
+    var hdr=document.querySelector('#ap-members thead tr');
+    if(hdr&&!hdr.querySelector('th[data-lt]')){
+      var th=document.createElement('th');th.setAttribute('data-lt','1');th.textContent='وقت الدخول';
+      hdr.insertBefore(th,hdr.lastElementChild);
+    }
+  }catch(e){}
+
+  var _rmPrev=window.renderMembers;
+  window.renderMembers=function(){
+    var r=_rmPrev();
+    try{
+      var tb=el('memTable');if(!tb)return r;
+      var trs=tb.querySelectorAll('tr');
+      for(var i=0;i<trs.length;i++){
+        var tr=trs[i];
+        if(tr.querySelector('td[colspan]'))continue;
+        var nameTd=tr.querySelector('td');if(!nameTd)continue;
+        if(nameTd.getAttribute('data-done'))continue;
+        var u=usersCache[String(nameTd.innerText).trim()];
+        var td=document.createElement('td');
+        td.style.cssText='font-size:10px;white-space:nowrap;color:var(--mut)';
+        td.textContent=fmtLT(u&&u.loginTime);
+        nameTd.setAttribute('data-done','1');
+        tr.insertBefore(td,tr.lastElementChild);
+      }
+    }catch(e){}
+    return r;
+  };
+})();
+</script>
+<script>
+/* ===== إصلاح نهائي: زرار ⋯ في القصة يفتح (إبلاغ/حظر/مراسلة/حذف) ===== */
+(function(){
+  document.addEventListener('click',function(e){
+    try{
+      var b=e.target&&e.target.closest?e.target.closest('#stDotsBtn'):null;
+      if(b){
+        e.preventDefault();e.stopPropagation();
+        var sid=b.getAttribute('data-sid');
+        if(sid)window.mgStoryMenu(sid);
+      }
+    }catch(_e){}
+  },true);
+
+  window.mgStoryMenu=function(sid){
+    try{
+      var old=el('stMenuOv');if(old)old.remove();
+      if(!sid||!me)return;
+      sb.from('stories').select('id,author').eq('id',sid).limit(1).then(function(d){
+        var s=d&&d.data&&d.data[0];
+        if(!s)return toast('الحالة انتهت');
+        var au=String(s.author);
+        var isMine=(au===me.name);
+        var ov=document.createElement('div');
+        ov.id='stMenuOv';
+        ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1350';
+        var btns='';
+        if(isMine){
+          btns+='<button onclick="stDelStory(\''+sid+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--red);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">🗑️ حذف القصة</button>';
+        }else{
+          btns+='<button onclick="stRep(\''+au.replace(/'/g,"\\'")+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--txt);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">🚨 إبلاغ عن القصة</button>'
+          +'<button onclick="stBlock(\''+au.replace(/'/g,"\\'")+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--red);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">⛔ حظر المستخدم</button>'
+          +'<button onclick="stMsg(\''+au.replace(/'/g,"\\'")+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--txt);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">💬 مراسلة</button>';
+        }
+        btns+='<button onclick="document.getElementById(\'stMenuOv\').remove()" style="width:100%;padding:13px;background:none;border:none;color:var(--mut);font-size:13px;text-align:right;cursor:pointer">✕ إلغاء</button>';
+        ov.innerHTML='<div style="position:absolute;top:70px;left:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;width:210px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.5)">'+btns+'</div>';
+        ov.onclick=function(ev){if(ev.target===ov)ov.remove();};
+        document.body.appendChild(ov);
+      });
+    }catch(e){}
+  };
+
+  window.stDelStory=function(sid){var o=el('stMenuOv');if(o)o.remove();if(confirm('حذف هذه القصة؟'))deleteMyStory(sid);};
+  window.stRep=window.stRep||function(au){var o=el('stMenuOv');if(o)o.remove();SDB.addReport({from_user:me.name,target:'قصة/'+au,reason:'إبلاغ عن قصة غير لائقة',time:Date.now()});toast('🚨 تم إبلاغ الإدارة عن القصة');};
+  window.stMsg=window.stMsg||function(au){var o=el('stMenuOv');if(o)o.remove();closeModal('storyViewModal');try{openUser(au);}catch(e){}};
+  window.stBlock=window.stBlock||async function(au){var o=el('stMenuOv');if(o)o.remove();if(isOwnerName(au))return toast('⛔ لا يمكن حظر صاحب الموقع');if(!confirm('حظر '+getMsgName(au)+' وحذف المحادثة؟'))return;if(!me.blocked)me.blocked=[];if(me.blocked.indexOf(au)<0)me.blocked.push(au);await updateMe({blocked:me.blocked});var cid=[me.name,au].sort().join('_');try{await SDB.delConvMsgs(cid);await SDB.delConv(cid);}catch(e){}closeModal('storyViewModal');toast('⛔ تم حظر المستخدم');};
+})();
+</script>
+<script>
+/* ===== إصلاح الإطارات المكسورة + الصور التالفة ===== */
+(function(){
+  var FB_M='https://cdn.phototourl.com/free/2026-09-23-e466167c-d14c-4d49-bf5e-dac6c612bc8e.jpg';
+  var FB_F='https://cdn.phototourl.com/free/2026-09-23-9e2a1f47-8318-4b74-8e74-2a643e156af6.jpg';
+
+  function guessGender(img){
+    try{
+      var card=img.closest('.u-card,[onclick*="openUser"],[onclick*="openUserProfile"]');
+      if(card){
+        var oc=card.getAttribute('onclick')||'';
+        var m=oc.match(/openUser(?:Profile)?\('([^']+)'\)/);
+        if(m){
+          var u=usersCache[m[1]];
+          if(u&&u.gender==='أنثى')return 'F';
+        }
+      }
+    }catch(e){}
+    return 'M';
+  }
+
+  document.addEventListener('error',function(e){
+    var t=e.target;
+    if(!t||t.tagName!=='IMG')return;
+    if(t.dataset.fbFixed)return;
+    t.dataset.fbFixed='1';
+
+    /* 1) إطار مكسور = يتشال خالص والصورة ترجع في النص */
+    if(t.classList&&t.classList.contains('frame-img')){
+      t.style.display='none';
+      return;
+    }
+
+    /* 2) صورة بروفايل مكسورة = افتراضية حسب النوع */
+    if(t.closest&&(t.closest('.u-ava')||t.closest('.p-ava')||t.closest('.w-ava')||t.closest('.ava')||t.closest('#upAvaWrap'))){
+      t.onerror=function(){t.onerror=null;this.style.display='none';};
+      t.src=(guessGender(t)==='F')?FB_F:FB_M;
+      t.style.display='';
+      return;
+    }
+  },true);
+
+  /* فحص دوري: أي إطار الصورة اتكسرت جواه = يتشال */
+  setInterval(function(){
+    try{
+      document.querySelectorAll('.frame-img').forEach(function(f){
+        if(f.complete&&f.naturalWidth===0&&f.style.display!=='none'){
+          f.style.display='none';
+        }
+      });
+    }catch(e){}
+  },1500);
+})();
+</script>
+<script>
+/* ===== وقت الدخول: يعرض التاريخ (من سجل الدخول الحقيقي للجميع) ===== */
+(function(){
+  window._loginDates={};
+
+  /* جلب آخر دخول لكل عضو من جدول device_logins (بيانات موجودة فعلاً) */
+  window.loadLoginDates=async function(){
+    try{
+      var d=await sb.from('device_logins').select('name,utime').order('utime',{ascending:false}).limit(1000);
+      (d.data||[]).forEach(function(r){
+        if(!window._loginDates[r.name]||Number(r.utime)>Number(window._loginDates[r.name])){
+          window._loginDates[r.name]=r.utime;
+        }
+      });
+      if(el('s-admin')&&el('s-admin').classList.contains('active'))renderMembers();
+    }catch(e){}
+  };
+
+  /* تنسيق التاريخ فقط: يوم/شهر/سنة */
+  function fmtDate(t){
+    try{
+      if(!t)return '—';
+      var d=new Date(Number(t));
+      var day=('0'+d.getDate()).slice(-2);
+      var mo=('0'+(d.getMonth()+1)).slice(-2);
+      var yr=d.getFullYear();
+      return day+'/'+mo+'/'+yr;
+    }catch(e){return '—';}
+  }
+
+  /* التأكد من وجود العمود في الجدول */
+  function ensureHeader(){
+    try{
+      var hdr=document.querySelector('#ap-members thead tr');
+      if(hdr&&!hdr.querySelector('th[data-lt]')){
+        var th=document.createElement('th');
+        th.setAttribute('data-lt','1');
+        th.textContent='وقت الدخول';
+        hdr.insertBefore(th,hdr.lastElementChild);
+      }
+    }catch(e){}
+  }
+
+  /* بعد رسم الجدول: نملأ عمود التاريخ */
+  var _rmPrev=window.renderMembers;
+  window.renderMembers=function(){
+    var r=_rmPrev();
+    try{
+      ensureHeader();
+      var tbl=el('memTable');if(!tbl)return r;
+      var theadRow=document.querySelector('#ap-members thead tr');
+      if(!theadRow)return r;
+      /* نحدد مكان عمود "وقت الدخول" من الهيدر */
+      var colIdx=-1;
+      var ths=theadRow.querySelectorAll('th');
+      for(var i=0;i<ths.length;i++){
+        if(ths[i].getAttribute('data-lt')||ths[i].innerText.indexOf('وقت الدخول')>-1){colIdx=i;break;}
+      }
+      if(colIdx<0)return r;
+      var trs=tbl.querySelectorAll('tr');
+      for(var j=0;j<trs.length;j++){
+        var tr=trs[j];
+        var tds=tr.querySelectorAll('td');
+        if(tds.length<=colIdx)continue;
+        var td=tds[colIdx];
+        if(!td)continue;
+        var name=(tds[0].innerText||'').trim();
+        var u=usersCache[name];
+        var t=window._loginDates[name]||(u&&u.loginTime)||null;
+        td.style.cssText='font-size:10px;white-space:nowrap;color:var(--mut)';
+        td.textContent=fmtDate(t);
+      }
+    }catch(e){}
+    return r;
+  };
+
+  /* تحميل التواريخ عند فتح لوحة الأعضاء + مع البداية */
+  var _atPrev=window.adminTab;
+  window.adminTab=function(tab,e){
+    var r=_atPrev(tab,e);
+    try{if(tab==='members')loadLoginDates();}catch(e2){}
+    return r;
+  };
+  var _saPrev=window.startAll;
+  window.startAll=async function(){
+    var r=await _saPrev();
+    try{if(me&&isOwner())loadLoginDates();}catch(e){}
+    return r;
+  };
+})();
+</script>
+<script>
+/* ===== صفحة القصص الكاملة بدل المربع الصغير ===== */
+(function(){
+  function _st(){try{return JSON.parse(LS.getItem('stories_settings')||'{}');}catch(e){return{};}}
+  function _stSet(k,v){try{var s=_st();s[k]=v;LS.setItem('stories_settings',JSON.stringify(s));}catch(e){}}
+
+  /* حذف المودال القديم نهائياً */
+  try{var om=el('storiesSettingsModal');if(om)om.remove();}catch(e){}
+
+  /* بناء الشاشة الكاملة */
+  if(!el('s-stories')){
+    var scr=document.createElement('div');
+    scr.id='s-stories';
+    scr.className='screen';
+    scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ إعدادات القصص</div>'
+    +'<div style="padding:4px">'
+    +'<div class="set-row" style="display:block"><h4>أظهر شريط القصص في:</h4>'
+    +'<label style="display:flex;align-items:center;gap:12px;font-size:14px;margin:12px 0;cursor:pointer"><input type="checkbox" id="spOn" style="width:20px;height:20px;accent-color:var(--acc)"> صفحة المتصلين</label>'
+    +'<label style="display:flex;align-items:center;gap:12px;font-size:14px;margin:12px 0;cursor:pointer"><input type="checkbox" id="spMsg" style="width:20px;height:20px;accent-color:var(--acc)"> صفحة الرسائل</label>'
+    +'</div>'
+    +'<div class="set-row"><div><h4>👥 قصص الأصدقاء فقط</h4><p>عرض القصص من أصدقائك فقط بدلاً من الجميع</p></div><label class="sw"><input type="checkbox" id="spFr"><span class="sl"></span></label></div>'
+    +'<div class="set-row" style="display:block"><h4>قصصي</h4><div id="spCount" style="font-size:12px;color:var(--mut);margin:8px 0 12px"></div><button class="lbtn" onclick="openStoryComposer()">✏️ نشر قصة جديدة</button></div>'
+    +'</div>';
+
+    /* إدراجها مع باقي الشاشات */
+    var ref=document.getElementById('s-settings');
+    if(ref&&ref.parentElement)ref.parentElement.insertBefore(scr,ref.nextSibling);
+    else document.querySelector('.content').appendChild(scr);
+  }
+
+  /* فتح الصفحة الكاملة بدل المودال */
+  window.openStoriesSettings=function(){
+    var s=_st();
+    var on=el('spOn'),msg=el('spMsg'),fr=el('spFr');
+    if(on)on.checked=(s.showOnline!==false);
+    if(msg)msg.checked=(s.showMsgs===true);
+    if(fr)fr.checked=(s.friendsOnly===true);
+    var c=el('spCount');
+    if(c&&me&&window.sb){
+      sb.from('stories').select('id').eq('author',me.name).gt('stime',Date.now()-86400000).then(function(d){
+        c.innerText='لديك '+((d.data||[]).length)+' قصة نشطة الآن — تنتهي تلقائياً بعد 24 ساعة.';
+      });
+    }
+    go('stories',null);
+  };
+
+  /* حفظ الإعدادات فور التغيير */
+  document.addEventListener('change',function(e){
+    try{
+      var t=e.target;
+      if(t.id==='spOn'){_stSet('showOnline',t.checked);renderStories();}
+      else if(t.id==='spMsg'){_stSet('showMsgs',t.checked);renderStories();}
+      else if(t.id==='spFr'){_stSet('friendsOnly',t.checked);renderStories();}
+    }catch(e2){}
+  });
+
+  /* تحديث عدد القصص كل ما تفتح الإعدادات */
+  var _gPrev=window.go;
+  window.go=function(s,nv,fb){
+    var r=_gPrev(s,nv,fb);
+    try{if(s==='stories')setTimeout(window.openStoriesSettingsSync||function(){},50);}catch(e){}
+    return r;
+  };
+})();
+</script>
+<script>
+/* ===== ترتيب رسايل المراقبة: الأقدم فوق والأحدث تحت + فواصل الأيام ===== */
+(function(){
+window.spyConv=async function(convId,a,b){
+  try{
+    if(!isOwner())return toast('لصاحب الموقع فقط');
+    el('monChatHead').innerText='محادثة: '+a+' ↔️ '+b;
+    el('monChatBox').innerHTML='<div style="text-align:center;color:var(--mut);padding:20px">جاري التحميل...</div>';
+    var d=await sb.from('messages').select('*').eq('conv_id',convId).limit(300);
+    if(d.error){el('monChatBox').innerHTML='<div style="color:var(--red);text-align:center;padding:15px">خطأ: '+d.error.message+'</div>';return;}
+    var msgs=(d.data||[]).map(function(r){
+      var m;
+      try{m=window.rowToMsg?rowToMsg(r):{_id:r.id,from:r.sender,data:r.body,type:r.mtype,time:r.mtime,deleted:r.deleted,meta:r.meta||null};}
+      catch(e){m={_id:r.id,from:r.sender,data:r.body,type:r.mtype,time:r.mtime,deleted:r.deleted,meta:r.meta||null};}
+      m._seq=(r.seq!=null)?Number(r.seq):null;
+      return m;
+    });
+    /* الترتيب: بالرقم التسلسلي من السيرفر، ولو مش موجود نرتب بالوقت */
+    var hasSeq=msgs.length>0&&msgs.every(function(m){return m._seq!=null;});
+    msgs.sort(function(x,y){
+      if(hasSeq)return x._seq-y._seq;
+      var tx=Number(x.time||0),ty=Number(y.time||0);
+      if(tx!==ty)return tx-ty;
+      return String(x._id||'').localeCompare(String(y._id||''));
+    });
+    if(!msgs.length){el('monChatBox').innerHTML='<div style="text-align:center;color:var(--mut);padding:20px">لا توجد رسائل</div>';return;}
+    function fdt(t){try{var d2=new Date(Number(t));return d2.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});}catch(e){return'';}}
+    var h='',lastDay='';
+    msgs.forEach(function(m){
+      try{
+        var day=new Date(Number(m.time||0)).toLocaleDateString('ar-EG',{day:'2-digit',month:'2-digit',year:'numeric'});
+        if(day!==lastDay){
+          h+='<div style="text-align:center;margin:10px 0 4px"><span style="background:var(--card2);color:var(--mut);font-size:10px;padding:3px 14px;border-radius:12px">'+day+'</span></div>';
+          lastDay=day;
+        }
+        var content=m.deleted?'<span style="color:var(--red);font-size:11px;font-weight:bold">🚫 محذوفة:</span> ':'';
+        if(m.type==='image')content+='<img src="'+escapeHtml(m.data||'')+'" style="max-width:170px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="viewFullImage(this.src)">';
+        else if(m.type==='audio')content+='<audio controls src="'+escapeHtml(m.data||'')+'" style="width:190px;margin-top:4px"></audio>';
+        else if(m.type==='sticker')content+='<img src="'+escapeHtml(m.data||'')+'" style="width:65px;height:65px;object-fit:contain;margin-top:4px">';
+        else content+=escapeHtml(String(m.data||''));
+        h+='<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b style="color:var(--acc)">'+escapeHtml(m.from||'?')+'</b> <span style="font-size:10px;color:var(--mut)">'+fdt(m.time)+'</span><div style="margin-top:3px;word-break:break-word">'+content+'</div></div>';
+      }catch(e){}
+    });
+    el('monChatBox').innerHTML=h;
+    el('monChatBox').scrollTop=el('monChatBox').scrollHeight;
+  }catch(e){
+    try{el('monChatBox').innerHTML='<div style="color:var(--red);text-align:center;padding:15px">خطأ: '+e.message+'</div>';}catch(e2){}
+  }
+};
+})();
+</script>
+<script>
+/* ===== مراقبة كاملة: آخر 1000 رسالة بالترتيب + زوم على الصور ===== */
+(function(){
+window.spyConv=async function(convId,a,b){
+  try{
+    if(!isOwner())return toast('لصاحب الموقع فقط');
+    el('monChatHead').innerText='محادثة: '+a+' ↔️ '+b;
+    el('monChatBox').innerHTML='<div style="text-align:center;color:var(--mut);padding:20px">جاري التحميل...</div>';
+
+    /* نجيب آخر 1000 رسالة: بالرقم التسلسلي من السيرفر، ولو مش متاح نستخدم الوقت */
+    var d=await sb.from('messages').select('*').eq('conv_id',convId).order('seq',{ascending:false}).limit(1000);
+    if(d.error){
+      d=await sb.from('messages').select('*').eq('conv_id',convId).order('mtime',{ascending:false}).limit(1000);
+    }
+    if(d.error){el('monChatBox').innerHTML='<div style="color:var(--red);text-align:center;padding:15px">خطأ: '+d.error.message+'</div>';return;}
+
+    /* نقلبهم: الأقدم فوق ← الأحدث تحت */
+    var msgs=(d.data||[]).reverse();
+    if(!msgs.length){el('monChatBox').innerHTML='<div style="text-align:center;color:var(--mut);padding:20px">لا توجد رسائل</div>';return;}
+
+    function mapMsg(r){
+      var m;
+      try{m=window.rowToMsg?rowToMsg(r):{_id:r.id,from:r.sender,data:r.body,type:r.mtype,time:r.mtime,deleted:r.deleted,meta:r.meta||null};}
+      catch(e){m={_id:r.id,from:r.sender,data:r.body,type:r.mtype,time:r.mtime,deleted:r.deleted,meta:r.meta||null};}
+      m._seq=(r.seq!=null)?Number(r.seq):null;
+      return m;
+    }
+    var mapped=msgs.map(mapMsg);
+    var hasSeq=mapped.length>0&&mapped.every(function(m){return m._seq!=null;});
+    if(hasSeq)mapped.sort(function(x,y){return x._seq-y._seq;});
+
+    function fdt(t){try{return new Date(Number(t)).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});}catch(e){return'';}}
+    function fdd(t){try{return new Date(Number(t)).toLocaleDateString('ar-EG',{day:'2-digit',month:'2-digit',year:'numeric'});}catch(e){return'';}}
+
+    var h='<div style="text-align:center;margin-bottom:8px"><span style="background:var(--card2);color:var(--mut);font-size:10px;padding:3px 14px;border-radius:12px">📊 عرض '+mapped.length+' رسالة — من البداية للنهاية</span></div>';
+    var lastDay='';
+    mapped.forEach(function(m){
+      try{
+        var day=fdd(m.time);
+        if(day&&day!==lastDay){
+          h+='<div style="text-align:center;margin:10px 0 4px"><span style="background:var(--card2);color:var(--mut);font-size:10px;padding:3px 14px;border-radius:12px">'+day+'</span></div>';
+          lastDay=day;
+        }
+        var content=m.deleted?'<span style="color:var(--red);font-size:11px;font-weight:bold">🚫 محذوفة:</span> ':'';
+        if(m.type==='image')content+='<img src="'+escapeHtml(m.data||'')+'" style="max-width:170px;border-radius:8px;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();viewFullImage(this.src)">';
+        else if(m.type==='audio')content+='<audio controls src="'+escapeHtml(m.data||'')+'" style="width:190px;margin-top:4px"></audio>';
+        else if(m.type==='sticker')content+='<img src="'+escapeHtml(m.data||'')+'" style="width:65px;height:65px;object-fit:contain;margin-top:4px;cursor:pointer" onclick="event.stopPropagation();viewFullImage(this.src)">';
+        else content+=escapeHtml(String(m.data||''));
+        h+='<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b style="color:var(--acc)">'+escapeHtml(m.from||'?')+'</b> <span style="font-size:10px;color:var(--mut)">'+fdt(m.time)+'</span><div style="margin-top:3px;word-break:break-word">'+content+'</div></div>';
+      }catch(e){}
+    });
+    h+='<div style="text-align:center;color:var(--mut);font-size:11px;padding:10px">⬅️ نهاية المحادثة</div>';
+    el('monChatBox').innerHTML=h;
+    el('monChatBox').scrollTop=el('monChatBox').scrollHeight;
+  }catch(e){
+    try{el('monChatBox').innerHTML='<div style="color:var(--red);text-align:center;padding:15px">خطأ: '+e.message+'</div>';}catch(e2){}
+  }
+};
+})();
+</script>
 </body>
 </html>
