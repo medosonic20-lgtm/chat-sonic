@@ -5042,7 +5042,7 @@ window.saveGameScore=async function(){
     var m=Math.ceil(left/60000);
     return toast('⏳ استنى '+m+' دقيقة قبل تسجيل نتيجة جديدة');
   }
-  /* 2) منع القفزات الوهمية: النتيجة الجديدة مش تتعدي 3 أضعاف أفضل نتيجة */
+    /* 2) منع القفزات الوهمية: النتيجة الجديدة مش تتعدي 3 أضعاف أفضل نتيجة */
   var pb=await sb.from('game_scores').select('score').eq('player',me.name).eq('game',_cur).order('score',{ascending:false}).limit(1);
   var best=(pb.data&&pb.data[0])?pb.data[0].score:0;
   if(best>0&&v>best*3)return toast('🚫 زيادة مشبوهة! أقصى مسموح تقريباً: '+Math.floor(best*3));
@@ -6792,5 +6792,1175 @@ window.spyConv=async function(convId,a,b){
   setTimeout(function(){try{if(me)renderStories();}catch(e){}},2000);
 })();
 </script>
+<script>
+/* ===== تبويبات القصص (الكل / الأصدقاء) + حلقات متدرجة ===== */
+(function(){
+  function _arr(v){return Array.isArray(v)?v:[];}
+  function _st(){try{return JSON.parse(LS.getItem('stories_settings')||'{}');}catch(e){return{};}}
+  function _gf(){try{return LS.getItem('stories_filter')||'all';}catch(e){return'all';}}
+  function _sf(f){try{LS.setItem('stories_filter',f);}catch(e){}}
+
+  var RINGS=[
+    'conic-gradient(from 210deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5,#feda75)',
+    'conic-gradient(from 210deg,#12c2e9,#c471ed,#f64f59,#12c2e9)',
+    'conic-gradient(from 210deg,#11998e,#38ef7d,#11998e)',
+    'conic-gradient(from 210deg,#fc466b,#3f5efb,#fc466b)',
+    'conic-gradient(from 210deg,#f7971e,#ffd200,#f7971e)',
+    'conic-gradient(from 210deg,#8e2de2,#4a00e0,#8e2de2)'
+  ];
+
+  function _ensureBars(){
+    try{
+      if(!el('storiesBarMsgs')){
+        var m=document.createElement('div');m.id='storiesBarMsgs';
+        m.style.cssText='display:none;gap:10px;overflow-x:auto;padding:8px 4px;margin-bottom:8px';
+        var msgs=el('s-msgs');if(msgs)msgs.insertBefore(m,msgs.firstChild);
+      }
+    }catch(e){}
+  }
+
+  function _filterHTML(){
+    var cur=_gf();
+    function pill(f,label){
+      var sel=(cur===f);
+      return '<span class="stFilterPill" data-f="'+f+'" style="padding:5px 22px;border-radius:18px;font-size:12.5px;font-weight:bold;cursor:pointer;user-select:none;'+(sel?'background:var(--acc);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.35)':'background:var(--card2);color:var(--mut);border:1px solid var(--line)')+'">'+label+'</span>';
+    }
+    return '<span style="flex:1;font-size:14px;font-weight:bold;color:var(--txt)">القصص</span>'+pill('all','الكل')+pill('friends','الأصدقاء');
+  }
+
+  function _ensureFilterBar(bar,id){
+    try{
+      if(!bar)return;
+      var fbar=el(id);
+      if(!fbar){
+        fbar=document.createElement('div');fbar.id=id;
+        fbar.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 4px 0';
+        if(bar.parentElement)bar.parentElement.insertBefore(fbar,bar);
+        fbar.addEventListener('click',function(e){
+          try{
+            var b=e.target&&e.target.closest?e.target.closest('.stFilterPill'):null;
+            if(!b)return;
+            _sf(b.getAttribute('data-f'));
+            renderStories();
+          }catch(err){}
+        });
+      }
+      fbar.innerHTML=_filterHTML();
+      fbar.style.display=(bar.style.display==='none')?'none':'flex';
+    }catch(e){}
+  }
+
+  window.renderStories=async function(){
+    try{
+      if(!me)return;
+      _ensureBars();
+      var d=await sb.from('stories').select('*').gt('stime',Date.now()-86400000).order('stime',{ascending:true});
+      if(d.error)return;
+      var items=(d.data||[]);var s=_st();var fr=_gf();
+      if(fr==='friends'||s.friendsOnly===true){
+        items=items.filter(function(x){return x.author===me.name||(me.friends&&me.friends.indexOf(x.author)>-1);});
+      }
+      var groups={},order=[];
+      items.forEach(function(x){if(!groups[x.author]){groups[x.author]=[];order.push(x.author);}groups[x.author].push(x);});
+      order.sort(function(a,b){return (groups[b][groups[b].length-1].stime||0)-(groups[a][groups[a].length-1].stime||0);});
+      var mine=order.filter(function(a){return a===me.name;});
+      var frs=order.filter(function(a){return a!==me.name&&me.friends&&me.friends.indexOf(a)>-1;});
+      var oth=order.filter(function(a){return a!==me.name&&(!me.friends||me.friends.indexOf(a)===-1);});
+      var ADD='<div onclick="openStoryComposer()" style="min-width:64px;display:flex;flex-direction:column;align-items:center;cursor:pointer;flex-shrink:0"><div style="width:58px;height:58px;border-radius:50%;border:2px dashed var(--acc);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--acc)">+</div><span style="font-size:9px;color:var(--mut);margin-top:3px">إضافة</span></div>';
+      function chip(author,list,isMine,ri){
+        var u=usersCache[author];
+        var ava=isMine?getAvatar(me):((u&&u.avatar)?'<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover">':getAvatar(u||{}));
+        var allSeen=true;
+        if(!isMine)for(var i=0;i<list.length;i++){if(_arr(list[i].views).indexOf(me.name)===-1){allSeen=false;break;}}
+        var badge=list.length>1?'<span style="position:absolute;top:-2px;left:-4px;background:var(--acc);color:#fff;border-radius:10px;min-width:20px;height:18px;line-height:18px;font-size:10px;padding:0 4px;font-weight:bold;box-shadow:0 1px 4px rgba(0,0,0,.4);z-index:2">'+list.length+'</span>':'';
+        var sub=isMine?'<span onclick="event.stopPropagation();showStoryViewersAll()" style="font-size:9px;color:var(--acc);font-weight:bold;cursor:pointer">👁️ '+list.reduce(function(t,x){return t+_arr(x.views).length;},0)+'</span>':'<span style="font-size:9px;color:var(--mut)">'+timeLeft(list[list.length-1].stime)+'</span>';
+        var ring=allSeen?'#3a4653':RINGS[ri%RINGS.length];
+        var ringStyle=(allSeen)?('border:3px solid '+ring+';padding:2px'):('background:'+ring+';padding:3px');
+        return '<div onclick="openAuthorStories(\''+String(author).replace(/'/g,"\\'")+'\')" style="position:relative;min-width:64px;display:flex;flex-direction:column;align-items:center;cursor:pointer;flex-shrink:0"><div style="position:relative"><div style="width:60px;height:60px;border-radius:50%;'+ringStyle+'"><div style="width:100%;height:100%;border-radius:50%;overflow:hidden;background:var(--card2);border:2px solid var(--card)">'+ava+'</div></div>'+badge+'</div><span style="font-size:10px;color:var(--txt);margin-top:4px;max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(isMine?'حالتي':escapeHtml(getMsgName(author)))+'</span>'+sub+'</div>';
+      }
+      function sec(title,list,isMine,si){
+        if(!list.length)return'';
+        var h='<div style="min-width:100%"><div style="font-size:10px;color:var(--mut);font-weight:bold;padding:0 4px 4px">'+title+'</div><div style="display:flex;gap:10px">';
+        list.forEach(function(a,i){h+=chip(a,groups[a],isMine,si+i);});
+        return h+'</div></div>';
+      }
+      var html='<div style="display:flex;gap:10px;align-items:flex-start;overflow-x:auto;width:100%">'+ADD+sec('⭐ حالتي',mine,true,0)+sec('👥 أصدقائي',frs,false,1)+sec('🌍 الجميع',oth,false,3)+'</div>';
+      var bar=el('storiesBar'),bar2=el('storiesBarMsgs');
+      if(bar){bar.innerHTML=html;bar.style.display=(s.showOnline===false)?'none':'flex';_ensureFilterBar(bar,'storiesFilterBar');}
+      if(bar2){bar2.innerHTML=html;bar2.style.display=(s.showMsgs===true)?'flex':'none';_ensureFilterBar(bar2,'storiesFilterBarMsgs');}
+    }catch(e){}
+  };
+
+  var _saT=window.startAll;
+  window.startAll=async function(){var r=await _saT();try{renderStories();}catch(e){}return r;};
+  setTimeout(function(){try{if(me)renderStories();}catch(e){}},2000);
+})();
+</script>
+<script>
+/* ===== تبويب الحالة في الشريط السفلي + نقطة حمراء للاستوري الجديد ===== */
+(function(){
+  function _arr(v){return Array.isArray(v)?v:[];}
+
+  /* ---------- 1) إضافة زرار "الحالة" في الشريط السفلي ---------- */
+  var nav=document.querySelector('.bottom-nav');
+  if(nav&&!el('navStatus')){
+    var item=document.createElement('div');
+    item.className='nav-item';
+    item.id='navStatus';
+    item.onclick=function(){go('status',this);};
+    item.innerHTML='<span style="position:relative"><span class="icon">⭕</span><span id="statusBadge" style="position:absolute;top:-1px;right:6px;width:11px;height:11px;background:var(--red);border-radius:50%;display:none;border:2px solid var(--card);box-shadow:0 0 6px var(--red)"></span></span><span>الحالة</span>';
+    var navItems=nav.querySelectorAll('.nav-item');
+    if(navItems.length>1)nav.insertBefore(item,navItems[1]);
+    else nav.appendChild(item);
+  }
+
+  /* ---------- 2) إنشاء صفحة الحالة الكاملة ---------- */
+  if(!el('s-status')){
+    var scr=document.createElement('div');
+    scr.className='screen';
+    scr.id='s-status';
+    scr.innerHTML='<div class="msg-head"><b>⭕ الحالة</b><span style="font-size:12px;color:var(--mut)">تختفي بعد 24 ساعة</span></div><div id="statusList" style="padding:8px"></div>';
+    var content=document.querySelector('.content');
+    var ref=el('s-rooms');
+    if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+    else content.appendChild(scr);
+  }
+
+  /* ---------- 3) تسجيل التبويب في نظام التنقل ---------- */
+  try{if(typeof MAIN_SCREENS!=='undefined'&&MAIN_SCREENS.indexOf('status')===-1)MAIN_SCREENS.push('status');}catch(e){}
+  var _gnePrev=window.getNavEl;
+  window.getNavEl=function(s){
+    var m={online:0,status:1,msgs:2,rooms:3,wall:4,settings:5};
+    if(m[s]!==undefined)return document.querySelectorAll('.nav-item')[m[s]];
+    return _gnePrev?_gnePrev(s):null;
+  };
+
+  /* ---------- 4) النقطة الحمراء ---------- */
+  window.updateStatusBadge=async function(){
+    try{
+      if(!me){var b0=el('statusBadge');if(b0)b0.style.display='none';return;}
+      var d=await sb.from('stories').select('author,views').gt('stime',Date.now()-86400000);
+      var hasNew=false;
+      (d.data||[]).forEach(function(s){
+        if(s.author!==me.name&&_arr(s.views).indexOf(me.name)===-1)hasNew=true;
+      });
+      var b=el('statusBadge');
+      if(b)b.style.display=hasNew?'block':'none';
+    }catch(e){}
+  };
+
+  /* ---------- 5) رسم صفحة الحالة ---------- */
+  window.renderStatusPage=async function(){
+    try{
+      if(!me)return;
+      var box=el('statusList');
+      if(!box)return;
+      box.innerHTML='<div style="text-align:center;color:var(--mut);padding:20px">جاري التحميل...</div>';
+      var d=await sb.from('stories').select('*').gt('stime',Date.now()-86400000).order('stime',{ascending:true});
+      var items=(d.data||[]);
+      var groups={},order=[];
+      items.forEach(function(x){if(!groups[x.author]){groups[x.author]=[];order.push(x.author);}groups[x.author].push(x);});
+      order.sort(function(a,b){return (groups[b][groups[b].length-1].stime||0)-(groups[a][groups[a].length-1].stime||0);});
+      var myCount=(groups[me.name]||[]).length;
+      var recent=[],viewed=[];
+      order.forEach(function(a){
+        if(a===me.name)return;
+        var g=groups[a];
+        var seen=true;
+        for(var i=0;i<g.length;i++){if(_arr(g[i].views).indexOf(me.name)===-1){seen=false;break;}}
+        if(seen)viewed.push(a);else recent.push(a);
+      });
+      function row(author,list,seen){
+        var u=usersCache[author];
+        var ava=(u&&u.avatar)?'<img src="'+u.avatar+'" style="width:100%;height:100%;object-fit:cover">':getAvatar(u||{});
+        var ring=seen?'#3a4653':'var(--grn)';
+        return '<div class="u-card" onclick="openAuthorStories(\''+String(author).replace(/'/g,"\\'")+'\')">'
+        +'<div style="width:54px;height:54px;border-radius:50%;border:3px solid '+ring+';padding:2px;overflow:hidden;flex-shrink:0"><div style="width:100%;height:100%;border-radius:50%;overflow:hidden;background:var(--card2)">'+ava+'</div></div>'
+        +'<div style="flex:1;min-width:0"><div class="u-name">'+escapeHtml(getMsgName(author))+'</div>'
+        +'<div style="font-size:11px;color:var(--mut)">'+timeAgo(list[list.length-1].stime)+' • '+list.length+' '+(list.length===1?'حالة':'حالات')+'</div></div>'
+        +(list.length>1?'<span style="background:var(--acc);color:#fff;border-radius:10px;font-size:10px;padding:2px 8px;flex-shrink:0">'+list.length+'</span>':'')
+        +'</div>';
+      }
+      var h='<div class="u-card" onclick="openStoryComposer()">'
+      +'<div style="position:relative;width:54px;height:54px;flex-shrink:0"><div style="width:100%;height:100%;border-radius:50%;overflow:hidden;border:2px dashed var(--acc)">'+getAvatar(me)+'</div>'
+      +'<span style="position:absolute;bottom:-3px;left:-3px;width:22px;height:22px;background:var(--grn);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:bold;border:2px solid var(--card)">+</span></div>'
+      +'<div style="flex:1"><div class="u-name">حالتي</div><div style="font-size:11px;color:var(--mut)">'+(myCount?('لديك '+myCount+' قصة نشطة — تختفي بعد 24 ساعة'):'اضغط لإضافة حالة — تختفي بعد 24 ساعة')+'</div></div>'
+      +(myCount?'<span onclick="event.stopPropagation();showStoryViewersAll()" style="font-size:14px;color:var(--acc);cursor:pointer;flex-shrink:0">👁️</span>':'')
+      +'</div>';
+      if(recent.length){
+        h+='<div style="font-size:12px;color:var(--mut);padding:10px 4px 2px;font-weight:bold">الحالات الحديثة</div>';
+        recent.forEach(function(a){h+=row(a,groups[a],false);});
+      }
+      if(viewed.length){
+        h+='<div style="font-size:12px;color:var(--mut);padding:14px 4px 2px;font-weight:bold">الحالات التي تم عرضها</div>';
+        viewed.forEach(function(a){h+=row(a,groups[a],true);});
+      }
+      if(!recent.length&&!viewed.length){
+        h+='<div class="empty"><div class="big">⭕</div>لا توجد حالات حالياً<br>كن أول من ينشر استوري! ✨</div>';
+      }
+      box.innerHTML=h;
+      updateStatusBadge();
+    }catch(e){}
+  };
+
+  /* ---------- 6) الربط بالتنقل ---------- */
+  var _goPrev=window.go;
+  window.go=function(s,navEl,fromBack){
+    var r=_goPrev(s,navEl,fromBack);
+    try{if(s==='status')renderStatusPage();}catch(e){}
+    return r;
+  };
+
+  /* ---------- 7) النقطة تتحدث مع كل تحديث قصص + بعد المشاهدة ---------- */
+  var _rsPrev=window.renderStories;
+  window.renderStories=async function(){
+    var r=await _rsPrev();
+    try{updateStatusBadge();}catch(e){}
+    return r;
+  };
+  var _oasPrev=window.openAuthorStories;
+  window.openAuthorStories=async function(a,s){
+    var r=await _oasPrev(a,s);
+    try{setTimeout(updateStatusBadge,2500);}catch(e){}
+    return r;
+  };
+
+  /* ---------- تشغيل ---------- */
+  var _saSt=window.startAll;
+  window.startAll=async function(){
+    var r=await _saSt();
+    try{updateStatusBadge();}catch(e){}
+    return r;
+  };
+  setTimeout(function(){try{updateStatusBadge();}catch(e){}},3000);
+})();
+</script>
+<script>
+/* ===== خيار: إظهار القصص في صفحة الحالة (اختياري لكل مستخدم) ===== */
+(function(){
+  function _st(){try{return JSON.parse(LS.getItem('stories_settings')||'{}');}catch(e){return{};}}
+  function _stSet(k,v){try{var s=_st();s[k]=v;LS.setItem('stories_settings',JSON.stringify(s));}catch(e){}}
+
+  /* 1) إضافة خانة "صفحة الحالة" في إعدادات القصص (تحت صفحة الرسائل) */
+  function ensureCheckbox(){
+    try{
+      var scr=el('s-stories');
+      if(!scr||el('spStatus'))return;
+      var label=document.createElement('label');
+      label.style.cssText='display:flex;align-items:center;gap:12px;font-size:14px;margin:12px 0;cursor:pointer';
+      label.innerHTML='<input type="checkbox" id="spStatus" style="width:20px;height:20px;accent-color:var(--acc)"> صفحة الحالة';
+      var ref=el('spMsg');
+      if(ref&&ref.parentElement)ref.parentElement.insertBefore(label,ref.nextSibling);
+      else{
+        var first=scr.querySelector('.set-row');
+        if(first)first.appendChild(label);else scr.appendChild(label);
+      }
+    }catch(e){}
+  }
+
+  /* 2) شريط القصص داخل صفحة الحالة */
+  function ensureStatusBar(){
+    try{
+      var scr=el('s-status');if(!scr)return null;
+      var bar=el('storiesBarStatus');
+      if(!bar){
+        bar=document.createElement('div');bar.id='storiesBarStatus';
+        bar.style.cssText='display:none;gap:10px;overflow-x:auto;padding:8px 4px;margin-bottom:8px';
+        var fbar=document.createElement('div');fbar.id='storiesFilterBarStatus';
+        fbar.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 4px 0';
+        var list=el('statusList');
+        if(list){scr.insertBefore(fbar,list);scr.insertBefore(bar,list);}
+      }
+      return bar;
+    }catch(e){return null;}
+  }
+
+  /* 3) نسخ القصص لشريط صفحة الحالة بعد كل رسم (بحسب اختيار المستخدم) */
+  function syncStatusBar(){
+    try{
+      var bar=ensureStatusBar();if(!bar)return;
+      var on=(_st().showStatus===true);
+      var src=el('storiesBar'),fsrc=el('storiesFilterBar'),fdst=el('storiesFilterBarStatus');
+      if(on&&src&&src.innerHTML){
+        bar.innerHTML=src.innerHTML;
+        bar.style.display='flex';
+        if(fdst&&fsrc){fdst.innerHTML=fsrc.innerHTML;fdst.style.display='flex';}
+      }else{
+        bar.style.display='none';
+        if(fdst)fdst.style.display='none';
+      }
+    }catch(e){}
+  }
+
+  /* 4) الضغط على تبويبات (الكل/الأصدقاء) جوه صفحة الحالة يشتغل زي الباقي */
+  document.addEventListener('click',function(e){
+    try{
+      var b=e.target&&e.target.closest?e.target.closest('#storiesFilterBarStatus .stFilterPill'):null;
+      if(!b)return;
+      LS.setItem('stories_filter',b.getAttribute('data-f'));
+      renderStories();
+    }catch(err){}
+  });
+
+  /* 5) حفظ الخيار فور التغيير */
+  document.addEventListener('change',function(e){
+    try{
+      if(e.target&&e.target.id==='spStatus'){
+        _stSet('showStatus',e.target.checked);
+        syncStatusBar();
+        toast(e.target.checked?'✅ القصص ستظهر في صفحة الحالة':'القصص مخفية من صفحة الحالة');
+      }
+    }catch(err){}
+  });
+
+  /* 6) مزامنة حالة الخانة عند فتح الإعدادات */
+  var _ossPrev=window.openStoriesSettings;
+  window.openStoriesSettings=function(){
+    var r=_ossPrev?_ossPrev():undefined;
+    try{
+      ensureCheckbox();
+      var c=el('spStatus');
+      if(c)c.checked=(_st().showStatus===true);
+    }catch(e){}
+    return r;
+  };
+
+  /* 7) التحديث التلقائي مع كل رسم قصص + فتح صفحة الحالة + البداية */
+  var _rsPrev=window.renderStories;
+  window.renderStories=async function(){
+    var r=await _rsPrev();
+    try{syncStatusBar();}catch(e){}
+    return r;
+  };
+  var _goPrev=window.go;
+  window.go=function(s,nv,fb){
+    var r=_goPrev(s,nv,fb);
+    try{if(s==='status'){ensureCheckbox();setTimeout(syncStatusBar,300);}}catch(e){}
+    return r;
+  };
+  var _saSb=window.startAll;
+  window.startAll=async function(){
+    var r=await _saSb();
+    try{ensureCheckbox();syncStatusBar();}catch(e){}
+    return r;
+  };
+})();
+</script>
+<script>
+/* ===== إصلاح تراكب خانات إعدادات القصص: منفصلة ومرتبة ===== */
+(function(){
+  function _st(){try{return JSON.parse(LS.getItem('stories_settings')||'{}');}catch(e){return{};}}
+  function _stSet(k,v){try{var s=_st();s[k]=v;LS.setItem('stories_settings',JSON.stringify(s));}catch(e){}}
+
+  /* إعادة بناء القسم: 3 خانات مستقلة كل واحدة في كارت لوحدها */
+  function rebuildSection(){
+    try{
+      var scr=el('s-stories');
+      if(!scr)return;
+      var first=scr.querySelector('.set-row');
+      if(!first)return;
+      var rowStyle='display:flex;align-items:center;justify-content:space-between;font-size:14px;margin:12px 0;cursor:pointer;padding:12px 14px;background:var(--card2);border-radius:12px;border:1px solid var(--line)';
+      first.innerHTML='<h4>أظهر شريط القصص في:</h4>'
+      +'<label style="'+rowStyle+'"><span>📱 صفحة المتصلين</span><input type="checkbox" id="spOn" style="width:20px;height:20px;accent-color:var(--acc)"></label>'
+      +'<label style="'+rowStyle+'"><span>⭕ صفحة الحالة</span><input type="checkbox" id="spStatus" style="width:20px;height:20px;accent-color:var(--acc)"></label>'
+      +'<label style="'+rowStyle+'"><span>💬 صفحة الرسائل</span><input type="checkbox" id="spMsg" style="width:20px;height:20px;accent-color:var(--acc)"></label>';
+      var s=_st();
+      var on=el('spOn'),st=el('spStatus'),msg=el('spMsg');
+      if(on)on.checked=(s.showOnline!==false);
+      if(st)st.checked=(s.showStatus===true);
+      if(msg)msg.checked=(s.showMsgs===true);
+    }catch(e){}
+  }
+
+  /* حفظ الإعدادات فور التغيير (مع دعم الباتشات القديمة) */
+  document.addEventListener('change',function(e){
+    try{
+      var t=e.target;
+      if(!t)return;
+      if(t.id==='spOn'){_stSet('showOnline',t.checked);try{renderStories();}catch(e2){}}
+      else if(t.id==='spStatus'){_stSet('showStatus',t.checked);try{syncStatusBar();}catch(e2){}}
+      else if(t.id==='spMsg'){_stSet('showMsgs',t.checked);try{renderStories();}catch(e2){}}
+    }catch(err){}
+  });
+
+  /* إعادة البناء عند فتح صفحة الإعدادات + عند التحميل */
+  var _gFixPrev=window.go;
+  window.go=function(s,nv,fb){
+    var r=_gFixPrev(s,nv,fb);
+    try{if(s==='stories')setTimeout(rebuildSection,80);}catch(e){}
+    return r;
+  };
+  setTimeout(rebuildSection,1500);
+})();
+</script>
+<script>
+/* ===== نظام آخر التحديثات: للجميع / خاص بصاحب الموقع ===== */
+(function(){
+  function _arr(v){return Array.isArray(v)?v:[];}
+  async function _load(){try{var s=await SDB.loadSettings();return _arr(s.updates);}catch(e){return[];}}
+  async function _save(a){await SDB.saveSetting('updates',a);}
+
+  /* ---------- فتح صفحة التحديثات ---------- */
+  window.openUpdates=async function(){
+    try{
+      if(!me)return toast('سجل دخولك أولاً');
+      var own=isOwner();
+      var all=await _load();
+      all.sort(function(a,b){return (b.date||0)-(a.date||0);});
+      var list=all.filter(function(u){return own||u.pub!==false;});
+      try{LS.setItem('updates_seen',String(Date.now()));}catch(e){}
+      _badge(0);
+      var m=el('updatesModal');
+      if(m)m.remove();
+      m=document.createElement('div');m.id='updatesModal';m.className='modal';
+      var h='<div class="m-card2" style="width:360px;max-height:85vh;overflow-y:auto">'
+      +'<h3>🔔 آخر التحديثات</h3>';
+      if(own)h+='<button style="background:var(--grn);color:#fff" onclick="updAddOpen()">➕ إضافة تحديث جديد</button>';
+      if(!list.length)h+='<div style="text-align:center;color:var(--mut);padding:20px;font-size:13px">لا توجد تحديثات بعد</div>';
+      list.forEach(function(u){
+        var ownOnly=(u.pub===false);
+        var ds=new Date(Number(u.date||Date.now())).toLocaleDateString('ar-EG',{day:'2-digit',month:'2-digit',year:'numeric'});
+        h+='<div style="text-align:right;background:var(--bg);border:1px solid '+(ownOnly?'var(--yel)':'var(--line)')+';border-right:4px solid '+(ownOnly?'var(--yel)':'var(--grn)')+';border-radius:10px;padding:10px 12px;margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><b style="color:var(--acc);font-size:14px">'+escapeHtml(u.title||'')+'</b><span style="font-size:10px;color:var(--mut);white-space:nowrap">'+ds+'</span></div>'
+        +(ownOnly?'<div style="font-size:10px;color:var(--yel);font-weight:bold;margin-top:2px">🔒 خاص بالإدارة فقط</div>':'')
+        +'<div style="font-size:12.5px;line-height:1.9;color:var(--txt);margin-top:6px;white-space:pre-line">'+escapeHtml(u.body||'')+'</div>'
+        +(own?'<div style="display:flex;gap:6px;margin-top:8px"><button class="ebtn" style="font-size:10px" onclick="updToggle(\''+u.id+'\')">'+(ownOnly?'🌍 إظهار للجميع':'🔒 إخفاء (للإدارة)')+'</button><button class="xbtn" style="font-size:10px" onclick="updDel(\''+u.id+'\')">🗑️ حذف</button></div>':'')
+        +'</div>';
+      });
+      h+='<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'updatesModal\')">إغلاق</button></div>';
+      m.innerHTML=h;
+      m.onclick=function(e){if(e.target===m)closeModal('updatesModal');};
+      document.body.appendChild(m);
+      m.classList.add('open');
+    }catch(e){toast('خطأ: '+e.message);}
+  };
+
+  /* ---------- إضافة تحديث جديد (صاحب الموقع فقط) ---------- */
+  window.updAddOpen=function(){
+    if(!isOwner())return toast('لصاحب الموقع فقط');
+    var f=el('updFormModal');
+    if(f)f.remove();
+    f=document.createElement('div');f.id='updFormModal';f.className='modal';
+    f.innerHTML='<div class="m-card2" style="width:330px"><h3>➕ تحديث جديد</h3>'
+    +'<input id="updTitle" placeholder="عنوان التحديث (مثال: ميزة جديدة ✨)" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px">'
+    +'<textarea id="updBody" placeholder="اكتب تفاصيل التحديث..." style="width:100%;min-height:90px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:10px;font-size:13px;resize:none;margin-top:8px"></textarea>'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:10px 0;cursor:pointer"><input type="checkbox" id="updPriv"> 🔒 خاص بصاحب الموقع فقط</label>'
+    +'<button style="background:var(--grn);color:#fff" onclick="updSave()">💾 حفظ التحديث</button>'
+    +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'updFormModal\')">إلغاء</button></div>';
+    f.onclick=function(e){if(e.target===f)closeModal('updFormModal');};
+    document.body.appendChild(f);
+    f.classList.add('open');
+  };
+
+  window.updSave=async function(){
+    try{
+      if(!isOwner())return toast('لصاحب الموقع فقط');
+      var t=el('updTitle').value.trim(),b=el('updBody').value.trim();
+      if(!t)return toast('اكتب عنوان التحديث');
+      if(!b)return toast('اكتب تفاصيل التحديث');
+      var priv=el('updPriv').checked;
+      var all=await _load();
+      all.push({id:'u'+Date.now()+Math.floor(Math.random()*999),title:t,body:b,date:Date.now(),pub:!priv});
+      await _save(all);
+      closeModal('updFormModal');
+      toast('تم حفظ التحديث ✅');
+      openUpdates();
+    }catch(e){toast('خطأ: '+e.message);}
+  };
+
+  window.updDel=async function(id){
+    if(!isOwner())return;
+    if(!confirm('حذف هذا التحديث؟'))return;
+    var all=await _load();
+    all=all.filter(function(u){return u.id!==id;});
+    await _save(all);
+    toast('تم الحذف');
+    openUpdates();
+  };
+
+  window.updToggle=async function(id){
+    if(!isOwner())return;
+    var all=await _load();
+    all.forEach(function(u){if(u.id===id)u.pub=(u.pub===false);});
+    await _save(all);
+    toast('تم التحديث');
+    openUpdates();
+  };
+
+  /* ---------- النقطة الحمراء بعداد التحديثات الجديدة ---------- */
+  function _badge(n){
+    try{
+      var d=el('updBadgeDot');
+      if(d){if(n>0){d.style.display='inline-flex';d.innerText=n;}else d.style.display='none';}
+    }catch(e){}
+  }
+  window.updateUpdatesBadge=async function(){
+    try{
+      if(!me)return;
+      var all=await _load();
+      var seen=parseInt(LS.getItem('updates_seen')||'0');
+      var n=0;
+      all.forEach(function(u){if(u.pub!==false&&(u.date||0)>seen)n++;});
+      _badge(n);
+    }catch(e){}
+  };
+
+  /* ---------- ربط الزرار الموجود أو إنشاء واحد ---------- */
+  function ensureItem(){
+    try{
+      var scr=el('s-settings');if(!scr)return;
+      var cands=[];
+      scr.querySelectorAll('div,span').forEach(function(x){
+        var t=(x.textContent||'').trim();
+        if(t.indexOf('آخر التحديثات')>-1&&t.length<45)cands.push(x);
+      });
+      if(cands.length){
+        var elx=cands[0];
+        if(!elx._updBound){
+          elx._updBound=true;
+          var target=elx.closest('.m-item')||elx.closest('[onclick]')||elx;
+          target.style.cursor='pointer';
+          target.setAttribute('onclick','openUpdates()');
+          if(!el('updBadgeDot')){
+            var dot=document.createElement('span');
+            dot.id='updBadgeDot';
+            dot.style.cssText='display:none;min-width:18px;height:18px;background:var(--red);color:#fff;border-radius:10px;font-size:10px;font-weight:bold;align-items:center;justify-content:center;padding:0 5px;margin-right:6px;vertical-align:middle';
+            target.appendChild(dot);
+          }
+        }
+        return;
+      }
+      if(!el('updatesMenuItem')){
+        var card=document.createElement('div');
+        card.className='menu-list';card.id='updatesMenuItem';
+        card.style.marginBottom='12px';
+        card.innerHTML='<div class="m-item" onclick="openUpdates()" style="cursor:pointer"><span>🔔 آخر التحديثات <span id="updBadgeDot" style="display:none;min-width:18px;height:18px;background:var(--red);color:#fff;border-radius:10px;font-size:10px;font-weight:bold;align-items:center;justify-content:center;padding:0 5px;margin-right:6px;vertical-align:middle"></span></span><span>👈</span></div>';
+        var p=scr.querySelector('.p-card');
+        if(p&&p.parentElement)p.parentElement.insertBefore(card,p.nextSibling);
+        else scr.insertBefore(card,scr.firstChild);
+      }
+    }catch(e){}
+  }
+
+  /* ---------- تشغيل + تحديث أولي ترحيبي ---------- */
+  var _saU=window.startAll;
+  window.startAll=async function(){
+    var r=await _saU();
+    try{
+      ensureItem();
+      var all=await _load();
+      if(!all.length){
+        await _save([{id:'u1',title:'🎉 مرحباً بكم في شات سونيك',body:'تابع هذه الصفحة لتعرف كل جديد ومميزات الموقع أول بأول ⚡',date:Date.now(),pub:true}]);
+      }
+      updateUpdatesBadge();
+    }catch(e){}
+    return r;
+  };
+  setInterval(function(){try{updateUpdatesBadge();}catch(e){}},60000);
+  setTimeout(function(){try{ensureItem();updateUpdatesBadge();}catch(e){}},2500);
+})();
+</script>
+<script>
+/* ===== صفحة التحديثات الكاملة بدل المربع الصغير ===== */
+(function(){
+  function _arr(v){return Array.isArray(v)?v:[];}
+  async function _load(){try{var s=await SDB.loadSettings();return _arr(s.updates);}catch(e){return[];}}
+  async function _save(a){await SDB.saveSetting('updates',a);}
+
+  /* 1) بناء الشاشة الكاملة */
+  if(!el('s-updates')){
+    var scr=document.createElement('div');
+    scr.className='screen';
+    scr.id='s-updates';
+    scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ آخر التحديثات</div>'
+    +'<div id="updatesBody" style="padding:4px"></div>';
+    var content=document.querySelector('.content');
+    var ref=el('s-settings');
+    if(ref&&ref.parentElement)content.insertBefore(scr,ref.nextSibling);
+    else content.appendChild(scr);
+  }
+  try{if(typeof MAIN_SCREENS!=='undefined'&&MAIN_SCREENS.indexOf('updates')===-1)MAIN_SCREENS.push('updates');}catch(e){}
+
+  /* 2) رسم الصفحة الكاملة */
+  window.renderUpdatesPage=async function(){
+    try{
+      if(!me)return;
+      var own=isOwner();
+      var box=el('updatesBody');
+      if(!box)return;
+      box.innerHTML='<div style="text-align:center;color:var(--mut);padding:20px">جاري التحميل...</div>';
+      var all=await _load();
+      all.sort(function(a,b){return (b.date||0)-(a.date||0);});
+      var list=all.filter(function(u){return own||u.pub!==false;});
+      try{LS.setItem('updates_seen',String(Date.now()));}catch(e){}
+      _badgeU(0);
+      var h='';
+      if(own)h+='<button class="lbtn" onclick="updAddOpen()" style="margin-bottom:12px">➕ إضافة تحديث جديد</button>';
+      if(!list.length)h+='<div class="empty"><div class="big">🔔</div>لا توجد تحديثات بعد</div>';
+      list.forEach(function(u){
+        var ownOnly=(u.pub===false);
+        var ds=new Date(Number(u.date||Date.now())).toLocaleDateString('ar-EG',{day:'2-digit',month:'2-digit',year:'numeric'});
+        h+='<div style="background:var(--card);border:1px solid '+(ownOnly?'var(--yel)':'var(--line)')+';border-right:4px solid '+(ownOnly?'var(--yel)':'var(--grn)')+';border-radius:12px;padding:14px;margin-bottom:10px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="color:var(--acc);font-size:16px">'+escapeHtml(u.title||'')+'</b><span style="font-size:11px;color:var(--mut);white-space:nowrap">'+ds+'</span></div>'
+        +(ownOnly?'<div style="font-size:11px;color:var(--yel);font-weight:bold;margin-top:4px">🔒 خاص بالإدارة فقط</div>':'')
+        +'<div style="font-size:14px;line-height:2;color:var(--txt);margin-top:8px;white-space:pre-line">'+escapeHtml(u.body||'')+'</div>'
+        +(own?'<div style="display:flex;gap:8px;margin-top:10px"><button class="ebtn" onclick="updToggle(\''+u.id+'\')">'+(ownOnly?'🌍 إظهار للجميع':'🔒 إخفاء (للإدارة)')+'</button><button class="xbtn" onclick="updDel(\''+u.id+'\')">🗑️ حذف</button></div>':'')
+        +'</div>';
+      });
+      box.innerHTML=h;
+    }catch(e){}
+  };
+
+  /* 3) فتح الصفحة الكاملة (بديل المودال القديم) */
+  window.openUpdates=function(){
+    try{var m=el('updatesModal');if(m)m.remove();}catch(e){}
+    go('updates',null);
+  };
+
+  /* 4) فورم الإضافة (مودال صغير — عادي لأنه إدخال بيانات) */
+  window.updAddOpen=function(){
+    if(!isOwner())return toast('لصاحب الموقع فقط');
+    var f=el('updFormModal');
+    if(f)f.remove();
+    f=document.createElement('div');f.id='updFormModal';f.className='modal';
+    f.innerHTML='<div class="m-card2" style="width:330px"><h3>➕ تحديث جديد</h3>'
+    +'<input id="updTitle" placeholder="عنوان التحديث (مثال: ميزة جديدة ✨)" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px">'
+    +'<textarea id="updBody" placeholder="اكتب تفاصيل التحديث..." style="width:100%;min-height:90px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:10px;font-size:13px;resize:none;margin-top:8px"></textarea>'
+    +'<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:10px 0;cursor:pointer"><input type="checkbox" id="updPriv"> 🔒 خاص بصاحب الموقع فقط</label>'
+    +'<button style="background:var(--grn);color:#fff" onclick="updSave()">💾 حفظ التحديث</button>'
+    +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'updFormModal\')">إلغاء</button></div>';
+    f.onclick=function(e){if(e.target===f)closeModal('updFormModal');};
+    document.body.appendChild(f);
+    f.classList.add('open');
+  };
+
+  window.updSave=async function(){
+    try{
+      if(!isOwner())return toast('لصاحب الموقع فقط');
+      var t=el('updTitle').value.trim(),b=el('updBody').value.trim();
+      if(!t)return toast('اكتب عنوان التحديث');
+      if(!b)return toast('اكتب تفاصيل التحديث');
+      var priv=el('updPriv').checked;
+      var all=await _load();
+      all.push({id:'u'+Date.now()+Math.floor(Math.random()*999),title:t,body:b,date:Date.now(),pub:!priv});
+      await _save(all);
+      closeModal('updFormModal');
+      toast('تم حفظ التحديث ✅');
+      renderUpdatesPage();
+      updateUpdatesBadge();
+    }catch(e){toast('خطأ: '+e.message);}
+  };
+
+  window.updDel=async function(id){
+    if(!isOwner())return;
+    if(!confirm('حذف هذا التحديث؟'))return;
+    var all=await _load();
+    all=all.filter(function(u){return u.id!==id;});
+    await _save(all);
+    toast('تم الحذف');
+    renderUpdatesPage();
+  };
+
+  window.updToggle=async function(id){
+    if(!isOwner())return;
+    var all=await _load();
+    all.forEach(function(u){if(u.id===id)u.pub=(u.pub===false);});
+    await _save(all);
+    toast('تم التحديث');
+    renderUpdatesPage();
+  };
+
+  /* 5) النقطة الحمراء */
+  function _badgeU(n){
+    try{
+      var d=el('updBadgeDot');
+      if(d){if(n>0){d.style.display='inline-flex';d.innerText=n;}else d.style.display='none';}
+    }catch(e){}
+  }
+  window.updateUpdatesBadge=async function(){
+    try{
+      if(!me)return;
+      var all=await _load();
+      var seen=parseInt(LS.getItem('updates_seen')||'0');
+      var n=0;
+      all.forEach(function(u){if(u.pub!==false&&(u.date||0)>seen)n++;});
+      _badgeU(n);
+    }catch(e){}
+  };
+
+  /* 6) الربط مع التنقل: لما الصفحة تفتح تتحدث + سهم الرجوع يرجع للإعدادات */
+  var _goU=window.go;
+  window.go=function(s,navEl,fromBack){
+    var r=_goU(s,navEl,fromBack);
+    try{if(s==='updates')renderUpdatesPage();}catch(e){}
+    return r;
+  };
+  window.addEventListener('popstate',function(){
+    try{var scr=el('s-updates');if(scr&&scr.classList.contains('active')&&!chat){go('settings',null,true);}}catch(e){}
+  });
+
+  /* 7) تشغيل */
+  var _saU2=window.startAll;
+  window.startAll=async function(){
+    var r=await _saU2();
+    try{updateUpdatesBadge();}catch(e){}
+    return r;
+  };
+  setInterval(function(){try{updateUpdatesBadge();}catch(e){}},60000);
+})();
+</script>
+<script>
+/* ===== زرار الصداقة في قائمة الشات: إضافة ↔ إلغاء تلقائي ===== */
+(function(){
+  function _isF(){return chat&&chat.type==='user'&&me&&me.friends&&me.friends.indexOf(chat.id)>-1;}
+
+  function _updBtn(){
+    try{
+      if(!chat||chat.type!=='user')return;
+      var btn=el('chatFriendBtn');
+      if(!btn)return;
+      if(_isF()){btn.innerHTML='❌ إلغاء الصداقة';btn.onclick=window.removeFriendTarget;}
+      else{btn.innerHTML='⭐ إضافة صديق';btn.onclick=window.addFriend;}
+    }catch(e){}
+  }
+  window.updateFriendBtn=_updBtn;
+
+  /* إلغاء الصداقة */
+  window.removeFriendTarget=async function(){
+    try{
+      if(!chat||chat.type!=='user')return;
+      var target=chat.id;
+      if(isOwnerName(target))return toast('👑 مش ممكن تشيل صاحب الموقع 😄');
+      if(!confirm('إلغاء الصداقة مع '+getMsgName(target)+'؟'))return;
+      me.friends=(me.friends||[]).filter(function(x){return x!==target;});
+      await updateMe({friends:me.friends});
+      toast('تم إلغاء الصداقة');
+      _updBtn();
+      try{renderFriends();}catch(e){}
+      try{renderMsgs();}catch(e){}
+    }catch(e){toast('خطأ: '+e.message);}
+  };
+
+  /* بعد الإضافة الزرار يتحول فوراً */
+  var _afPrev=window.addFriend;
+  window.addFriend=async function(){
+    var r=await _afPrev();
+    try{_updBtn();}catch(e){}
+    return r;
+  };
+
+  /* بناء القايمة بحالة الصداقة الصحيحة كل مرة تفتح */
+  var _tcPrev=window.toggleChatMenu;
+  window.toggleChatMenu=function(e){
+    try{
+      if(e)e.stopPropagation();
+      var menu=el('chatMenu');
+      if(!menu)return _tcPrev?_tcPrev(e):undefined;
+      if(chat&&chat.type==='room'){
+        menu.innerHTML='<button onclick="toggleChatSearch()">🔍 بحث في المحادثة</button>';
+      }else{
+        var _mm=(me&&me.allowMedia===false)?'<button onclick="toggleMediaPerm()" id="mediaPermBtn">🖼️ '+(me.mediaBlock&&me.mediaBlock[chat.id]?'السماح بالوسائط':'منع الوسائط')+'</button>':'';
+        var fTxt=_isF()?'❌ إلغاء الصداقة':'⭐ إضافة صديق';
+        menu.innerHTML=_mm
+        +'<button onclick="openReport()">🚨 إبلاغ الإدارة</button>'
+        +'<button onclick="toggleChatSearch()">🔍 بحث في المحادثة</button>'
+        +'<button onclick="delChat()">🗑️ حذف المحادثة</button>'
+        +'<button onclick="blockTarget()" id="chatBlockBtn">⛔ حظر المستخدم</button>'
+        +'<button id="chatFriendBtn">'+fTxt+'</button>';
+        setTimeout(_updBtn,0);
+      }
+      menu.classList.toggle('open');
+    }catch(err){
+      if(_tcPrev)_tcPrev(e);
+    }
+  };
+
+  /* تحديث الزرار عند فتح أي شات */
+  var _ouPrev=window.openUser;
+  window.openUser=function(n){
+    var r=_ouPrev(n);
+    try{setTimeout(_updBtn,100);setTimeout(_updBtn,500);}catch(e){}
+    return r;
+  };
+})();
+</script>
+<script>
+/* ===== محرر النص الكامل + أنماط الخط (عادي/نسخ/كوفي) + عارض يدعم الخطوط ===== */
+(function(){
+  /* 1) تحميل الخطوط العربية */
+  if(!document.getElementById('sonicFonts')){
+    var fl=document.createElement('link');fl.id='sonicFonts';fl.rel='stylesheet';
+    fl.href='https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Amiri:wght@400;700&family=Reem+Kufi:wght@400;700&display=swap';
+    document.head.appendChild(fl);
+  }
+  var FONTS={
+    n:{name:'عادي',css:"'Cairo',system-ui,sans-serif",size:'26px'},
+    s:{name:'نسخ',css:"'Amiri',serif",size:'32px'},
+    k:{name:'كوفي',css:"'Reem Kufi',sans-serif",size:'28px'}
+  };
+  var COLORS=['#0f172a','#1e3a8a','#312e81','#6d28d9','#86198f','#9d174d','#9a3412','#065f46','#111827','#450a0a'];
+  var _col=COLORS[0],_fnt='n';
+
+  /* 2) فك ترميز القصة النصية (يدعم القديم والجديد) */
+  function parseTxt(img){
+    var p=String(img||'').split('|||');
+    var col=p[0]||'#0f172a';
+    var f=(p[1]&&p[1].length===1&&'nsk'.indexOf(p[1])>-1)?p[1]:'n';
+    var txt=(f==='n')?p.slice(1).join('|||'):p.slice(2).join('|||');
+    return {col:col,f:f,txt:txt};
+  }
+
+  /* 3) الصفحة الكاملة لكتابة النص */
+  function buildEd(){
+    if(el('stTextFull'))return;
+    var d=document.createElement('div');
+    d.id='stTextFull';
+    d.style.cssText='position:fixed;inset:0;z-index:9600;display:none;flex-direction:column;background:'+COLORS[0];
+    d.innerHTML='<div style="display:flex;align-items:center;gap:10px;padding:14px 16px">'
+    +'<button id="stTxClose" style="background:rgba(255,255,255,.18);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:17px;cursor:pointer">✕</button>'
+    +'<b style="color:#fff;font-size:16px;flex:1">قصة جديدة</b>'
+    +'<span id="stTxTime" style="background:rgba(255,255,255,.18);color:#fff;font-size:11px;padding:5px 12px;border-radius:14px"></span></div>'
+    +'<textarea id="stTxArea" placeholder="اكتب قصتك..." maxlength="250" style="flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:26px;font-weight:700;text-align:center;resize:none;padding:20px 24px;line-height:2"></textarea>'
+    +'<div style="padding:0 16px 6px"><span id="stTxCnt" style="color:rgba(255,255,255,.7);font-size:12px;direction:ltr">0/250</span></div>'
+    +'<div style="background:rgba(0,0,0,.25);padding:12px 14px 18px">'
+    +'<div id="stTxColors" style="display:flex;gap:10px;overflow-x:auto;justify-content:center;padding:4px 2px 12px"></div>'
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<button id="stTxPub" style="background:rgba(255,255,255,.22);border:none;color:#fff;padding:11px 24px;border-radius:22px;font-size:14px;font-weight:bold;cursor:pointer">نشر</button>'
+    +'<div style="flex:1"></div><div id="stTxFonts" style="display:flex;gap:6px;background:rgba(0,0,0,.3);border-radius:24px;padding:5px"></div>'
+    +'</div></div>';
+    document.body.appendChild(d);
+    var cb=el('stTxColors');
+    COLORS.forEach(function(c,i){
+      var s=document.createElement('span');
+      s.setAttribute('data-c',c);
+      s.style.cssText='min-width:34px;width:34px;height:34px;border-radius:50%;background:'+c+';cursor:pointer;border:2px solid '+(i===0?'#fff':'transparent')+';flex-shrink:0';
+      s.onclick=function(){_col=c;_applyEd();_mark(cb.children,s);};
+      cb.appendChild(s);
+    });
+    var fb=el('stTxFonts');
+    Object.keys(FONTS).forEach(function(k){
+      var b=document.createElement('span');
+      b.setAttribute('data-f',k);b.textContent=FONTS[k].name;
+      b.style.cssText='padding:8px 16px;border-radius:20px;font-size:13px;font-weight:bold;cursor:pointer;color:#fff;background:transparent';
+      b.style.fontFamily=FONTS[k].css;
+      b.onclick=function(){_fnt=k;_applyEd();_mark(fb.children,b);};
+      fb.appendChild(b);
+    });
+    el('stTxClose').onclick=function(){closeEd();};
+    el('stTxPub').onclick=function(){pubTxt();};
+    el('stTxArea').addEventListener('input',function(){el('stTxCnt').innerText=this.value.length+'/250';});
+  }
+  function _mark(kids,sel){Array.prototype.forEach.call(kids,function(k){k.style.borderColor=(k===sel)?'#fff':'transparent';if(k.style.background&&k.style.background!=='transparent')k.style.background=(k===sel)?'#fff':'transparent',k.style.color=(k===sel)?'#111':'#fff';});}
+  function _applyEd(){
+    var d=el('stTextFull');if(!d)return;
+    d.style.background=_col;
+    var a=el('stTxArea');
+    a.style.fontFamily=FONTS[_fnt].css;a.style.fontSize=FONTS[_fnt].size;
+  }
+  window.openTextEditor=function(){
+    if(!me)return toast('سجل دخولك أولاً');
+    buildEd();
+    _col=COLORS[0];_fnt='n';
+    el('stTxArea').value='';el('stTxCnt').innerText='0/250';
+    _applyEd();
+    var cb=el('stTxColors'),fb=el('stTxFonts');
+    _mark(cb.children,cb.children[0]);
+    Array.prototype.forEach.call(fb.children,function(k){var sel=(k.getAttribute('data-f')==='n');k.style.background=sel?'#fff':'transparent';k.style.color=sel?'#111':'#fff';});
+    el('stTxTime').innerText=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+    el('stTextFull').style.display='flex';
+    setTimeout(function(){try{el('stTxArea').focus();}catch(e){}},100);
+  };
+  function closeEd(){var d=el('stTextFull');if(d)d.style.display='none';}
+  function pubTxt(){
+    var t=el('stTxArea').value.trim();
+    if(!t)return toast('اكتب قصتك الأول');
+    var sid='st'+Date.now()+Math.floor(Math.random()*999);
+    sb.from('stories').insert({id:sid,author:me.name,img:_col+'|||'+_fnt+'|||'+t,stype:'text',stime:Date.now()}).then(function(r){
+      if(r.error)return toast('خطأ: '+r.error.message);
+      toast('تم نشر حالتك ✅');closeEd();try{renderStories();}catch(e){}
+    });
+  }
+  window.scShowText=function(){window.openTextEditor();};
+
+  /* 4) العارض الكامل مع دعم الخطوط */
+  var EMO=['👋','🔥','😢','😮','😂','❤️'];
+  var AD={enabled:true,title:'🚀 شات سونيك ⚡',desc:'شارك الموقع مع أصحابك وادعم استمرارنا ☕',url:'https://buymeacoffee.com/medosonic'};
+  var L3=[],I3=0,Q3=[],ADN3=0,T3=null,EL3=0,PA3=false,RET3=null,HIST3=[];
+  function arr3(v){return Array.isArray(v)?v:[];}
+  function stop3(){if(T3){clearInterval(T3);clearTimeout(T3);T3=null;}}
+  function _typ3(){var si=el('storyReplyInput');return !!(si&&document.activeElement===si);}
+  function retScr3(){try{var a=document.querySelector('.screen.active');return a?a.id.replace('s-',''):null;}catch(e){return null;}}
+  window._buildQueue=async function(cur){
+    try{
+      var d=await sb.from('stories').select('author,stime').gt('stime',Date.now()-86400000);
+      var set={},a=[];(d.data||[]).forEach(function(x){if(!set[x.author]){set[x.author]=1;a.push(x.author);}});
+      var idx=a.indexOf(cur);
+      Q3=(idx>-1)?a.slice(idx+1).concat(a.slice(0,idx)):a.filter(function(x){return x!==cur;});
+    }catch(e){Q3=[];}
+  };
+  window.openAuthorStories=async function(author,startIdx){
+    try{if(!el('storyViewModal').classList.contains('open')){if(!RET3)RET3=retScr3();}}catch(e){}
+    try{if(L3.length&&String(L3[0].author)!==String(author))HIST3.push({a:String(L3[0].author),i:L3.length-1});}catch(e){}
+    var d=await sb.from('stories').select('*').eq('author',author).gt('stime',Date.now()-86400000).order('stime',{ascending:true});
+    if(d.error)return toast('خطأ: '+d.error.message);
+    if(!d.data||!d.data.length)return toast('الحالة انتهت');
+    (d.data||[]).forEach(function(s){
+      if(s.stype!=='text'&&s.img&&String(s.img).indexOf('|||')>-1){var p=String(s.img).split('|||');s.img=p[0];s._cap=p.slice(1).join('|||');}
+      else if(s.stype!=='text')s._cap='';
+    });
+    L3=d.data;
+    I3=(startIdx!==undefined&&startIdx>-1&&startIdx<L3.length)?startIdx:0;
+    try{window._buildQueue(author);}catch(e){}
+    _show();
+  };
+  window.openStoryById=async function(id){
+    var d=await sb.from('stories').select('*').eq('id',id).limit(1);
+    if(!d.data||!d.data[0])return toast('انتهت صلاحية هذه الحالة');
+    var s=d.data[0];
+    try{if(!el('storyViewModal').classList.contains('open')){if(!RET3)RET3=retScr3();}}catch(e){}
+    try{window._buildQueue(s.author);}catch(e){}
+    await window.openAuthorStories(s.author);
+    for(var i=0;i<L3.length;i++)if(L3[i].id===id){if(i!==I3){I3=i;_show();}break;}
+  };
+  window.viewStory=function(id){window.openStoryById(id);};
+  window.nextStory=function(){
+    if(I3<L3.length-1){I3++;_show();return;}
+    var nxt=Q3.shift();
+    if(!nxt){closeModal('storyViewModal');toast('✅ انتهت جميع القصص');return;}
+    ADN3++;
+    if(AD.enabled&&ADN3%2===0){_adSlot(nxt);}
+    else{window.openAuthorStories(nxt);}
+  };
+  window.prevStory=function(){
+    if(I3>0){I3--;_show();return;}
+    var h=HIST3.pop();
+    if(h){window.openAuthorStories(h.a,h.i);}
+    else toast('دي أول قصة');
+  };
+  window.closeStoryView=function(){closeModal('storyViewModal');};
+  window.toggleStoryPause=function(){
+    PA3=!PA3;
+    var b=el('stPauseBtn');if(b)b.innerText=PA3?'▶':'⏸';
+    try{var v=el('storyVideo');if(v){if(PA3)v.pause();else v.play().catch(function(){});}}catch(e){}
+  };
+  window.reactStory=async function(author,sid,em){
+    try{
+      if(author===me.name)return toast('دي حالتك 😄');
+      if(isBlockedByOther(author))return toast('⛔ محظور من هذا المستخدم');
+      var convId=[me.name,author].sort().join('_');
+      var m={_id:'m'+Date.now()+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:em,type:'text',time:Date.now(),replyTo:'story:'+sid,edited:false,deleted:false,read:false,reactions:{},meta:{story:sid,thumb:'',vtype:'reaction'}};
+      await SDB.addMsg(m);
+      await SDB.upsertConv(convId,{a:me.name,b:author,t:Date.now(),lastFrom:me.name,lastMsg:'تفاعل مع حالتك '+em});
+      toast('تم إرسال تفاعلك '+em+' ✅');
+    }catch(e){toast('خطأ: '+e.message);}
+  };
+  window.sendStoryReply=function(author,sid,stype){
+    var inp=el('storyReplyInput');var text=inp?(inp.value||'').trim():'';
+    if(!text)return toast('اكتب ردك الأول');
+    if(author===me.name)return;
+    if(isBlockedByOther(author))return toast('⛔ محظور من هذا المستخدم');
+    var thumb='',vtype=stype||'image';
+    for(var i=0;i<L3.length;i++)if(L3[i].id===sid){if(L3[i].stype==='text'){thumb='';vtype='text';}else{thumb=L3[i].img||'';vtype=L3[i].stype||vtype;}break;}
+    if(thumb&&thumb.length>80000)thumb='';
+    var convId=[me.name,author].sort().join('_');
+    var m={_id:'m'+Date.now()+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:text,type:'text',time:Date.now(),replyTo:'story:'+sid,edited:false,deleted:false,read:false,reactions:{},meta:{story:sid,thumb:thumb,vtype:vtype}};
+    SDB.addMsg(m).then(function(){
+      SDB.upsertConv(convId,{a:me.name,b:author,t:Date.now(),lastFrom:me.name,lastMsg:'📷 رد على حالة'});
+      toast('تم إرسال ردك ✅');
+      closeModal('storyViewModal');
+    });
+  };
+  function _adSlot(nxt){
+    var box=el('storyViewBox');
+    box.innerHTML='<div style="position:absolute;inset:0;background:#0d0518;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:10"><span style="position:absolute;top:10px;right:12px;background:rgba(255,255,255,.15);color:#fff;font-size:10px;padding:3px 10px;border-radius:10px">إعلان</span><div style="font-size:24px">'+AD.title+'</div><div style="color:rgba(255,255,255,.85);font-size:14px;text-align:center;padding:0 26px;line-height:1.9">'+AD.desc+'</div><button onclick="event.stopPropagation();window.open(\''+AD.url+'\',\'_blank\')" style="background:linear-gradient(135deg,#ff4fd8,#c026d3);border:none;color:#fff;padding:11px 30px;border-radius:24px;font-size:14px;font-weight:bold;cursor:pointer">افتح الآن</button><div style="color:rgba(255,255,255,.5);font-size:11px">القصة التالية بعد لحظات...</div></div>';
+    setTimeout(function(){window.openAuthorStories(nxt);},4000);
+  }
+  function _show(){
+    stop3();EL3=0;PA3=false;
+    if(!L3.length||I3>=L3.length){closeModal('storyViewModal');return;}
+    var s=L3[I3];
+    if(me&&s.author!==me.name){var views=arr3(s.views);if(views.indexOf(me.name)===-1){views.push(me.name);s.views=views;sb.from('stories').update({views:views}).eq('id',s.id).then(function(){},function(){});}}
+    var u=usersCache[s.author];
+    var box=el('storyViewBox');
+    var segs='';for(var i=0;i<L3.length;i++)segs+='<div style="flex:1;height:3px;background:rgba(255,255,255,.25);border-radius:2px;overflow:hidden"><div id="seg'+i+'" style="height:100%;width:'+(i<I3?'100%':'0%')+';background:#fff"></div></div>';
+    var au=String(s.author).replace(/'/g,"\\'"),sid=String(s.id);
+    var head='<div style="display:flex;align-items:center;gap:9px;padding:12px 14px 8px">'
+    +'<button onclick="closeStoryView()" style="background:rgba(0,0,0,.35);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;flex-shrink:0">✕</button>'
+    +'<button id="stDotsBtn" data-sid="'+sid+'" style="background:rgba(0,0,0,.35);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:15px;cursor:pointer;flex-shrink:0;pointer-events:auto;z-index:15;position:relative">⋯</button>'
+    +'<button id="stPauseBtn" onclick="toggleStoryPause()" style="background:rgba(0,0,0,.35);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:14px;cursor:pointer;flex-shrink:0">⏸</button>'
+    +'<div style="flex:1"></div>'
+    +'<div style="text-align:left"><div style="display:flex;align-items:center;gap:8px;justify-content:flex-end"><span style="color:#fff;font-weight:bold;font-size:13px;text-shadow:0 1px 4px #000">'+escapeHtml(getMsgName(s.author))+'</span><div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--card2);border:2px solid rgba(255,255,255,.5)">'+getAvatar(u||{})+'</div></div><div style="color:rgba(255,255,255,.75);font-size:10px">'+timeAgo(s.stime||Date.now())+'</div></div></div>';
+    var isVid=(s.stype==='video'),isTxt=(s.stype==='text');
+    var media;
+    if(isTxt){
+      var t=parseTxt(s.img);
+      var F=FONTS[t.f]||FONTS.n;
+      media='<div style="position:absolute;inset:0;background:'+t.col+';display:flex;align-items:center;justify-content:center;padding:30px"><div style="color:#fff;font-family:'+F.css+';font-size:'+F.size+';font-weight:700;text-align:center;line-height:2;white-space:pre-wrap;max-width:92%;word-break:break-word">'+escapeHtml(t.txt)+'</div></div>';
+    }else if(isVid){
+      media='<video id="storyVideo" src="'+s.img+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain" autoplay playsinline></video>';
+    }else{
+      media='<img src="'+s.img+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain">';
+    }
+    var capHtml=s._cap?'<div style="margin:0 16px 10px;color:#fff;font-size:15px;text-align:center;line-height:1.9;word-break:break-word;text-shadow:0 1px 5px #000">'+escapeHtml(s._cap)+'</div>':'';
+    var emo='<div style="display:flex;justify-content:center;gap:13px;padding:6px 0 8px">'+EMO.map(function(e){return '<button onclick="event.stopPropagation();reactStory(\''+au+'\',\''+sid+'\',\''+e+'\')" style="width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);font-size:23px;cursor:pointer">'+e+'</button>';}).join('')+'</div>';
+    var reply=(s.author!==me.name)?'<div style="display:flex;gap:10px;padding:0 14px 16px;align-items:center"><input id="storyReplyInput" placeholder="رد على '+escapeHtml(getMsgName(s.author))+'..." style="flex:1;padding:12px 16px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:26px;color:#fff;font-size:13px;outline:none" onkeydown="if(event.key===\'Enter\')sendStoryReply(\''+au+'\',\''+sid+'\',\''+(s.stype||'image')+'\')"><button onclick="sendStoryReply(\''+au+'\',\''+sid+'\',\''+(s.stype||'image')+'\')" style="background:none;border:none;color:rgba(255,255,255,.8);font-size:22px;cursor:pointer">➤</button></div>':'<div style="padding:8px 0 12px;text-align:center;color:rgba(255,255,255,.55);font-size:12px">هذه حالتك</div>';
+    box.innerHTML='<div style="position:absolute;inset:0;background:linear-gradient(160deg,#2a2a5e,#141038)"></div>'+media
+    +'<div style="position:absolute;top:0;left:0;right:0;z-index:5"><div style="display:flex;gap:4px;padding:10px 12px 0">'+segs+'</div>'+head+'</div>'
+    +'<div onclick="prevStory()" style="position:absolute;top:0;bottom:0;right:0;width:30%;z-index:3"></div><div onclick="nextStory()" style="position:absolute;top:0;bottom:0;left:0;width:70%;z-index:3"></div>'
+    +'<div style="position:absolute;bottom:0;left:0;right:0;z-index:5">'+capHtml+emo+reply+'</div>';
+    openModal('storyViewModal');
+    try{var _si=el('storyReplyInput');if(_si){_si.addEventListener('focus',function(){if(!PA3)window.toggleStoryPause();});_si.addEventListener('blur',function(){if(PA3)window.toggleStoryPause();});}}catch(e){}
+    if(isVid){
+      var v=el('storyVideo');if(!v)return;
+      v.muted=false;var pp=v.play();if(pp&&pp.catch)pp.catch(function(){v.muted=true;try{v.play();}catch(_e){}});
+      v.addEventListener('timeupdate',function(){var sg=el('seg'+I3);if(sg&&v.duration>0)sg.style.width=(v.currentTime/v.duration*100)+'%';});
+      v.addEventListener('ended',window.nextStory);
+      v.addEventListener('error',function(){stop3();T3=setTimeout(window.nextStory,3000);});
+    }else{
+      T3=setInterval(function(){
+        try{
+          if(PA3||_typ3())return;
+          EL3+=100;
+          var sg=el('seg'+I3);if(sg)sg.style.width=Math.min(100,EL3/6000*100)+'%';
+          if(EL3>=6000){stop3();window.nextStory();}
+        }catch(e){}
+      },100);
+    }
+  }
+  window._showCurStory=function(){_show();};
+  var _cm3=window.closeModal;
+  window.closeModal=function(id){
+    if(id==='storyViewModal'){
+      stop3();PA3=false;HIST3=[];
+      try{var v=el('storyVideo');if(v){v.pause();v.removeAttribute('src');v.load();}}catch(e){}
+      try{if(RET3){var r=RET3;RET3=null;if(el('s-'+r))go(r,getNavEl(r),true);}}catch(e){}
+    }
+    return _cm3(id);
+  };
+})();
+</script>
+<script>
+/* ===== شاشة الشات الكاملة: خاص + غرف (ملزقة من فوق لتحت) ===== */
+(function(){
+  var st=document.createElement('style');
+  st.id='sonicFullChatCSS';
+  st.textContent=
+  /* الشاشة نفسها تفرد كل الشاشة */
+  '#s-chat.active{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;margin:0!important;padding:0!important;z-index:400!important;border-radius:0!important;background:var(--bg)!important}'
+  /* الهيدر ملزق في أعلى الشاشة */
+  +'#s-chat.active .chat-head{border-radius:0!important;margin:0!important;border:none!important;border-bottom:1px solid var(--line)!important}'
+  /* صندوق الرسايل ياخد المساحة كلها من غير حدود */
+  +'#s-chat.active .chat-box{border-radius:0!important;margin:0!important;border:none!important;flex:1!important}'
+  /* بانرات الإشعارات بعرض كامل */
+  +'#s-chat.active .media-banner,#s-chat.active .typing-indicator,#s-chat.active .reply-bar{border-radius:0!important;margin:0!important}'
+  /* صف الإدخال ملزق في أسفل الشاشة */
+  +'.sonic-input-row{padding:0!important;margin:0!important;flex-shrink:0}'
+  +'.sonic-input-row .chat-input{border-radius:0!important;border:none!important;border-top:1px solid var(--line)!important;margin:0!important;height:58px}'
+  +'.sonic-input-row .ic-btn[data-send]{border-radius:0!important;height:58px!important;width:58px!important;margin:0!important;align-self:stretch;font-size:24px!important}';
+  document.head.appendChild(st);
+
+  /* تعليم صف الإدخال عشان ننضف حوافه */
+  function tag(){
+    try{
+      var mi=el('msgInput');
+      if(!mi)return;
+      var p=mi.closest('div[style*="align-items:center"]');
+      while(p&&p.parentElement&&!p.parentElement.classList.contains('chat-win'))p=p.parentElement;
+      if(p&&!p.classList.contains('sonic-input-row'))p.classList.add('sonic-input-row');
+      var send=document.querySelector('#s-chat .ic-btn[onclick="sendMsg()"]');
+      if(send)send.setAttribute('data-send','1');
+    }catch(e){}
+  }
+  tag();
+  var n=0;
+  var iv=setInterval(function(){tag();n++;if(n>20)clearInterval(iv);},500);
+})();
+</script>
+<script>
+/* ===== الأوفلاين الفوري: أي حد يقفل الموقع اسمه يختفي عند الكل ===== */
+(function(){
+  /* 1) المهلة: 30 ثانية بدل 60 (حد مقفول من غير إشعار يختفي خلال نص دقيقة) */
+  try{window.ONLINE_TIMEOUT=30000;}catch(e){}
+  var GONE_LAG=(typeof ONLINE_TIMEOUT!=='undefined'?ONLINE_TIMEOUT:30000)+5000;
+
+  /* 2) إصلاح _markGone: بيسجل وقت ماضي (أوفلاين) مش الوقت الحالي */
+  window._markGone=function(){
+    if(!me)return;
+    var t=Date.now()-GONE_LAG;
+    try{
+      fetch(SUPABASE_URL+'/rest/v1/users?name=eq.'+encodeURIComponent(me.name),{
+        method:'PATCH',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify({last_seen:t}),
+        keepalive:true
+      });
+    }catch(e){}
+    try{sb.from('users').update({last_seen:t}).eq('name',me.name);}catch(e){}
+    if(usersCache[me.name])usersCache[me.name].lastSeen=t;
+    if(me)me.lastSeen=t;
+    try{renderOnline();}catch(e){}
+  };
+
+  /* 3) الرجوع للموقع = أونلاين فوري */
+  window._markBack=function(){
+    if(!me)return;
+    try{sb.from('users').update({last_seen:Date.now()}).eq('name',me.name);}catch(e){}
+    if(usersCache[me.name])usersCache[me.name].lastSeen=Date.now();
+    if(me)me.lastSeen=Date.now();
+    try{renderOnline();}catch(e){}
+  };
+
+  /* 4) قايمة الأونلاين: نفس القواعد للكل — مفيش حد بيفضل ظاهر وهو قافل */
+  window.renderOnline=function(){
+    var q=el('searchInput').value.trim().toLowerCase();
+    var chips='';if(filterG!=='الكل')chips+='<span class="chip" onclick="setG(\'الكل\');renderOnline()">النوع: '+filterG+' ✕</span> ';if(filterC!=='الكل')chips+='<span class="chip" onclick="filterC=\'الكل\';renderOnline()">الدولة: '+filterC+' ✕</span>';
+    el('chips').innerHTML=chips;
+    var all=[];var seen={};
+    for(var k in usersCache){var u=usersCache[k];if(seen[u.name])continue;seen[u.name]=true;all.push(u);}
+    var list=all.filter(function(u){
+      if(u.banned===true||u.is_active===false)return false;
+      if(u.hidden===true&&!isOwner())return false;
+      if(!isOnline(u))return false;
+      if(isBlockedByMe(u.name))return false;
+      return u.name.toLowerCase().indexOf(q)>-1&&(filterG==='الكل'||u.gender===filterG)&&(filterC==='الكل'||u.country===filterC);
+    });
+    list.sort(function(a,b){if(isOwnerName(a.name))return-1;if(isOwnerName(b.name))return 1;return 0;});
+    if(!list.length){el('usersList').innerHTML='<div class="empty"><div class="big">🪐</div>لا يوجد مستخدمين متصلين حالياً</div>';return;}
+    var html='';
+    for(var i=0;i<list.length;i++){
+      var u=list[i];var on=isOnline(u);
+      var dots=isAdmin()?'<span class="u-dots" onclick="event.stopPropagation();openUserModal(\''+u.name+'\')">⋮</span>':'';
+      var ownerBadge=isOwnerName(u.name)?'👑 ':'';
+      html+='<div class="u-card" onclick="openUser(\''+u.name+'\')">'+getAvatarHTML(u,46)+'<span class="flag">'+(FLAGS[u.country]||flag('E','G'))+'</span><div style="flex:1"><div class="u-name">'+ownerBadge+styleName(u)+' ('+(u.age||'--')+') <span class="'+(u.gender==='أنثى'?'g-f':'g-m')+'">'+(u.gender==='أنثى'?'♀':'♂')+'</span></div><div style="font-size:11px;color:var(--mut)">'+role(u)+' • '+(on?'<span style="color:var(--grn)">متصل الآن</span>':'غير متصل')+'</div></div>'+dots+'</div>';
+    }
+    if(html!==lastOnlineHTML){el('usersList').innerHTML=html;lastOnlineHTML=html;}
+  };
+
+  /* 5) تسجيل الخروج = أوفلاين فوري كمان */
+  var _loPrev=window.logout;
+  window.logout=function(){try{window._markGone();}catch(e){}return _loPrev();};
+
+  /* 6) إعادة تأكيد الأوفلاين عند إغلاق الصفحة بكل الطرق */
+  window.addEventListener('pagehide',function(){try{window._markGone();}catch(e){}});
+  window.addEventListener('beforeunload',function(){try{window._markGone();}catch(e){}});
+})();
+</script>
+<script>
+/* ===== إخفاء زرار تثبيت التطبيق مؤقتاً ===== */
+(function(){
+  var st=document.createElement('style');
+  st.textContent='button[onclick*="قيد المراجعة"]{display:none!important}';
+  document.head.appendChild(st);
+  /* شبكة أمان: أي زرار نصه "تثبيت التطبيق" يتخفي */
+  setInterval(function(){
+    try{
+      document.querySelectorAll('button').forEach(function(b){
+        if((b.innerText||'').indexOf('تثبيت التطبيق')>-1)b.style.display='none';
+      });
+    }catch(e){}
+  },1200);
+})();
+</script>
+
 </body>
 </html>
