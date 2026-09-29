@@ -8022,6 +8022,86 @@ window.spyConv=async function(convId,a,b){
   },1000);
 })();
   </script>
+  <script>
+/* ===== إشعار البلاغات: اللي بلغ يوصل قرار الإدارة لما الحظر يتم ===== */
+(function(){
+  async function _loadN(){try{var s=await SDB.loadSettings();var a=s.ban_notices;return Array.isArray(a)?a:[];}catch(e){return[];}}
+  async function _saveN(a){try{await SDB.saveSetting('ban_notices',a);}catch(e){}}
+
+  /* 1) عند حظر عضو: سجّل إشعار لكل من بلغ عنه */
+  window.notifyReportersOfBan=async function(target){
+    try{
+      if(!target)return;
+      var reps=await SDB.loadReports();
+      var tos=[];
+      reps.forEach(function(r){
+        var t=String(r.target||'');
+        if(t===target||t.indexOf('/'+target)>-1){
+          if(r.from_user&&r.from_user!==target&&tos.indexOf(r.from_user)===-1)tos.push(r.from_user);
+        }
+      });
+      if(!tos.length)return;
+      var arr=await _loadN();
+      tos.forEach(function(to){
+        arr.push({id:'bn'+Date.now()+Math.floor(Math.random()*999),to:to,target:target,time:Date.now()});
+      });
+      if(arr.length>300)arr=arr.slice(-300);
+      await _saveN(arr);
+    }catch(e){}
+  };
+
+  /* 2) ربط أزرار الحظر الموجودة */
+  var _umPrev=window.umBan;
+  window.umBan=async function(){
+    var t=umTarget;
+    var wasBanned=(usersCache[t]&&usersCache[t].banned===true);
+    var r=await _umPrev();
+    try{if(t&&!wasBanned)notifyReportersOfBan(t);}catch(e){}
+    return r;
+  };
+  var _buPrev=window.banUser;
+  window.banUser=async function(n){
+    var willBan=!(usersCache[n]&&usersCache[n].banned);
+    var r=await _buPrev(n);
+    try{if(willBan&&n)notifyReportersOfBan(n);}catch(e){}
+    return r;
+  };
+
+  /* 3) استلام الإشعار عند المتضرر... المقصود المُبلِّغ */
+  window.checkBanNotices=async function(){
+    try{
+      if(!me)return;
+      var arr=await _loadN();
+      var mine=arr.filter(function(x){return x&&x.to===me.name;});
+      if(!mine.length)return;
+      var rest=arr.filter(function(x){return !(x&&x.to===me.name);});
+      await _saveN(rest);
+      var old=el('banNoticeModal');if(old)old.remove();
+      var m=document.createElement('div');m.id='banNoticeModal';m.className='modal';
+      var list='';
+      mine.forEach(function(x){
+        list+='<div style="background:var(--bg);border:1px solid var(--grn);border-radius:10px;padding:10px 12px;margin-bottom:8px;text-align:right">'
+        +'<b style="color:var(--grn);font-size:13.5px">🛡️ تم اتخاذ إجراء على البلاغ</b>'
+        +'<div style="font-size:12.5px;color:var(--txt);margin-top:4px;line-height:1.9">تم حظر كامل للمستخدم <b style="color:var(--red)">'+escapeHtml(getMsgName(x.target))+'</b> من الموقع.</div>'
+        +'<div style="font-size:10px;color:var(--mut);margin-top:2px">'+timeAgo(x.time)+'</div></div>';
+      });
+      m.innerHTML='<div class="m-card2" style="width:330px;max-height:80vh;overflow-y:auto">'
+      +'<h3>🛡️ إشعارات البلاغات</h3>'+list
+      +'<div style="font-size:11px;color:var(--mut);text-align:center;margin-bottom:8px">شكراً لمساهمتك في الحفاظ على مجتمع آمن 🌟</div>'
+      +'<button style="background:var(--acc);color:#fff" onclick="closeModal(\'banNoticeModal\')">حسناً</button></div>';
+      m.onclick=function(e){if(e.target===m)closeModal('banNoticeModal');};
+      document.body.appendChild(m);
+      m.classList.add('open');
+      if(me.sndNotif!==false)try{beep(900);}catch(e){}
+    }catch(e){}
+  };
+
+  /* 4) الفحص عند الدخول + كل 30 ثانية */
+  var _saBN=window.startAll;
+  window.startAll=async function(){var r=await _saBN();try{checkBanNotices();}catch(e){}return r;};
+  setInterval(function(){try{checkBanNotices();}catch(e){}},30000);
+})();
+  </script>
   
 </body>
 </html>
