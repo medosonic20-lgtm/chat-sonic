@@ -7961,6 +7961,67 @@ window.spyConv=async function(convId,a,b){
   },1200);
 })();
 </script>
+<script>
+/* ===== الأوفلاين: 60 ثانية للجميع — بدون اختفاء غلط عند التنقل ===== */
+(function(){
+  /* 1) المهلة: 60 ثانية موحدة للكل — أي جهاز ومتصفح وIP ومستخدم */
+  window.ONLINE_TIMEOUT=60000;
 
+  /* 2) إلغاء التسجيل الفوري: التنقل بين الشاشات أو التطبيقات مش بيعتبر خروج */
+  window._markGone=function(){};
+
+  /* 3) الرجوع للموقع = ظهور فوري */
+  window._markBack=function(){
+    if(!me)return;
+    try{sb.from('users').update({last_seen:Date.now()}).eq('name',me.name);}catch(e){}
+    if(usersCache[me.name])usersCache[me.name].lastSeen=Date.now();
+    if(me)me.lastSeen=Date.now();
+    try{renderOnline();}catch(e){}
+  };
+
+  /* 4) قايمة الأونلاين: نفس القاعدة للجميع بدون أي استثناء */
+  window.renderOnline=function(){
+    var q=el('searchInput').value.trim().toLowerCase();
+    var chips='';if(filterG!=='الكل')chips+='<span class="chip" onclick="setG(\'الكل\');renderOnline()">النوع: '+filterG+' ✕</span> ';if(filterC!=='الكل')chips+='<span class="chip" onclick="filterC=\'الكل\';renderOnline()">الدولة: '+filterC+' ✕</span>';
+    el('chips').innerHTML=chips;
+    var all=[];var seen={};
+    for(var k in usersCache){var u=usersCache[k];if(seen[u.name])continue;seen[u.name]=true;all.push(u);}
+    var list=all.filter(function(u){
+      if(u.banned===true||u.is_active===false)return false;
+      if(u.hidden===true&&!isOwner())return false;
+      if(!isOnline(u))return false;
+      if(isBlockedByMe(u.name))return false;
+      return u.name.toLowerCase().indexOf(q)>-1&&(filterG==='الكل'||u.gender===filterG)&&(filterC==='الكل'||u.country===filterC);
+    });
+    list.sort(function(a,b){if(isOwnerName(a.name))return-1;if(isOwnerName(b.name))return 1;return 0;});
+    if(!list.length){el('usersList').innerHTML='<div class="empty"><div class="big">🪐</div>لا يوجد مستخدمين متصلين حالياً</div>';return;}
+    var html='';
+    for(var i=0;i<list.length;i++){
+      var u=list[i];var on=isOnline(u);
+      var dots=isAdmin()?'<span class="u-dots" onclick="event.stopPropagation();openUserModal(\''+u.name+'\')">⋮</span>':'';
+      var ownerBadge=isOwnerName(u.name)?'👑 ':'';
+      html+='<div class="u-card" onclick="openUser(\''+u.name+'\')">'+getAvatarHTML(u,46)+'<span class="flag">'+(FLAGS[u.country]||flag('E','G'))+'</span><div style="flex:1"><div class="u-name">'+ownerBadge+styleName(u)+' ('+(u.age||'--')+') <span class="'+(u.gender==='أنثى'?'g-f':'g-m')+'">'+(u.gender==='أنثى'?'♀':'♂')+'</span></div><div style="font-size:11px;color:var(--mut)">'+role(u)+' • '+(on?'<span style="color:var(--grn)">متصل الآن</span>':'غير متصل')+'</div></div>'+dots+'</div>';
+    }
+    if(html!==lastOnlineHTML){el('usersList').innerHTML=html;lastOnlineHTML=html;}
+  };
+})();
+  </script>
+  <script>
+/* ===== نقطة الحالة: برتقالي غامق بدل الأحمر ===== */
+(function(){
+  var st=document.createElement('style');
+  st.id='statusBadgeOrange';
+  st.textContent='#statusBadge{background:#ea580c!important;box-shadow:0 0 7px rgba(234,88,12,.85)!important;border-color:var(--card)!important}';
+  document.head.appendChild(st);
+  /* تأكيد إضافي على العنصر نفسه */
+  setInterval(function(){
+    try{
+      var b=el('statusBadge');
+      if(b&&b.style.display!=='none'){b.style.background='#ea580c';b.style.boxShadow='0 0 7px rgba(234,88,12,.85)';}
+    }catch(e){}
+  },1000);
+})();
+  </script>
+  
 </body>
 </html>
