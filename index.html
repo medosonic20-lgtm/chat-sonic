@@ -8102,6 +8102,186 @@ window.spyConv=async function(convId,a,b){
   setInterval(function(){try{checkBanNotices();}catch(e){}},30000);
 })();
   </script>
+  <script>
+/* ===== نظام الحضور الذكي: النشاط = أونلاين فوري للجميع ===== */
+(function(){
+  /* 1) لمسة حضور: أي تفاعل بيحدث آخر ظهور (مرة كل 15 ثانية كحد أقصى) */
+  var _lastTouch=0;
+  window.touchPresence=function(force){
+    if(!me)return;
+    var now=Date.now();
+    if(!force&&now-_lastTouch<15000)return;
+    _lastTouch=now;
+    try{sb.from('users').update({last_seen:now}).eq('name',me.name);}catch(e){}
+    if(me)me.lastSeen=now;
+    if(usersCache[me.name])usersCache[me.name].lastSeen=now;
+  };
+  ['click','touchstart','keydown'].forEach(function(ev){
+    document.addEventListener(ev,function(){try{touchPresence();}catch(e){}},{passive:true});
+  });
+  window.addEventListener('focus',function(){try{touchPresence(true);renderOnline();}catch(e){}});
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'){try{touchPresence(true);renderOnline();}catch(e){}}
+  });
+
+  /* 2) الإرسال والكتابة = حضور فوري */
+  var _smP=window.sendMsg;
+  window.sendMsg=async function(){try{touchPresence(true);}catch(e){}return _smP();};
+  var _htP=window.handleTyping;
+  window.handleTyping=function(){try{touchPresence();}catch(e){}return _htP?_htP():undefined;};
+
+  /* 3) نبضة حضور محسّنة: تشتغل حتى والتاب مخفي (لما ترجع تلاقي نفسك ظاهر) */
+  window.startHeartbeat=function(){
+    if(hbTimer)clearInterval(hbTimer);
+    hbTimer=setInterval(async function(){
+      if(!me)return;
+      try{
+        var now=Date.now();
+        await sb.from('users').update({last_seen:now}).eq('name',me.name);
+        if(usersCache[me.name])usersCache[me.name].lastSeen=now;
+        if(me)me.lastSeen=now;
+      }catch(e){}
+    },20000);
+  };
+
+  /* 4) قايمة الأونلاين: إنت دايماً بتشوف نفسك + بياناتك تتصلح لوحدها */
+  window.renderOnline=function(){
+    try{
+      if(me&&me.banned!==true&&(!usersCache[me.name]))usersCache[me.name]=me;
+      var q=el('searchInput')?el('searchInput').value.trim().toLowerCase():'';
+      var chips='';if(filterG!=='الكل')chips+='<span class="chip" onclick="setG(\'الكل\');renderOnline()">النوع: '+filterG+' ✕</span> ';if(filterC!=='الكل')chips+='<span class="chip" onclick="filterC=\'الكل\';renderOnline()">الدولة: '+filterC+' ✕</span>';
+      el('chips').innerHTML=chips;
+      var all=[];var seen={};
+      for(var k in usersCache){var u=usersCache[k];if(seen[u.name])continue;seen[u.name]=true;all.push(u);}
+      var list=all.filter(function(u){
+        if(u.banned===true||u.is_active===false)return false;
+        if(u.hidden===true&&!isOwner()&&u.name!==(me&&me.name))return false;
+        if(u.name===(me&&me.name))return true;
+        if(!isOnline(u))return false;
+        if(isBlockedByMe(u.name))return false;
+        return u.name.toLowerCase().indexOf(q)>-1&&(filterG==='الكل'||u.gender===filterG)&&(filterC==='الكل'||u.country===filterC);
+      });
+      list.sort(function(a,b){if(isOwnerName(a.name))return-1;if(isOwnerName(b.name))return 1;return 0;});
+      if(!list.length){el('usersList').innerHTML='<div class="empty"><div class="big">🪐</div>لا يوجد مستخدمين متصلين حالياً</div>';return;}
+      var html='';
+      for(var i=0;i<list.length;i++){
+        var u=list[i];var on=isOnline(u)||u.name===(me&&me.name);
+        var dots=isAdmin()?'<span class="u-dots" onclick="event.stopPropagation();openUserModal(\''+u.name+'\')">⋮</span>':'';
+        var ownerBadge=isOwnerName(u.name)?'👑 ':'';
+        var hid=(u.hidden===true)?' 🕶️':'';
+        html+='<div class="u-card" onclick="openUser(\''+u.name+'\')">'+getAvatarHTML(u,46)+'<span class="flag">'+(FLAGS[u.country]||flag('E','G'))+'</span><div style="flex:1"><div class="u-name">'+ownerBadge+styleName(u)+' ('+(u.age||'--')+') <span class="'+(u.gender==='أنثى'?'g-f':'g-m')+'">'+(u.gender==='أنثى'?'♀':'♂')+'</span></div><div style="font-size:11px;color:var(--mut)">'+role(u)+' • '+(on?'<span style="color:var(--grn)">متصل الآن</span>'+hid:'غير متصل')+'</div></div>'+dots+'</div>';
+      }
+      if(html!==lastOnlineHTML){el('usersList').innerHTML=html;lastOnlineHTML=html;}
+    }catch(e){}
+  };
+
+  /* 5) علامة الوضع المخفي: تظهر للي مفعّله عشان يعرف ليه مش ظاهر */
+  var _pill=document.createElement('div');
+  _pill.id='hiddenPill';
+  _pill.style.cssText='display:none;position:fixed;top:8px;left:50%;transform:translateX(-50%);background:#7c3aed;color:#fff;padding:7px 16px;border-radius:20px;font-size:11px;font-weight:bold;z-index:800;box-shadow:0 3px 10px rgba(0,0,0,.45);cursor:pointer';
+  _pill.innerText='🕶️ أنت في الوضع المخفي — اضغط للظهور';
+  _pill.onclick=function(){try{el('pHide').checked=false;setPref('hidden',false);toast('✅ رجعت ظاهر للمستخدمين');}catch(e){}};
+  document.body.appendChild(_pill);
+  setInterval(function(){
+    try{_pill.style.display=(me&&me.hidden===true)?'block':'none';}catch(e){}
+  },1500);
+})();
+  </script>
+  <script>
+/* ===== آخر ظهور بصيغة واتساب: "آخر ظهور اليوم الساعة ٣:٢٣ م" ===== */
+(function(){
+  function arNum(n){try{return String(n).replace(/[0-9]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'[d];});}catch(e){return String(n);}}
+  function lastSeenText(ts){
+    try{
+      if(!ts)return 'غير متصل';
+      var d=new Date(Number(ts));
+      var h=d.getHours();
+      var m=('0'+d.getMinutes()).slice(-2);
+      var ap=(h<12)?'ص':'م';
+      var h12=h%12;if(h12===0)h12=12;
+      var time=arNum(h12)+':'+arNum(m)+' '+ap;
+      var now=new Date();
+      var sameDay=d.toDateString()===now.toDateString();
+      if(sameDay)return 'آخر ظهور اليوم الساعة '+time;
+      var y=new Date(now);y.setDate(now.getDate()-1);
+      if(d.toDateString()===y.toDateString())return 'آخر ظهور أمس الساعة '+time;
+      var day=arNum(('0'+d.getDate()).slice(-2));
+      var mo=arNum(('0'+(d.getMonth()+1)).slice(-2));
+      return 'آخر ظهور '+day+'/'+mo+' الساعة '+time;
+    }catch(e){return 'غير متصل';}
+  }
+
+  var _rchPrev=window.refreshChatHeader;
+  window.refreshChatHeader=function(u){
+    try{
+      if(!u)return _rchPrev?_rchPrev(u):undefined;
+      var on=isOnline(u);
+      el('chatName').innerHTML=styleName(u);
+      el('chatName').style.cursor='pointer';
+      el('chatName').onclick=function(){openUserProfile(u.name);};
+      el('chatAva').innerHTML=getAvatarHTML(u,46);
+      el('chatAva').style.cursor='pointer';
+      el('chatAva').onclick=function(){openUserProfile(u.name);};
+      el('chatDot').className='dot '+(on?'on':'off');
+      if(on){
+        el('chatStatus').innerText='نشط';
+        el('chatStatus').className='st-txt on';
+      }else{
+        el('chatStatus').innerText=lastSeenText(u.lastSeen);
+        el('chatStatus').className='st-txt off';
+      }
+    }catch(e){
+      try{if(_rchPrev)_rchPrev(u);}catch(e2){}
+    }
+  };
+})();
+  </script>
+  <script>
+/* ===== هيدر الشات الحي: الحالة بتتحدث لوحدها كل ثواني ===== */
+(function(){
+  try{window.ONLINE_TIMEOUT=60000;}catch(e){}
+
+  /* تحديث الهيدر من الكاش كل 5 ثواني */
+  setInterval(function(){
+    try{
+      if(!chat||chat.type!=='user'||!me)return;
+      var u=usersCache[chat.id];
+      if(u)refreshChatHeader(u);
+    }catch(e){}
+  },5000);
+
+  /* جلب بيانات طازة من السيرفر كل 20 ثانية (لو الريالتايم فات حاجة) */
+  setInterval(async function(){
+    try{
+      if(!chat||chat.type!=='user'||!me)return;
+      var u=await SDB.getUser(chat.id);
+      if(u){
+        u.name=chat.id;
+        if(usersCache[chat.id]){
+          var old=usersCache[chat.id];
+          for(var k in old){if(u[k]===undefined||u[k]===null)u[k]=old[k];}
+        }
+        usersCache[chat.id]=u;
+        refreshChatHeader(u);
+      }
+    }catch(e){}
+  },20000);
+
+  /* لما ترجعي للموقع من تطبيق تاني: تحديث فوري */
+  window.addEventListener('focus',function(){
+    try{
+      if(chat&&chat.type==='user'&&usersCache[chat.id])refreshChatHeader(usersCache[chat.id]);
+    }catch(e){}
+  });
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'){
+      try{
+        if(chat&&chat.type==='user'&&usersCache[chat.id])refreshChatHeader(usersCache[chat.id]);
+      }catch(e){}
+    }
+  });
+})();
+  </script>
   
 </body>
 </html>
