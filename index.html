@@ -8282,6 +8282,68 @@ window.spyConv=async function(convId,a,b){
   });
 })();
   </script>
+  <script>
+/* ===== إصلاح قايمة الرسالة: رد/رياكشن/تعديل/حذف + ضغط مطول ===== */
+(function(){
+  /* 1) رفع القوائم فوق شاشة الشات الكاملة */
+  var st=document.createElement('style');
+  st.textContent=
+  '.chat-menu{z-index:520!important}'
+  +'.msg-menu{position:fixed!important;z-index:530!important}'
+  +'.sticker-panel{z-index:520!important}'
+  +'.chat-search{z-index:520!important}'
+  +'#scrollDownBtn{z-index:450!important}'
+  +'#newMsgPill{z-index:450!important}';
+  document.head.appendChild(st);
+
+  /* 2) قايمة الرسالة بتتموضع صح على أي جهاز */
+  window.openMsgMenu=function(e,id,from){
+    try{e.preventDefault();e.stopPropagation();}catch(_e){}
+    msgMenuId=id;msgMenuTarget=from;
+    var menu=el('msgMenu');
+    var isMine=(from===me.name);
+    menu.innerHTML='<button onclick="doReply()">↩️ رد</button>'
+    +'<button onclick="doReact()">❤️ رياكشن</button>'
+    +(isMine||isOwner()?'<button onclick="doEdit()">✏️ تعديل</button><button onclick="doDelete()">🗑️ حذف</button>':'');
+    menu.classList.add('open');
+    menu.style.display='flex';
+    var mw=165,mh=menu.offsetHeight||150;
+    var x=(e.clientX||window.innerWidth-180),y=(e.clientY||200);
+    if(x+mw>window.innerWidth-8)x=window.innerWidth-mw-8;
+    if(x<8)x=8;
+    if(y+mh>window.innerHeight-8)y=window.innerHeight-mh-8;
+    if(y<8)y=8;
+    menu.style.top=y+'px';menu.style.left=x+'px';
+  };
+
+  /* 3) ضغط مطول على أي رسالة = فتح القايمة (زي واتساب) */
+  var lpT=null,lpMoved=false,lpEl=null;
+  var box=el('chatBox');
+  if(box){
+    box.addEventListener('touchstart',function(e){
+      try{
+        if(e.target.closest&&e.target.closest('.msg-actions'))return;
+        var b=e.target.closest?e.target.closest('.bub'):null;
+        if(!b)return;
+        var id=b.getAttribute('data-id');
+        if(!id)return;
+        lpMoved=false;lpEl=b;
+        clearTimeout(lpT);
+        lpT=setTimeout(function(){
+          if(lpMoved||!lpEl)return;
+          var m=msgsCache.find(function(x){return x._id===id;});
+          if(!m||m.deleted)return;
+          var t=e.touches[0];
+          window.openMsgMenu({clientX:t.clientX,clientY:t.clientY,preventDefault:function(){},stopPropagation:function(){}},id,m.from);
+          if(navigator.vibrate)navigator.vibrate(30);
+        },550);
+      }catch(err){}
+    },{passive:true});
+    box.addEventListener('touchmove',function(){lpMoved=true;clearTimeout(lpT);},{passive:true});
+    box.addEventListener('touchend',function(){clearTimeout(lpT);},{passive:true});
+  }
+})();
+  </script>
   
 </body>
 </html>
