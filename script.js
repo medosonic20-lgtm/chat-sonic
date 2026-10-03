@@ -5548,3 +5548,49 @@ window.spyConv=async function(convId,a,b){
   applyChatBg();
   setInterval(applyChatBg,2000);
 })();
+/* ===== ميزة: حذف تعليقي في حائط الإبداع ===== */
+(function(){
+window.delWallComment=async function(pid,idx){
+  if(!me)return toast('سجل دخولك أولاً');
+  var p=wallCache.find(function(x){return x.id===pid;});
+  if(!p||!p.comments||!p.comments[idx])return;
+  var c=p.comments[idx];
+  if(c.from!==me.name&&!isAdmin())return toast('⛔ ممكن تحذف تعليقك بس');
+  if(!confirm('حذف التعليق؟'))return;
+  p.comments.splice(idx,1);
+  renderWall();
+  await SDB.updWall(pid,{comments:p.comments});
+  toast('تم حذف التعليق 🗑️');
+  setTimeout(function(){try{refreshWall();}catch(e){}},2600);
+};
+var _rwO=window.renderWall;
+window.renderWall=function(){
+  if(!wallCache.length){el('wallFeed').innerHTML='<div class="empty"><div class="big">🎨</div>لا توجد منشورات بعد<br>كن أول من يبدع!</div>';return;}
+  var html='';
+  for(var i=0;i<wallCache.length;i++){
+    var p=wallCache[i];
+    var u=usersCache[p.author];
+    var ava=(u&&u.avatar)?'<img src="'+u.avatar+'">':((u&&u.gender==='أنثى')?'👩':'👨');
+    var canDel=(p.author===me.name)||isAdmin();
+    var delBtn=canDel?'<button class="xbtn" onclick="deleteWallPost(\''+p.id+'\')" style="padding:2px 8px;font-size:11px">🗑️</button>':'';
+    var mediaHtml='';
+    if(p.type==='image'&&p.media_url)mediaHtml='<img src="'+p.media_url+'" class="w-media" onclick="viewFullImage(this.src)">';
+    else if(p.type==='youtube'&&p.media_url){var yid='';var m=p.media_url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);if(m)yid=m[1];mediaHtml=yid?'<div class="w-yt"><iframe src="https://www.youtube.com/embed/'+yid+'" allowfullscreen></iframe></div>':'';}
+    var likeCount=(p.likes&&p.likes.length)||0;
+    var liked=(p.likes&&p.likes.indexOf(me.name)>-1);
+    var cc=(p.comments&&p.comments.length)||0;
+    var commentsHtml='';
+    if(p.comments&&p.comments.length){
+      for(var j=0;j<p.comments.length;j++){
+        var cm=p.comments[j];
+        var canDelC=(cm.from===me.name)||isAdmin();
+        var delC=canDelC?'<button onclick="delWallComment(\''+p.id+'\','+j+')" style="background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;padding:0 4px;flex-shrink:0">🗑️</button>':'';
+        commentsHtml+='<div class="w-comment" style="align-items:center"><b>'+escapeHtml(cm.from)+'</b> <span style="color:var(--txt);flex:1;word-break:break-word">'+escapeHtml(cm.text)+'</span>'+delC+'</div>';
+      }
+    }
+    else commentsHtml='<div style="font-size:12px;color:var(--mut)">لا توجد تعليقات</div>';
+    html+='<div class="w-post"><div class="w-head"><div class="w-ava">'+ava+'</div><div class="w-meta"><div class="w-name">'+styleName(u||{name:p.author})+'</div><div class="w-time">'+timeAgo(p.timestamp)+' • '+role(u||{name:p.author})+'</div></div>'+delBtn+'</div><div class="w-body">'+escapeHtml(p.content)+'</div>'+mediaHtml+'<div class="w-actions"><button class="w-btn '+(liked?'liked':'')+'" onclick="likeWallPost(\''+p.id+'\')">❤️ '+likeCount+'</button><button class="w-btn" onclick="toggleWallComments(\''+p.id+'\')">💬 '+cc+'</button></div><div class="w-comments" id="wc-'+p.id+'"><div style="margin-bottom:8px">'+commentsHtml+'</div><div class="w-comment-input"><input id="wci-'+p.id+'" placeholder="اكتب تعليق..." onkeydown="if(event.key===\'Enter\')sendWallComment(\''+p.id+'\')"><button class="adm-btn" onclick="sendWallComment(\''+p.id+'\')">إرسال</button></div></div></div>';
+  }
+  el('wallFeed').innerHTML=html;
+};
+})();
