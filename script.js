@@ -7674,3 +7674,60 @@ window.styleName=function(u){
 
 /* معاينة الكارت الأعلى (هكذا يليق اسمك) برضه بدون أيقونات — لأنه بيعرض شكلك الحقيقي */
 })();
+/* ===== تحديثات تلقائية: كل ميزة جديدة تسجل نفسها + تحكم الإدارة ===== */
+(function(){
+if(window._autoUpdates)return;window._autoUpdates=true;
+
+/* دالة التسجيل التلقائي: أي باتش يناديها ويظهر في آخر التحديثات */
+window.autoUpdate=async function(title,body){
+  try{
+    if(!me||!isOwner())return;
+    var all=(await SDB.loadSettings()).updates;
+    all=Array.isArray(all)?all:[];
+    var key='au:'+title;
+    var exists=all.some(function(u){return (u.title||'')===title;});
+    if(exists)return;
+    all.push({id:'u'+Date.now()+Math.floor(Math.random()*999),title:title,body:body,date:Date.now(),pub:true,auto:true});
+    await SDB.saveSetting('updates',all);
+    try{updateUpdatesBadge();}catch(e){}
+  }catch(e){}
+};
+
+/* 1) تسجيل التحديثات الجاهزة اللي ركبتها — بيتحقق مرة لكل واحد */
+setTimeout(async function(){
+  try{
+    if(!me||!isOwner())return;
+    var checks=[
+      ['💰 عملاتي وباقات الشحن','إضافة نظام عملات كامل: شحن بفودافون كاش (9 باقات بمكافآت متدرجة)، رفع صورة التحويل من داخل الموقع، وإشعار فوري عند استلام العملات.'],
+      ['🛒 متجر سونيك','افتتاح متجر المميزات: إطار الصورة وتميّز الاسم — بالشراء بالعملات من "عملاتي".'],
+      ['👑 تميّز باسمك — اشتراك شهري','اشترك بـ 130 عملة وشهر كامل تغيّر فيه نمط اسمك بلا حدود، أو جرّبه مجاناً 48 ساعة بربط حساب جوجل (فرصة واحدة).'],
+      ['🖼️ إطار الصورة بالعملات','ميزة الإطار بقت من متجر سونيك: 100 عملة لمدة 30 يوم — تُفعّل وتنتهي تلقائياً.']
+    ];
+    for(var i=0;i<checks.length;i++)await autoUpdate(checks[i][0],checks[i][1]);
+  }catch(e){}
+},4000);
+
+/* 2) تصفير البادج لما الإدارة تفتح صفحة التحديثات زي الأعضاء */
+var _oru=window.renderUpdatesPage;
+window.renderUpdatesPage=async function(){
+  try{LS.setItem('updates_seen',String(Date.now()));}catch(e){}
+  setTimeout(function(){try{updateUpdatesBadge();}catch(e){}},200);
+  return _oru?await _oru():undefined;
+};
+
+/* 3) تجميل زرار "إضافة تحديث جديد": شكل موحد أنضف */
+var _rup=window.renderUpdatesPage;
+window.renderUpdatesPage=async function(){
+  var r=await _rup();
+  try{
+    var box=el('updatesBody');
+    if(!box)return r;
+    var btn=box.querySelector('button.lbtn');
+    if(btn){
+      btn.style.cssText='width:100%;margin-bottom:12px;padding:13px;background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:bold;cursor:pointer';
+      btn.innerText='✏️ إضافة تحديث جديد (للإدارة)';
+    }
+  }catch(e){}
+  return r;
+};
+})();
