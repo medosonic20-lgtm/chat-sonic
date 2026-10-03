@@ -7731,3 +7731,203 @@ window.renderUpdatesPage=async function(){
   return r;
 };
 })();
+/* ===== تنبيه الاسم داخل قايمة الإعدادات + آخر التحديثات في الأعلى ===== */
+(function(){
+if(window._settingsFix)return;window._settingsFix=true;
+
+/* 1) شيل الشريط الأصفر اللي فوق خالص */
+try{var b=el('nameWarnBarAll');if(b)b.remove();}catch(e){}
+try{var b2=el('nameWarnBar');if(b2)b2.remove();}catch(e){}
+
+/* 2) عنصر "اسمك ظاهر للجميع" في قايمة الإعدادات بـ "اعرف المزيد" */
+try{
+  var lists=document.querySelectorAll('#s-settings .menu-list');
+  var tgt=lists[0];
+  if(tgt&&!el('nameWarnMenuItem')){
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='nameWarnMenuItem';
+    mi.style.cssText='background:rgba(60,45,10,.5)';
+    mi.innerHTML='<span style="color:#ffd54f;font-size:12.5px;font-weight:bold">⚠️ اسمك ظاهر للجميع — الأسماء المخالفة قد تودي إلي الحظر <a href="javascript:void(0)" onclick="event.stopPropagation();showNameWarnModal()" style="color:#ffd54f;text-decoration:underline">اعرف المزيد</a></span><span>👈</span>';
+    tgt.insertBefore(mi,tgt.firstChild);
+  }
+}catch(e){}
+
+/* 3) "آخر التحديثات" تروح لأعلى القايمة */
+setInterval(function(){
+  try{
+    var scr=el('s-settings');if(!scr)return;
+    var upd=el('updatesMenuItem');
+    var lists=scr.querySelectorAll('.menu-list');
+    if(!upd||!lists.length)return;
+    var firstList=lists[0];
+    if(firstList.firstChild!==upd){
+      firstList.insertBefore(upd,firstList.firstChild);
+    }
+  }catch(e){}
+},2000);
+
+/* 4) الشريط الأصفر القديم ميتعودش يظهر */
+try{
+  if(window.ensureNameBar)window.ensureNameBar=function(){};
+}catch(e){}
+})();
+/* ===== تنبيه الاسم: أعلى الإعدادات + نافذة مطابقة للمرجع ===== */
+(function(){
+if(window._warnTopFix)return;window._warnTopFix=true;
+
+/* 1) عنصر التنبيه فوق الكل — حتى فوق آخر التحديثات */
+setInterval(function(){
+  try{
+    var scr=el('s-settings');if(!scr)return;
+    var mi=el('nameWarnMenuItem');
+    var lists=scr.querySelectorAll('.menu-list');
+    if(!lists.length)return;
+    if(!mi){
+      mi=document.createElement('div');
+      mi.className='m-item';mi.id='nameWarnMenuItem';
+      mi.style.cssText='background:rgba(60,45,10,.5)';
+      mi.innerHTML='<span style="color:#ffd54f;font-size:12.5px;font-weight:bold">⚠️ اسمك ظاهر للجميع — الأسماء المخالفة قد تودي إلي الحظر <a href="javascript:void(0)" onclick="event.stopPropagation();showNameWarnModal()" style="color:#ffd54f;text-decoration:underline">اعرف المزيد</a></span><span>👈</span>';
+      lists[0].insertBefore(mi,lists[0].firstChild);
+    }
+    /* يفضل دايماً أول عنصر في أول قايمة */
+    var firstList=lists[0];
+    if(firstList.firstChild!==mi)firstList.insertBefore(mi,firstList.firstChild);
+  }catch(e){}
+},2000);
+
+/* 2) نافذة التحذير — بنفس تصميم الصورة المرجعية بالظبط */
+window.showNameWarnModal=function(){
+  try{
+    var old=el('nameWarnModal');if(old)old.remove();
+    var m=document.createElement('div');m.id='nameWarnModal';m.className='modal';
+    m.style.zIndex='1200';
+    m.innerHTML='<div class="m-card2" style="width:340px;text-align:center;padding:24px 18px">'
+    +'<div style="width:62px;height:62px;border-radius:50%;background:rgba(255,193,7,.18);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:30px">⚠️</div>'
+    +'<h3 style="color:var(--txt);font-size:17px;font-weight:bold;margin-bottom:10px">تنبيه بخصوص اسم المستخدم</h3>'
+    +'<p style="font-size:13.5px;color:var(--txt);line-height:2.1;margin-bottom:16px">اسم المستخدم الخاص بك يظهر لكل من في الدردشة. إذا استخدمت اسمًا سيئًا أو مخالفًا للقوانين، فقد يتم حظرك نهائيًا عند مراجعة الإدارة لحسابك.</p>'
+    +'<button style="background:var(--acc);color:#fff;width:70%;margin:0 auto;font-size:14px;padding:12px;border-radius:10px" onclick="closeModal(\'nameWarnModal\')">فهمت</button>'
+    +'</div>';
+    document.body.appendChild(m);
+    m.classList.add('open');
+  }catch(e){}
+};
+
+/* "فهمت" هنا بياقف النافذة بس — مبيوديش لتغيير الاسم (زي المرجعي) */
+window.openNameFix=function(){
+  try{closeModal('nameWarnModal');}catch(e){}
+  try{go('settings',null);}catch(e){}
+  setTimeout(function(){
+    try{
+      el('nameInputWrap').classList.remove('hide');
+      el('saveNameBtn').classList.remove('hide');
+      el('nameInput').focus();
+    }catch(e){}
+  },400);
+};
+})();
+/* ===== متجر سونيك: الإطار "قريباً" مؤقتاً ===== */
+(function(){
+if(window._frameSoon)return;window._frameSoon=true;
+
+/* تغيير كارت الإطار في المتجر: يتلون رمادي + ينكتب عليه قريباً */
+var _rsF=window.renderShop;
+window.renderShop=function(){
+  var r=_rsF?_rsF():undefined;
+  try{
+    var box=el('shopBody');if(!box)return r;
+    /* ندور على كارت الإطار ونعدله */
+    var cards=box.querySelectorAll('div');
+    for(var i=0;i<cards.length;i++){
+      var t=cards[i].innerText||'';
+      if(t.indexOf('إطار حول صورتك')>-1&&t.indexOf('تميّز')===-1&&cards[i].style.borderRadius==='14px'){
+        var card=cards[i];
+        /* نلغي الزرار ونكتب قريباً */
+        var btn=card.querySelector('button');
+        if(btn)btn.remove();
+        var red=card.querySelector('div[style*="color:var(--red)"]');
+        if(red)red.remove();
+        var grn=card.querySelector('div');
+        var done=false;
+        var divs=card.querySelectorAll('div');
+        for(var j=0;j<divs.length;j++){
+          if((divs[j].innerText||'').indexOf('✅ مُفعّل')>-1||(divs[j].innerText||'').indexOf('🪙')>-1||(divs[j].innerText||'').indexOf('ناقص')>-1){
+            divs[j].outerHTML='<div style="font-size:12px;font-weight:900;color:var(--yel);text-align:center;padding:4px 10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.4);border-radius:10px">⏳ قريباً</div>';
+            done=true;break;
+          }
+        }
+        if(!done){
+          var last=card.lastElementChild;
+          if(last&&!last.querySelector('img')&&(last.innerText||'').indexOf('تفتح')===-1){
+            last.outerHTML='<div style="font-size:12px;font-weight:900;color:var(--yel);text-align:center;padding:4px 10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.4);border-radius:10px">⏳ قريباً</div>';
+          }
+        }
+        /* الوصف يتغير برضه */
+        var descs=card.querySelectorAll('div');
+        for(var k=0;k<descs.length;k++){
+          if((descs[k].innerText||'').indexOf('تفتح لك ميزة')>-1){
+            descs[k].innerText='الميزة قيد التجهيز — تنطلق قريباً جداً 🚀';
+            descs[k].style.color='var(--yel)';
+            break;
+          }
+        }
+        /* حدود الكارت تبقى صفرا خفيفة */
+        card.style.borderColor='rgba(255,193,7,.4)';
+        break;
+      }
+    }
+  }catch(e){}
+  return r;
+};
+
+/* لو حد معاه الإطار مفتوح من قبل: نظله شغال عادي (مش هنشيل من المشترين) */
+})();
+/* ===== عملاتي: كارت الإطار "قريباً" ===== */
+(function(){
+if(window._frameSoon2)return;window._frameSoon2=true;
+
+var _rwF=window.renderWallet;
+window.renderWallet=function(){
+  var r=_rwF?_rwF():undefined;
+  try{
+    var box=el('walletBody');if(!box)return r;
+    setTimeout(function(){
+      try{
+        var box2=el('walletBody');if(!box2)return;
+        var divs=box2.querySelectorAll('div');
+        for(var i=0;i<divs.length;i++){
+          var t=divs[i].innerText||'';
+          /* نحدد كارت الإطار: فيه اسم الميزة + السعر أو التحذير */
+          if(t.indexOf('إطار حول صورتك')>-1&&t.indexOf('100')>-1){
+            var card=divs[i];
+            /* نشيل زرار الشراء ورسالة النقص */
+            var btn=card.querySelector('button');
+            if(btn)btn.remove();
+            var reds=card.querySelectorAll('div');
+            for(var j=0;j<reds.length;j++){
+              var rt=reds[j].innerText||'';
+              if(rt.indexOf('تحتاج')>-1||rt.indexOf('🛒')>-1){
+                reds[j].outerHTML='<div style="font-size:12px;font-weight:900;color:var(--yel);text-align:center;margin-top:6px;padding:4px 10px;background:rgba(255,193,7,.12);border:1px solid rgba(255,193,7,.4);border-radius:10px">⏳ قريباً</div>';
+                break;
+              }
+            }
+            /* الوصف يبقى "قريباً" */
+            var descs=card.querySelectorAll('div');
+            for(var k=0;k<descs.length;k++){
+              var dt=descs[k].innerText||'';
+              if(dt.indexOf('تميّز بإطار فريد')>-1){
+                descs[k].innerText='الميزة قيد التجهيز — تنطلق قريباً جداً 🚀';
+                descs[k].style.color='var(--yel)';
+                break;
+              }
+            }
+            /* حدود الكارت صفرا خفيفة */
+            card.style.borderColor='rgba(255,193,7,.4)';
+            break;
+          }
+        }
+      }catch(e){}
+    },80);
+  }catch(e){}
+  return r;
+};
+})();
