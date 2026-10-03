@@ -6533,3 +6533,81 @@ window.renderNameStyle=function(){
   }catch(e){}
 };
 })();
+/* ===== إصلاح وتطوير: نقطة حمراء لآخر التحديثات (القايمة + الشريط السفلي) ===== */
+(function(){
+if(window._updBadgeFix)return;window._updBadgeFix=true;
+
+var BADGE_CSS='display:none;min-width:18px;height:18px;background:#e64553;color:#fff;border-radius:10px;font-size:10px;font-weight:bold;align-items:center;justify-content:center;padding:0 5px;margin-right:6px;vertical-align:middle';
+
+/* 1) عنصر "آخر التحديثات" في الإعدادات: إنشاء أو إصلاح البادج */
+function ensureItem(){
+  try{
+    var scr=el('s-settings');if(!scr)return;
+    var item=el('updatesMenuItem');
+    if(!item){
+      var card=document.createElement('div');
+      card.className='menu-list';card.id='updatesMenuItem';
+      card.style.marginBottom='12px';
+      card.innerHTML='<div class="m-item" onclick="openUpdates()" style="cursor:pointer"><span>🔔 آخر التحديثات <b id="updBadgeDot" style="'+BADGE_CSS+'"></b></span><span>👈</span></div>';
+      var lists=scr.querySelectorAll('.menu-list');
+      if(lists.length)lists[0].parentElement.insertBefore(card,lists[0].nextSibling);
+      else scr.insertBefore(card,scr.firstChild);
+    }else{
+      var bd=el('updBadgeDot');
+      if(bd)bd.style.cssText=BADGE_CSS;
+    }
+  }catch(e){}
+}
+
+/* 2) نقطة حمراء على أيقونة الإعدادات في الشريط السفلي */
+function ensureNavDot(){
+  try{
+    var nav=el('bottomNav');if(!nav)return;
+    var items=nav.querySelectorAll('.nav-item');
+    var setItem=items[items.length-1];
+    if(!setItem)return;
+    var ic=setItem.querySelector('.icon');
+    if(!ic)return;
+    if(!el('navUpdDot')){
+      ic.style.position='relative';
+      var d=document.createElement('span');
+      d.id='navUpdDot';
+      d.style.cssText='position:absolute;top:-2px;right:-6px;min-width:15px;height:15px;background:#e64553;color:#fff;border-radius:9px;font-size:9px;font-weight:bold;line-height:15px;text-align:center;padding:0 3px;display:none;border:2px solid var(--card);z-index:5';
+      ic.appendChild(d);
+    }
+  }catch(e){}
+}
+
+/* 3) تحديث العداد في المكانين (القايمة + الشريط) */
+window.updateUpdatesBadge=async function(){
+  try{
+    if(!me)return;
+    var all=(await SDB.loadSettings()).updates;
+    all=Array.isArray(all)?all:[];
+    var seen=parseInt(LS.getItem('updates_seen')||'0');
+    var n=0;
+    all.forEach(function(u){if(u.pub!==false&&(u.date||0)>seen)n++;});
+    var d=el('updBadgeDot');
+    if(d){if(n>0){d.style.display='inline-flex';d.innerText=n;}else d.style.display='none';}
+    var nd=el('navUpdDot');
+    if(nd){if(n>0){nd.style.display='block';nd.innerText=n;}else nd.style.display='none';}
+  }catch(e){}
+};
+
+/* 4) فتح التحديثات = تصفير العداد فوراً */
+var _openUpd=window.openUpdates;
+window.openUpdates=function(){
+  try{LS.setItem('updates_seen',String(Date.now()));}catch(e){}
+  setTimeout(function(){try{updateUpdatesBadge();}catch(e){}},200);
+  return _openUpd?_openUpd():undefined;
+};
+
+/* 5) تشغيل مستمر */
+var _saU4=window.startAll;
+window.startAll=async function(){
+  var r=await _saU4();
+  try{ensureItem();ensureNavDot();updateUpdatesBadge();}catch(e){}
+  return r;
+};
+setInterval(function(){try{ensureItem();ensureNavDot();updateUpdatesBadge();}catch(e){}},8000);
+})();
