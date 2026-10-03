@@ -5594,3 +5594,942 @@ window.renderWall=function(){
   el('wallFeed').innerHTML=html;
 };
 })();
+/* ===== ميزة: تميّز باسمك (مجاناً) ===== */
+(function(){
+if(window._nameStyleDone)return;window._nameStyleDone=true;
+var STYLES=[
+ {name:'أسطوري',desc:'نصب منذهب يليق بالبطل',pre:'✨',post:'✧',grad:'linear-gradient(90deg,#ffd700,#ff9f43,#ffd700)',glow:'rgba(255,215,0,.6)'},
+ {name:'ذهبي ملكي',desc:'نصب لائق بمر عالية',pre:'',post:'👑',grad:'linear-gradient(90deg,#ffb700,#ff8c00,#ffd700)',glow:'rgba(255,183,0,.5)'},
+ {name:'هو لوغرام',desc:'ألوان قزحية تتبدل مع الضوء',pre:'( ',post:' )',grad:'linear-gradient(90deg,#ff9ae0,#a0c4ff,#b9fbc0)',glow:'rgba(255,154,224,.4)'},
+ {name:'بلاتيني',desc:'كروم سائل يخط ضوء حاد',pre:'',post:'✦',grad:'linear-gradient(90deg,#e8e8e8,#ffffff,#c0c0c0)',glow:'rgba(232,232,232,.5)'},
+ {name:'الشفق',desc:'ألوان تنساب ببطء',pre:'',post:'✧',grad:'linear-gradient(90deg,#00d4ff,#22c55e,#00d4ff)',glow:'rgba(0,212,255,.4)'},
+ {name:'نيون',desc:'توهج ليلي يرمش أجيالاً',pre:'',post:'⚡',grad:'linear-gradient(90deg,#ff2ec4,#ff71ce)',glow:'rgba(255,46,196,.7)'},
+ {name:'زمردي',desc:'خضرة جوهرة عميقة',pre:'',post:'🟢',grad:'linear-gradient(90deg,#00e676,#00c853)',glow:'rgba(0,230,118,.5)'},
+ {name:'ماسي',desc:'بريق جليدي ونجموم تلمع',pre:'✦',post:'💎',grad:'linear-gradient(90deg,#a8d8ff,#e3f2ff,#7ec8ff)',glow:'rgba(168,216,255,.6)'},
+ {name:'وردي',desc:'رقص الأنفس بلسمة وردية',pre:'',post:'🌸',grad:'linear-gradient(90deg,#ff9a9e,#fecfef)',glow:'rgba(255,154,158,.5)'},
+ {name:'باوقتي',desc:'أحمر الياقوت يقطع النجوم',pre:'',post:'❤️',grad:'linear-gradient(90deg,#ff4444,#ff1744)',glow:'rgba(255,68,68,.6)'},
+ {name:'ناري',desc:'لهب يتشاظر بلا توقف',pre:'',post:'🔥',grad:'linear-gradient(90deg,#ff6a00,#ff9100)',glow:'rgba(255,106,0,.6)'},
+ {name:'مجرة',desc:'سديم ونجموم تسبح في حروق',pre:'',post:'🌙',grad:'linear-gradient(90deg,#b388ff,#7c4dff,#80d8ff)',glow:'rgba(179,136,255,.6)'}
+];
+window._NAME_STYLES=STYLES;
+
+/* 1) ترقية styleName: زخارف + توهج */
+window.styleName=function(u){
+  var name=escapeHtml(getDisplayName(u));
+  if(u&&u.nameGradient){
+    var g=u.nameGlow?'filter:drop-shadow(0 0 7px '+u.nameGlow+');':'';
+    return '<span style="'+g+'">'+(u.nameDecorPre||'')+'<span style="background:'+u.nameGradient+';-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:bold">'+name+'</span>'+(u.nameDecorPost||'')+'</span>';
+  }
+  if(u&&u.nameColor)return '<span style="color:'+u.nameColor+';font-weight:bold">'+name+'</span>';
+  return name;
+};
+
+/* 2) عنصر القايمة بشارة "مجاناً" */
+try{
+  var lists=document.querySelectorAll('#s-settings .menu-list');
+  var tgt=lists[0];
+  if(tgt&&!el('nameStyleMenuItem')){
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='nameStyleMenuItem';
+    mi.innerHTML='<span>👑 تميّز باسمك <span style="background:linear-gradient(135deg,#ff9800,#ff5722);color:#fff;font-size:10px;font-weight:bold;padding:3px 10px;border-radius:12px;margin-right:6px">مجاناً</span></span><span>👈</span>';
+    mi.onclick=function(){go('namestyle',null);};
+    tgt.insertBefore(mi,tgt.firstChild);
+  }
+}catch(e){}
+
+/* 3) الشاشة */
+if(!el('s-namestyle')){
+  var scr=document.createElement('div');
+  scr.className='screen';scr.id='s-namestyle';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ تميّز باسمك</div><div id="nameStyleBody" style="padding:4px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+  else content.appendChild(scr);
+}
+
+/* 4) رسم الشاشة */
+window.renderNameStyle=function(){
+  try{
+    var box=el('nameStyleBody');if(!box||!me)return;
+    var h='';
+    h+='<div style="background:linear-gradient(135deg,#1a1033,#3d1b5e);border-radius:18px;padding:24px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(255,255,255,.08)">';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:10px">هكذا يليق اسمك</div>';
+    h+='<div style="font-size:22px;font-weight:bold">'+styleName(me)+'</div>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:10px">اختار النمط ويتطبق على اسمك في كل الموقع ✨</div></div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-bottom:8px">في قايمة المتصلين يراك الآخرون هكذا:</div>';
+    h+='<div class="u-card" style="pointer-events:none">'+getAvatarHTML(me,46)+'<span class="flag">'+(FLAGS[me.country]||flag('E','G'))+'</span><div style="flex:1"><div class="u-name">'+styleName(me)+'</div><div style="font-size:11px;color:var(--mut)">'+role(me)+' • متصل الآن</div></div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">';
+    STYLES.forEach(function(s,i){
+      var sel=(me.nameGradient===s.grad&&me.nameDecorPost===s.post);
+      var nh='<span style="'+(s.glow?'filter:drop-shadow(0 0 6px '+s.glow+');':'')+'">'+s.pre+'<span style="background:'+s.grad+';-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:bold">'+escapeHtml(me.displayName||me.name)+'</span>'+s.post+'</span>';
+      h+='<div onclick="applyNameStyle('+i+')" style="background:var(--card);border:2px solid '+(sel?'var(--acc)':'var(--line)')+';border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer">'
+      +'<div style="font-size:16px;min-height:26px;word-break:break-word">'+nh+'</div>'
+      +'<div style="font-size:13px;font-weight:bold;color:var(--txt);margin-top:8px">'+s.name+'</div>'
+      +'<div style="font-size:10px;color:var(--mut);margin-top:3px">'+s.desc+'</div>'
+      +(sel?'<div style="font-size:10px;color:var(--grn);font-weight:bold;margin-top:4px">✅ مُفعّل</div>':'')
+      +'</div>';
+    });
+    h+='</div>';
+    h+='<button class="lbtn" onclick="removeNameStyle()" style="margin-top:14px;background:var(--red)">🗑️ إزالة النمط (رجوع للاسم العادي)</button>';
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+window.applyNameStyle=function(i){
+  var s=STYLES[i];if(!s||!me)return;
+  updateMe({nameGradient:s.grad,nameDecorPre:s.pre,nameDecorPost:s.post,nameGlow:s.glow});
+  toast('✨ تم تطبيق نمط: '+s.name);
+  updateProfile();renderOnline();renderMsgs();renderNameStyle();
+};
+window.removeNameStyle=function(){
+  updateMe({nameGradient:null,nameColor:null,nameDecorPre:null,nameDecorPost:null,nameGlow:null});
+  toast('تم إزالة النمط');
+  updateProfile();renderOnline();renderMsgs();renderNameStyle();
+};
+
+/* 5) الربط بالتنقل */
+var _goN=window.go;
+window.go=function(s,nv,fb){
+  var r=_goN(s,nv,fb);
+  try{if(s==='namestyle')renderNameStyle();}catch(e){}
+  return r;
+};
+})();
+/* ===== تحسين: ألوان تميّز الاسم ساطعة + توهج 4K ===== */
+(function(){
+var STYLES=[
+ {name:'أسطوري',desc:'نصب منذهب يليق بالبطل',pre:'✨',post:'✧',grad:'linear-gradient(90deg,#FFE55C,#FFB700,#FFE55C)',glow:'rgba(255,215,0,.9)'},
+ {name:'ذهبي ملكي',desc:'نصب لائق بمر عالية',pre:'',post:'👑',grad:'linear-gradient(90deg,#FFD700,#FFA500,#FFD700)',glow:'rgba(255,183,0,.85)'},
+ {name:'هو لوغرام',desc:'ألوان قزحية تتبدل مع الضوء',pre:'( ',post:' )',grad:'linear-gradient(90deg,#FF9AE0,#9AD0FF,#AFFFc3)',glow:'rgba(255,154,224,.75)'},
+ {name:'بلاتيني',desc:'كروم أبيض يخط ضوء حاد',pre:'',post:'✦',grad:'linear-gradient(90deg,#FFFFFF,#F5F5F5,#FFFFFF)',glow:'rgba(255,255,255,.9)'},
+ {name:'الشفق',desc:'ألوان تنساب ببطء',pre:'',post:'✧',grad:'linear-gradient(90deg,#00E5FF,#39FF9E,#00E5FF)',glow:'rgba(0,229,255,.85)'},
+ {name:'نيون',desc:'توهج ليلي يرمش أجيالاً',pre:'',post:'⚡',grad:'linear-gradient(90deg,#FF3EF5,#FF71CE,#FF3EF5)',glow:'rgba(255,62,245,.95)'},
+ {name:'زمردي',desc:'خضرة جوهرة عميقة',pre:'',post:'🟢',grad:'linear-gradient(90deg,#00FF85,#00E676,#00FF85)',glow:'rgba(0,255,133,.85)'},
+ {name:'ماسي',desc:'بريق جليدي ونجموم تلمع',pre:'✦',post:'💎',grad:'linear-gradient(90deg,#CFF0FF,#FFFFFF,#A8D8FF)',glow:'rgba(200,235,255,.9)'},
+ {name:'وردي',desc:'رقص الأنفس بلسمة وردية',pre:'',post:'🌸',grad:'linear-gradient(90deg,#FFB6D9,#FF8FB3,#FFB6D9)',glow:'rgba(255,150,190,.8)'},
+ {name:'باوقتي',desc:'أحمر الياقوت يقطع النجوم',pre:'',post:'❤️',grad:'linear-gradient(90deg,#FF6B6B,#FF2E4E,#FF6B6B)',glow:'rgba(255,80,100,.9)'},
+ {name:'ناري',desc:'لهب يتشاظر بلا توقف',pre:'',post:'🔥',grad:'linear-gradient(90deg,#FFB300,#FF6A00,#FFB300)',glow:'rgba(255,140,0,.9)'},
+ {name:'مجرة',desc:'سديم ونجموم تسبح في حروق',pre:'',post:'🌙',grad:'linear-gradient(90deg,#C792FF,#9D6BFF,#7EE8FF)',glow:'rgba(190,130,255,.9)'}
+];
+window._NAME_STYLES=STYLES;
+
+/* توهج مزدوج: طبقتين = إحساس 4K */
+function _glowCss(g){return 'filter:drop-shadow(0 0 3px '+g+') drop-shadow(0 0 11px '+g+');';}
+
+window.styleName=function(u){
+  var name=escapeHtml(getDisplayName(u));
+  if(u&&u.nameGradient){
+    var g=u.nameGlow?_glowCss(u.nameGlow):'';
+    return '<span style="'+g+'">'+(u.nameDecorPre||'')+'<span style="background:'+u.nameGradient+';-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:bold">'+name+'</span>'+(u.nameDecorPost||'')+'</span>';
+  }
+  if(u&&u.nameColor)return '<span style="color:'+u.nameColor+';font-weight:bold">'+name+'</span>';
+  return name;
+};
+
+window.renderNameStyle=function(){
+  try{
+    var box=el('nameStyleBody');if(!box||!me)return;
+    var h='';
+    h+='<div style="background:linear-gradient(135deg,#1a1033,#3d1b5e);border-radius:18px;padding:24px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(255,255,255,.08)">';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:10px">هكذا يليق اسمك</div>';
+    h+='<div style="font-size:22px;font-weight:bold">'+styleName(me)+'</div>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:10px">اختار النمط ويتطبق على اسمك في كل الموقع ✨</div></div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-bottom:8px">في قايمة المتصلين يراك الآخرون هكذا:</div>';
+    h+='<div class="u-card" style="pointer-events:none">'+getAvatarHTML(me,46)+'<span class="flag">'+(FLAGS[me.country]||flag('E','G'))+'</span><div style="flex:1"><div class="u-name">'+styleName(me)+'</div><div style="font-size:11px;color:var(--mut)">'+role(me)+' • متصل الآن</div></div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">';
+    STYLES.forEach(function(s,i){
+      var sel=(me.nameGradient===s.grad&&me.nameDecorPost===s.post);
+      var nh='<span style="'+_glowCss(s.glow)+'">'+s.pre+'<span style="background:'+s.grad+';-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:bold">'+escapeHtml(me.displayName||me.name)+'</span>'+s.post+'</span>';
+      h+='<div onclick="applyNameStyle('+i+')" style="background:var(--card);border:2px solid '+(sel?'var(--acc)':'var(--line)')+';border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer">'
+      +'<div style="font-size:16px;min-height:26px;word-break:break-word">'+nh+'</div>'
+      +'<div style="font-size:13px;font-weight:bold;color:var(--txt);margin-top:8px">'+s.name+'</div>'
+      +'<div style="font-size:10px;color:var(--mut);margin-top:3px">'+s.desc+'</div>'
+      +(sel?'<div style="font-size:10px;color:var(--grn);font-weight:bold;margin-top:4px">✅ مُفعّل</div>':'')
+      +'</div>';
+    });
+    h+='</div>';
+    h+='<button class="lbtn" onclick="removeNameStyle()" style="margin-top:14px;background:var(--red)">🗑️ إزالة النمط (رجوع للاسم العادي)</button>';
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+window.applyNameStyle=function(i){
+  var s=STYLES[i];if(!s||!me)return;
+  updateMe({nameGradient:s.grad,nameDecorPre:s.pre,nameDecorPost:s.post,nameGlow:s.glow});
+  toast('✨ تم تطبيق نمط: '+s.name);
+  updateProfile();renderOnline();renderMsgs();renderNameStyle();
+};
+window.removeNameStyle=function(){
+  updateMe({nameGradient:null,nameColor:null,nameDecorPre:null,nameDecorPost:null,nameGlow:null});
+  toast('تم إزالة النمط');
+  updateProfile();renderOnline();renderMsgs();renderNameStyle();
+};
+})();
+/* ===== إضافة: 16 نمط جديد لتميّز الاسم ===== */
+(function(){
+var NEW=[
+ {name:'تيك توك',desc:'سماوي ووردي جنب بعض',pre:'',post:'🎵',grad:'linear-gradient(90deg,#25F4EE,#FE2C55)',glow:'rgba(64,220,240,.85)'},
+ {name:'انستجرام',desc:'تدرج الابتسامة الشهير',pre:'',post:'📸',grad:'linear-gradient(45deg,#F58529,#DD2A7B,#8134AF)',glow:'rgba(221,42,123,.85)'},
+ {name:'تيويتش',desc:'بنفسجي البثوث المشهور',pre:'',post:'🎮',grad:'linear-gradient(90deg,#9146FF,#C9A7FF)',glow:'rgba(145,70,255,.85)'},
+ {name:'دروب شيب',desc:'أخضر البيع الفاخر',pre:'',post:'🛍️',grad:'linear-gradient(90deg,#5AE67D,#00C965)',glow:'rgba(90,230,125,.85)'},
+ {name:'سماوي ثلجي',desc:'برودة القطب بلمعة',pre:'',post:'❄️',grad:'linear-gradient(90deg,#7FE7FF,#00B8D9)',glow:'rgba(127,231,255,.9)'},
+ {name:'لونها وردي',desc:'بمبي النايم الحلو',pre:'',post:'🎀',grad:'linear-gradient(90deg,#FF9FF3,#F368E0)',glow:'rgba(255,159,243,.85)'},
+ {name:'بورسلي',desc:'نيلي الكهربا المتوهج',pre:'',post:'⚡',grad:'linear-gradient(90deg,#00D2FF,#3A7BD5)',glow:'rgba(0,210,255,.9)'},
+ {name:'عدس العيد',desc:'برتقالي العسل الحلو',pre:'',post:'🍯',grad:'linear-gradient(90deg,#FFB75E,#ED8F03)',glow:'rgba(255,183,94,.9)'},
+ {name:'ياقة الكاجوال',desc:'تركواز البحر الهادي',pre:'',post:'🌊',grad:'linear-gradient(90deg,#43E97B,#38F9D7)',glow:'rgba(67,233,123,.85)'},
+ {name:'بنفسجي عميق',desc:'المساء عندي في الجيبة',pre:'',post:'🔮',grad:'linear-gradient(90deg,#C471ED,#F64F59)',glow:'rgba(196,113,237,.9)'},
+ {name:'روبي',desc:'أحمر الأحجار الكريمة',pre:'',post:'♦️',grad:'linear-gradient(90deg,#FF416C,#FF4B2B)',glow:'rgba(255,65,108,.9)'},
+ {name:'زعفران',desc:'دهبي كركم الفريش',pre:'',post:'🌞',grad:'linear-gradient(90deg,#FDC830,#F37335)',glow:'rgba(253,200,48,.9)'},
+ {name:'أزرق ملكي',desc:'أزرق السماء الغامق',pre:'',post:'🔵',grad:'linear-gradient(90deg,#4A90FF,#2B5CFF)',glow:'rgba(74,144,255,.9)'},
+ {name:'ليموناضة',desc:'أصفر النوش الخفيف',pre:'',post:'🍋',grad:'linear-gradient(90deg,#FFF95B,#FFD200)',glow:'rgba(255,240,100,.9)'},
+ {name:'سماء الغروب',desc:'مزاج الأجواء وقتها',pre:'',post:'🌇',grad:'linear-gradient(90deg,#FF9966,#FF5E62)',glow:'rgba(255,120,90,.9)'},
+ {name:'تشيلي هوت',desc:'نار البيبر اللي تحرقة',pre:'',post:'🌶️',grad:'linear-gradient(90deg,#FF512F,#DD2476)',glow:'rgba(255,81,47,.9)'}
+];
+var _glowCss=function(g){return 'filter:drop-shadow(0 0 3px '+g+') drop-shadow(0 0 11px '+g+');';};
+window._NAME_STYLES=(window._NAME_STYLES||[]).concat(NEW);
+window._glowCssName=_glowCss;
+
+/* نعيد رسم الشاشة بالقايمة الجديدة كلها */
+window.renderNameStyle=function(){
+  try{
+    var STYLES=window._NAME_STYLES;
+    var box=el('nameStyleBody');if(!box||!me)return;
+    var h='';
+    h+='<div style="background:linear-gradient(135deg,#1a1033,#3d1b5e);border-radius:18px;padding:24px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(255,255,255,.08)">';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:10px">هكذا يليق اسمك</div>';
+    h+='<div style="font-size:22px;font-weight:bold">'+styleName(me)+'</div>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:10px">29 نمط تختار منه — يطبق على اسمك في كل الموقع ✨</div></div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-bottom:8px">في قايمة المتصلين يراك الآخرون هكذا:</div>';
+    h+='<div class="u-card" style="pointer-events:none">'+getAvatarHTML(me,46)+'<span class="flag">'+(FLAGS[me.country]||flag('E','G'))+'</span><div style="flex:1"><div class="u-name">'+styleName(me)+'</div><div style="font-size:11px;color:var(--mut)">'+role(me)+' • متصل الآن</div></div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">';
+    STYLES.forEach(function(s,i){
+      var sel=(me.nameGradient===s.grad&&me.nameDecorPost===s.post);
+      var nh='<span style="'+_glowCss(s.glow)+'">'+(s.pre||'')+'<span style="background:'+s.grad+';-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:bold">'+escapeHtml(me.displayName||me.name)+'</span>'+(s.post||'')+'</span>';
+      h+='<div onclick="applyNameStyle('+i+')" style="background:var(--card);border:2px solid '+(sel?'var(--acc)':'var(--line)')+';border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer">'
+      +'<div style="font-size:16px;min-height:26px;word-break:break-word">'+nh+'</div>'
+      +'<div style="font-size:13px;font-weight:bold;color:var(--txt);margin-top:8px">'+s.name+'</div>'
+      +'<div style="font-size:10px;color:var(--mut);margin-top:3px">'+s.desc+'</div>'
+      +(sel?'<div style="font-size:10px;color:var(--grn);font-weight:bold;margin-top:4px">✅ مُفعّل</div>':'')
+      +'</div>';
+    });
+    h+='</div>';
+    h+='<button class="lbtn" onclick="removeNameStyle()" style="margin-top:14px;background:var(--red)">🗑️ إزالة النمط (رجوع للاسم العادي)</button>';
+    box.innerHTML=h;
+  }catch(e){}
+};
+})();
+/* ===== ميزة: عملاتي 💰 (محفظة + شراء بفودافون كاش) ===== */
+(function(){
+if(window._walletDone)return;window._walletDone=true;
+var FRAME_COST=100;
+
+/* 1) عنصر عملاتي في قايمة الإعدادات */
+try{
+  var lists=document.querySelectorAll('#s-settings .menu-list');
+  var tgt=lists[0];
+  if(tgt&&!el('walletMenuItem')){
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='walletMenuItem';
+    mi.innerHTML='<span>💰 عملاتي <span id="walletBadge" style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:bold;padding:3px 10px;border-radius:12px;margin-right:6px">جديدة</span></span><span>👈</span>';
+    mi.onclick=function(){go('wallet',null);};
+    tgt.insertBefore(mi,tgt.firstChild);
+  }
+}catch(e){}
+
+/* 2) الشاشة */
+if(!el('s-wallet')){
+  var scr=document.createElement('div');
+  scr.className='screen';scr.id='s-wallet';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ عملاتي</div><div id="walletBody" style="padding:4px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+  else content.appendChild(scr);
+}
+
+/* 3) رسم الشاشة */
+window.renderWallet=function(){
+  try{
+    var box=el('walletBody');if(!box||!me)return;
+    var coins=(me.coins)||0;
+    var b=el('walletBadge');
+    if(b){b.innerText=c>0?'🪙 '+coins:'جديدة';}
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#2a1a4e,#141038);border-radius:18px;padding:28px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(255,255,255,.08)">';
+    h+='<div style="width:84px;height:84px;margin:0 auto 12px;background:linear-gradient(135deg,#FFE55C,#FF9800);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 0 35px rgba(255,183,0,.7),inset 0 -5px 12px rgba(0,0,0,.25)">⭐</div>';
+    h+='<div style="color:#FFD700;font-size:16px;font-weight:bold">رصيد العملات</div>';
+    h+='<div style="color:#fff;font-size:34px;font-weight:900;margin-top:4px">🪙 '+coins+'</div>';
+    h+='<div style="color:rgba(255,255,255,.55);font-size:12px;margin-top:8px">انشر أكثر، وتميّز أكثر — عملاتك لا تنتهي أبداً</div></div>';
+    h+='<div style="background:var(--card);border:2px solid #FFD700;border-radius:18px;padding:16px;margin-bottom:12px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">';
+    h+='<div><div style="color:#fff;font-size:26px;font-weight:900">200 جنيه</div><div style="font-size:11px;color:var(--mut)">دفعة واحدة</div></div>';
+    h+='<div style="text-align:left"><div style="font-size:11px;color:#FFD700">رصيد العملات</div><div style="font-size:22px;font-weight:900;color:#fff">500 ⭐</div></div></div>';
+    h+='<button onclick="buyCoinsVoda()" style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(90deg,#FFE55C,#FF9800);border:none;border-radius:14px;font-size:16px;font-weight:900;color:#111;cursor:pointer;box-shadow:0 3px 14px rgba(255,153,0,.4)">💳 ادفع بفودافون كاش</button>';
+    h+='<div style="font-size:11px;color:var(--mut);text-align:center;margin-top:8px">دفع آمن — بعد التحويل تستلم عملاتك فوراً بعد تأكيد الإدارة</div></div>';
+    h+='<div style="background:linear-gradient(135deg,#1a1033,#3d1b5e);border-radius:14px;padding:14px;display:flex;align-items:center;gap:10px;margin-bottom:12px">';
+    h+='<div style="flex:1"><div style="font-size:11px;color:rgba(255,255,255,.55)">اسمك مميز في قايمة المتصلين</div><div style="font-size:17px;font-weight:bold;margin-top:2px">'+styleName(me)+'</div><div style="font-size:11px;color:#FFD700;margin-top:4px">🎁 مجاناً الآن — جرّبه من "تميّز باسمك"</div></div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">🖼️</div><div style="font-weight:bold;font-size:13px;margin-top:6px">إطار حول صورتك</div><div style="font-size:11px;color:var(--mut);margin-top:4px">تميّز بإطار فريد — 100 عملة</div>';
+    h+=(me.framesUnlocked?'<div style="font-size:11px;color:var(--grn);font-weight:bold;margin-top:6px">✅ مُفتوحة</div>':(coins>=FRAME_COST?'<button class="adm-btn grn" style="margin-top:8px" onclick="buyFrameWithCoins()">🛒 اشترِ الآن</button>':'<div style="font-size:11px;color:var(--red);margin-top:6px">تحتاج '+(FRAME_COST-coins)+' عملة إضافية</div>'));
+    h+='</div>';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">✅</div><div style="font-weight:bold;font-size:13px;margin-top:6px">مضمونة</div><div style="font-size:11px;color:var(--mut);margin-top:4px">تستلم عملاتك فور تأكيد الإدارة</div></div>';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">♾️</div><div style="font-weight:bold;font-size:13px;margin-top:6px">لا تنتهي</div><div style="font-size:11px;color:var(--mut);margin-top:4px">عملاتك تبقى في حسابك بلا تاريخ انتهاء</div></div>';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">🔒</div><div style="font-weight:bold;font-size:13px;margin-top:6px">آمنة</div><div style="font-size:11px;color:var(--mut);margin-top:4px">العملات الصرفت لا تُسترد عند مخالفة القوانين</div></div>';
+    h+='</div>';
+    h+='<div style="background:var(--card2);border-radius:12px;padding:12px;font-size:11px;color:var(--mut);line-height:2;text-align:center">📌 كيف تعمل العملات: حوّل 200 جنيه عبر فودافون كاش ← ابعت اسم عضويتك للإدارة على تليجرام ← تُضاف 500 عملة لحسابك بعد التأكيد ⚡</div>';
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+/* 4) نافذة الدفع بفودافون كاش */
+window.buyCoinsVoda=function(){
+  var old=el('buyCoinsModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='buyCoinsModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:330px">'
+  +'<h3 style="color:#FFD700">🪙 شراء 500 عملة</h3>'
+  +'<p style="font-size:13px;text-align:center;color:var(--txt);line-height:1.8">حوّل <b style="color:#FFD700">200 جنيه</b> على رقم فودافون كاش:</p>'
+  +'<div onclick="copyVoda()" style="background:var(--bg);border:2px dashed #FFD700;border-radius:12px;padding:12px;text-align:center;cursor:pointer">'
+  +'<div style="font-size:22px;font-weight:900;color:#FFD700;direction:ltr">01013255816</div>'
+  +'<div style="font-size:11px;color:var(--mut);margin-top:4px">📊 اضغط للنسخ 📋</div></div>'
+  +'<p style="font-size:12px;color:var(--txt);text-align:center;line-height:1.8">بعد التحويل، ابعت اسم عضويتك: <b style="color:var(--acc)">'+escapeHtml(me.displayName||me.name)+'</b> للإدارة على تليجرام</p>'
+  +'<a href="https://t.me/medosonic" target="_blank" style="display:block;text-align:center;padding:12px;background:#0088cc;color:#fff;border-radius:10px;text-decoration:none;font-weight:bold;font-size:13px">📱 ابعت للإدارة على تليجرام</a>'
+  +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'buyCoinsModal\')">إغلاق</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('buyCoinsModal');};
+  document.body.appendChild(m);
+  m.classList.add('open');
+};
+
+/* 5) شراء الإطار بالعملات */
+window.buyFrameWithCoins=function(){
+  if(!me)return;
+  var coins=(me.coins)||0;
+  if(coins<FRAME_COST)return toast('🪙 عملاتك مش كفاية');
+  if(!confirm('شراء ميزة الإطار بـ '+FRAME_COST+' عملة؟'))return;
+  updateMe({coins:coins-FRAME_COST,framesUnlocked:true}).then(function(){
+    toast('🎉 تم فتح ميزة الإطار! تلاقيها في الإعدادات');
+    try{el('frameMenuItem').style.display='flex';}catch(e){}
+    renderWallet();
+  });
+};
+
+/* 6) الإدارة تضيف عملات لعضو من قايمته */
+try{
+  var um=document.getElementById('userModal');
+  if(um&&!el('addCoinsBtn')){
+    var btn=document.createElement('button');
+    btn.id='addCoinsBtn';
+    btn.style.cssText='background:#FFD700;color:#111';
+    btn.innerHTML='🪙 إضافة عملات';
+    btn.onclick=async function(){
+      if(!isAdmin())return toast('ممنوع');
+      var n=umTarget;
+      var u=await SDB.getUser(n);
+      if(!u)return toast('العضو غير موجود');
+      var cur=(u.coins)||0;
+      var amt=prompt('عملات '+n+' الحالية: '+cur+'\nاكتب عدد العملات المضافة:','500');
+      if(!amt)return;
+      amt=parseInt(amt);
+      if(isNaN(amt)||amt<=0)return toast('اكتب رقم صحيح');
+      await SDB.patchUser(n,{coins:cur+amt});
+      toast('🪙 تم إضافة '+amt+' عملة لـ '+n);
+      logActivity('coins','تمت إضافة '+amt+' عملة لـ '+n);
+      closeModal('userModal');refreshUsers();
+    };
+    var closeBtn=um.querySelector('button[onclick="closeModal(\'userModal\')"]');
+    um.insertBefore(btn,closeBtn);
+  }
+}catch(e){}
+
+/* 7) الربط بالتنقل + إظهار الإطار للمشتري */
+var _goW=window.go;
+window.go=function(s,nv,fb){
+  var r=_goW(s,nv,fb);
+  try{
+    if(s==='wallet')renderWallet();
+    if(s==='settings'&&me&&me.framesUnlocked)el('frameMenuItem').style.display='flex';
+  }catch(e){}
+  return r;
+};
+setInterval(function(){
+  try{
+    var b=el('walletBadge');
+    if(b&&me){var c=(me.coins)||0;b.innerText=c>0?'🪙 '+c:'جديدة';}
+  }catch(e){}
+},3000);
+})();
+/* ===== إصلاح: شاشة عملاتي فاضية ===== */
+(function(){
+var FRAME_COST=100;
+window.renderWallet=function(){
+  try{
+    var box=el('walletBody');if(!box||!me)return;
+    var coins=(me.coins)||0;
+    var b=el('walletBadge');
+    if(b){b.innerText=coins>0?'🪙 '+coins:'جديدة';}
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#2a1a4e,#141038);border-radius:18px;padding:28px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(255,255,255,.08)">';
+    h+='<div style="width:84px;height:84px;margin:0 auto 12px;background:linear-gradient(135deg,#FFE55C,#FF9800);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 0 35px rgba(255,183,0,.7),inset 0 -5px 12px rgba(0,0,0,.25)">⭐</div>';
+    h+='<div style="color:#FFD700;font-size:16px;font-weight:bold">رصيد العملات</div>';
+    h+='<div style="color:#fff;font-size:34px;font-weight:900;margin-top:4px">🪙 '+coins+'</div>';
+    h+='<div style="color:rgba(255,255,255,.55);font-size:12px;margin-top:8px">انشر أكثر، وتميّز أكثر — عملاتك لا تنتهي أبداً</div></div>';
+    h+='<div style="background:var(--card);border:2px solid #FFD700;border-radius:18px;padding:16px;margin-bottom:12px">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">';
+    h+='<div><div style="color:#fff;font-size:26px;font-weight:900">200 جنيه</div><div style="font-size:11px;color:var(--mut)">دفعة واحدة</div></div>';
+    h+='<div style="text-align:left"><div style="font-size:11px;color:#FFD700">رصيد العملات</div><div style="font-size:22px;font-weight:900;color:#fff">500 ⭐</div></div></div>';
+    h+='<button onclick="buyCoinsVoda()" style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(90deg,#FFE55C,#FF9800);border:none;border-radius:14px;font-size:16px;font-weight:900;color:#111;cursor:pointer;box-shadow:0 3px 14px rgba(255,153,0,.4)">💳 ادفع بفودافون كاش</button>';
+    h+='<div style="font-size:11px;color:var(--mut);text-align:center;margin-top:8px">دفع آمن — بعد التحويل تستلم عملاتك فوراً بعد تأكيد الإدارة</div></div>';
+    h+='<div style="background:linear-gradient(135deg,#1a1033,#3d1b5e);border-radius:14px;padding:14px;display:flex;align-items:center;gap:10px;margin-bottom:12px">';
+    h+='<div style="flex:1"><div style="font-size:11px;color:rgba(255,255,255,.55)">اسمك مميز في قايمة المتصلين</div><div style="font-size:17px;font-weight:bold;margin-top:2px">'+styleName(me)+'</div><div style="font-size:11px;color:#FFD700;margin-top:4px">🎁 مجاناً الآن — جرّبه من "تميّز باسمك"</div></div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">🖼️</div><div style="font-weight:bold;font-size:13px;margin-top:6px">إطار حول صورتك</div><div style="font-size:11px;color:var(--mut);margin-top:4px">تميّز بإطار فريد — 100 عملة</div>';
+    h+=(me.framesUnlocked?'<div style="font-size:11px;color:var(--grn);font-weight:bold;margin-top:6px">✅ مُفتوحة</div>':(coins>=FRAME_COST?'<button class="adm-btn grn" style="margin-top:8px" onclick="buyFrameWithCoins()">🛒 اشترِ الآن</button>':'<div style="font-size:11px;color:var(--red);margin-top:6px">تحتاج '+(FRAME_COST-coins)+' عملة إضافية</div>'));
+    h+='</div>';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">✅</div><div style="font-weight:bold;font-size:13px;margin-top:6px">مضمونة</div><div style="font-size:11px;color:var(--mut);margin-top:4px">تستلم عملاتك فور تأكيد الإدارة</div></div>';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">♾️</div><div style="font-weight:bold;font-size:13px;margin-top:6px">لا تنتهي</div><div style="font-size:11px;color:var(--mut);margin-top:4px">عملاتك تبقى في حسابك بلا تاريخ انتهاء</div></div>';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">🔒</div><div style="font-weight:bold;font-size:13px;margin-top:6px">آمنة</div><div style="font-size:11px;color:var(--mut);margin-top:4px">العملات الصرفت لا تُسترد عند مخالفة القوانين</div></div>';
+    h+='</div>';
+    h+='<div style="background:var(--card2);border-radius:12px;padding:12px;font-size:11px;color:var(--mut);line-height:2;text-align:center">📌 كيف تعمل العملات: حوّل 200 جنيه عبر فودافون كاش ← ابعت اسم عضويتك للإدارة على تليجرام ← تُضاف 500 عملة لحسابك بعد التأكيد ⚡</div>';
+    box.innerHTML=h;
+  }catch(e){}
+};
+})();
+/* ===== نظام طلبات شحن العملات (داخلي بالكامل) ===== */
+(function(){
+if(window._topupDone)return;window._topupDone=true;
+
+/* 1) زرار طلب شحن في شاشة عملاتي */
+var _rwW=window.renderWallet;
+window.renderWallet=function(){
+  var r=_rwW?_rwW():undefined;
+  try{
+    var box=el('walletBody');if(!box||!me)return r;
+    var h='<div style="background:linear-gradient(135deg,#1a1033,#3d1b5e);border-radius:14px;padding:14px;margin-top:12px;text-align:center">';
+    h+='<div style="font-size:14px;font-weight:bold;color:#FFD700;margin-bottom:4px">🧾 طلب شحن عملات</div>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:10px">حوّل 200 جنيه على فودافون كاش ← ارفع صورة التحويل ← الإدارة تشحن لك</div>';
+    h+='<button onclick="openTopupRequest()" style="width:100%;padding:12px;background:linear-gradient(90deg,#FFE55C,#FF9800);border:none;border-radius:12px;font-size:15px;font-weight:900;color:#111;cursor:pointer">📤 إرسال طلب شحن مع صورة التحويل</button>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:6px">طلباتك المرسلة: <span id="myTopupCount">0</span></div></div>';
+    box.insertAdjacentHTML('beforeend',h);
+    sb.from('topup_requests').select('id',{count:'exact',head:true}).eq('user',me.name).then(function(d){
+      var c=el('myTopupCount');
+      if(c)c.innerText=((d&&d.count)||0)+' طلب';
+    });
+  }catch(e){}
+  return r;
+};
+
+/* 2) نافذة إرسال الطلب */
+window.openTopupRequest=function(){
+  if(!me)return toast('سجل دخولك أولاً');
+  var old=el('topupModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='topupModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:330px;max-height:88vh;overflow-y:auto">'
+  +'<h3 style="color:#FFD700">🧾 طلب شحن 500 عملة</h3>'
+  +'<div style="background:var(--bg);border:2px dashed #FFD700;border-radius:12px;padding:12px;text-align:center;cursor:pointer" onclick="copyVoda()">'
+  +'<div style="font-size:21px;font-weight:900;color:#FFD700;direction:ltr">01013255816</div>'
+  +'<div style="font-size:11px;color:var(--mut);margin-top:3px">فودافون كاش — اضغط للنسخ 📋</div></div>'
+  +'<div style="font-size:12px;color:var(--txt);text-align:center;line-height:1.7;margin:8px 0">حوّل <b style="color:#FFD700">200 جنيه</b> ← ثم ارفع صورة إيصال التحويل هنا:</div>'
+  +'<input type="file" id="topupImg" accept="image/*" style="display:none" onchange="previewTopup(event)">'
+  +'<label for="topupImg" id="topupImgLabel" style="width:100%;min-height:70px;background:var(--bg);border:2px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:24px;margin-bottom:6px">📷</label>'
+  +'<textarea id="topupNote" placeholder="ملاحظة (اختياري): رقم عملية التحويل..." style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px;font-size:12px;min-height:40px;resize:none"></textarea>'
+  +'<button style="background:var(--grn);color:#fff" onclick="submitTopup()">✅ إرسال الطلب للإدارة</button>'
+  +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'topupModal\')">إلغاء</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('topupModal');};
+  document.body.appendChild(m);
+  m.classList.add('open');
+};
+
+/* 3) معاينة وضغط الصورة */
+window.previewTopup=function(e){
+  var f=e.target.files[0];if(!f)return;
+  compressImg(f,function(d){
+    window._topupImg=d;
+    var lbl=el('topupImgLabel');
+    if(lbl)lbl.innerHTML='<img src="'+d+'" style="max-height:110px;border-radius:8px">';
+  });
+  e.target.value='';
+};
+
+/* 4) حفظ الطلب في قاعدة البيانات */
+window.submitTopup=async function(){
+  if(!window._topupImg)return toast('📷 ارفع صورة التحويل الأول');
+  var note=(el('topupNote')?el('topupNote').value.trim():'');
+  toast('⏳ جاري إرسال الطلب...');
+  var url=await uploadMedia(window._topupImg,'.jpg');
+  if(!url)return toast('فشل رفع الصورة، حاول تاني');
+  var r=await sb.from('topup_requests').insert({
+    user:me.name,
+    amount:500,
+    price:200,
+    img:url,
+    note:note||null,
+    status:'pending',
+    time:Date.now()
+  });
+  if(r&&r.error)return toast('❌ خطأ: '+r.error.message);
+  window._topupImg=null;
+  closeModal('topupModal');
+  toast('✅ وصل طلبك للإدارة — هتستلم عملاتك بعد التأكيد');
+  try{renderWallet();}catch(e){}
+};
+
+/* 5) إشعار للإدارة: نقطة حمراء + تبويب جديد */
+try{
+  var sidebar=el('adminSidebar');
+  if(sidebar&&!el('ap-topupsTab')){
+    var t=document.createElement('div');
+    t.className='admin-tab';t.id='ap-topupsTab';
+    t.innerHTML='🪙 طلبات الشحن <span id="topupDot" style="display:none;min-width:16px;height:16px;background:var(--red);color:#fff;border-radius:50%;font-size:9px;font-weight:bold;line-height:16px;text-align:center;vertical-align:middle">0</span>';
+    t.onclick=function(){adminTab('topups',t);};
+    sidebar.insertBefore(t,sidebar.firstChild);
+  }
+}catch(e){}
+
+/* 6) لوحة طلبات الشحن للإدارة */
+if(!el('ap-topups')){
+  var p=document.createElement('div');
+  p.className='admin-panel';p.id='ap-topups';
+  p.innerHTML='<div class="adm-sec"><h4>🪙 طلبات شحن العملات</h4><div id="topupList"></div></div>';
+  var site=el('ap-site');
+  if(site)site.parentElement.insertBefore(p,site);
+  else document.querySelector('#s-admin').appendChild(p);
+}
+
+window.renderTopups=async function(){
+  try{
+    var box=el('topupList');if(!box)return;
+    box.innerHTML='<div style="text-align:center;color:var(--mut);padding:15px">جاري التحميل...</div>';
+    var d=await sb.from('topup_requests').select('*').order('time',{ascending:false}).limit(50);
+    if(d.error){box.innerHTML='<div style="color:var(--red);font-size:12px">خطأ: '+d.error.message+'</div>';return;}
+    var rows=d.data||[];
+    _updateTopupDot(rows.filter(function(x){return x.status==='pending';}).length);
+    if(!rows.length){box.innerHTML='<div style="text-align:center;color:var(--mut);padding:15px">لا توجد طلبات شحن بعد</div>';return;}
+    var h='';
+    rows.forEach(function(r){
+      var st=r.status==='pending'?'<span style="color:var(--yel);font-weight:bold;font-size:11px">⏳ معلق</span>':(r.status==='done'?'<span style="color:var(--grn);font-weight:bold;font-size:11px">✅ تم الشحن</span>':'<span style="color:var(--red);font-weight:bold;font-size:11px">❌ مرفوض</span>');
+      h+='<div style="background:var(--bg);border:1px solid '+(r.status==='pending'?'var(--yel)':'var(--line)')+';border-radius:12px;padding:12px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<b style="color:var(--acc);font-size:14px">'+escapeHtml(getMsgName(r.user))+'</b>'
+      +'<span style="font-size:12px;color:#FFD700;font-weight:bold">🪙 '+r.amount+' عملة — '+r.price+' جنيه</span>'
+      +'<span style="font-size:10px;color:var(--mut)">'+timeAgo(r.time)+'</span></div>'
+      +(r.note?'<div style="font-size:11px;color:var(--mut);margin-top:4px">📝 '+escapeHtml(r.note)+'</div>':'')
+      +'<div style="margin-top:8px"><img src="'+r.img+'" style="max-width:100%;max-height:180px;border-radius:10px;cursor:pointer;border:1px solid var(--line)" onclick="viewFullImage(this.src)"></div>'
+      +'<div style="margin-top:4px;font-size:10px;color:var(--mut)">الحالة: '+st+'</div>';
+      if(r.status==='pending'){
+        h+='<div style="display:flex;gap:8px;margin-top:10px">'
+        +'<button class="adm-btn grn" style="flex:1" onclick="approveTopup(\''+r.id+'\','+r.amount+',\''+String(r.user).replace(/'/g,"\\'")+'\')">✅ شحن العملات</button>'
+        +'<button class="adm-btn red" style="flex:1" onclick="rejectTopup(\''+r.id+'\')">❌ رفض</button></div>';
+      }
+      h+='</div>';
+    });
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+function _updateTopupDot(n){
+  try{
+    var d=el('topupDot');
+    if(d){d.style.display=n>0?'inline-block':'none';d.innerText=n;}
+  }catch(e){}
+}
+
+/* 7) الشحن الفعلي: إضافة العملات + إشعار للعضو */
+window.approveTopup=async function(id,amount,user){
+  if(!isAdmin())return;
+  if(!confirm('شحن '+amount+' عملة لـ '+user+'؟'))return;
+  var u=await SDB.getUser(user);
+  if(!u)return toast('العضو غير موجود');
+  var cur=(u.coins)||0;
+  await SDB.patchUser(user,{coins:cur+amount});
+  await sb.from('topup_requests').update({status:'done'}).eq('id',id);
+  var arr=await (async function(){try{var s=await SDB.loadSettings();return Array.isArray(s.coin_notices)?s.coin_notices:[];}catch(e){return[];}})();
+  arr.push({id:'cn'+Date.now(),to:user,msg:'🎉 تم شحن '+amount+' عملة لحسابك بنجاح!',time:Date.now()});
+  if(arr.length>200)arr=arr.slice(-200);
+  await SDB.saveSetting('coin_notices',arr);
+  toast('🪙 تم شحن '+amount+' عملة لـ '+user);
+  logActivity('topup','شحن '+amount+' عملة لـ '+user);
+  renderTopups();
+};
+
+window.rejectTopup=async function(id){
+  if(!isAdmin())return;
+  if(!confirm('رفض هذا الطلب؟'))return;
+  await sb.from('topup_requests').update({status:'rejected'}).eq('id',id);
+  toast('تم رفض الطلب');
+  renderTopups();
+};
+
+/* 8) ربط التبويب بنظام اللوحة */
+var _atT=window.adminTab;
+window.adminTab=function(tab,e){
+  document.querySelectorAll('.admin-tab').forEach(function(b){b.classList.remove('sel');});
+  if(e)e.classList.add('sel');
+  document.querySelectorAll('.admin-panel').forEach(function(p){p.classList.remove('open');});
+  var panel=el('ap-'+tab);
+  if(panel)panel.classList.add('open');
+  if(tab==='topups')renderTopups();
+};
+
+/* 9) فحص دوري للطلبات المعلقة (إشعار النقطة الحمراء) */
+setInterval(async function(){
+  try{
+    if(!me||!isAdmin())return;
+    var d=await sb.from('topup_requests').select('id').eq('status','pending');
+    _updateTopupDot((d.data||[]).length);
+  }catch(e){}
+},20000);
+
+/* 10) إشعار استلام العملات للعضو */
+var _saCN=window.startAll;
+window.startAll=async function(){
+  var r=await _saCN();
+  try{
+    if(!me)return r;
+    var s=await SDB.loadSettings();
+    var arr=Array.isArray(s.coin_notices)?s.coin_notices:[];
+    var mine=arr.filter(function(x){return x&&x.to===me.name;});
+    if(mine.length){
+      var rest=arr.filter(function(x){return !(x&&x.to===me.name);});
+      await SDB.saveSetting('coin_notices',rest);
+      var m=document.createElement('div');m.id='coinNoticeModal';m.className='modal';
+      var list='';
+      mine.forEach(function(x){
+        list+='<div style="background:var(--bg);border:1px solid #FFD700;border-radius:10px;padding:12px;margin-bottom:8px;text-align:center;color:#FFD700;font-weight:bold;font-size:14px">'+escapeHtml(x.msg)+'</div>';
+      });
+      m.innerHTML='<div class="m-card2" style="width:320px"><h3 style="color:#FFD700">🪙 إشعار العملات</h3>'+list
+      +'<button style="background:#FFD700;color:#111" onclick="closeModal(\'coinNoticeModal\')">حسناً</button></div>';
+      m.onclick=function(e){if(e.target===m)closeModal('coinNoticeModal');};
+      document.body.appendChild(m);
+      m.classList.add('open');
+      if(me.sndNotif!==false)try{beep(1000);}catch(e){}
+    }
+  }catch(e){}
+  return r;
+};
+})();
+/* ===== إصلاح: الشراء جوه نافذة الدفع نفسها + حذف القسم المكرر ===== */
+(function(){
+/* 1) نافذة الدفع الجديدة: رقم + رفع سكرين + إرسال كلها في واحدة */
+window.buyCoinsVoda=function(){
+  if(!me)return toast('سجل دخولك أولاً');
+  var old=el('buyCoinsModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='buyCoinsModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:330px;max-height:88vh;overflow-y:auto">'
+  +'<h3 style="color:#FFD700">🪙 شراء 500 عملة</h3>'
+  +'<p style="font-size:13px;text-align:center;color:var(--txt);line-height:1.8">حوّل <b style="color:#FFD700">200 جنيه</b> على رقم فودافون كاش:</p>'
+  +'<div onclick="copyVoda()" style="background:var(--bg);border:2px dashed #FFD700;border-radius:12px;padding:12px;text-align:center;cursor:pointer">'
+  +'<div style="font-size:22px;font-weight:900;color:#FFD700;direction:ltr">01013255816</div>'
+  +'<div style="font-size:11px;color:var(--mut);margin-top:4px">📊 اضغط للنسخ 📋</div></div>'
+  +'<div style="font-size:12px;color:var(--txt);text-align:center;margin:10px 0 6px">بعد التحويل، ارفع صورة إيصال التحويل هنا:</div>'
+  +'<input type="file" id="topupImg" accept="image/*" style="display:none" onchange="previewTopup(event)">'
+  +'<label for="topupImg" id="topupImgLabel" style="width:100%;min-height:70px;background:var(--bg);border:2px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:24px;margin-bottom:6px">📷 ارفع صورة التحويل</label>'
+  +'<textarea id="topupNote" placeholder="ملاحظة (اختياري): رقم عملية التحويل..." style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px;font-size:12px;min-height:40px;resize:none;margin-bottom:6px"></textarea>'
+  +'<button style="background:var(--grn);color:#fff" onclick="submitTopup()">✅ إرسال الطلب للإدارة</button>'
+  +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'buyCoinsModal\')">إغلاق</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('buyCoinsModal');};
+  document.body.appendChild(m);
+  m.classList.add('open');
+};
+
+/* 2) شيل القسم المكرر اللي كان تحت شاشة عملاتي */
+window.renderWallet=(function(){
+  var FRAME_COST=100;
+  return function(){
+    try{
+      var box=el('walletBody');if(!box||!me)return;
+      var coins=(me.coins)||0;
+      var b=el('walletBadge');
+      if(b){b.innerText=coins>0?'🪙 '+coins:'جديدة';}
+      var h='';
+      h+='<div style="background:radial-gradient(ellipse at top,#2a1a4e,#141038);border-radius:18px;padding:28px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(255,255,255,.08)">';
+      h+='<div style="width:84px;height:84px;margin:0 auto 12px;background:linear-gradient(135deg,#FFE55C,#FF9800);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 0 35px rgba(255,183,0,.7),inset 0 -5px 12px rgba(0,0,0,.25)">⭐</div>';
+      h+='<div style="color:#FFD700;font-size:16px;font-weight:bold">رصيد العملات</div>';
+      h+='<div style="color:#fff;font-size:34px;font-weight:900;margin-top:4px">🪙 '+coins+'</div>';
+      h+='<div style="color:rgba(255,255,255,.55);font-size:12px;margin-top:8px">انشر أكثر، وتميّز أكثر — عملاتك لا تنتهي أبداً</div></div>';
+      h+='<div style="background:var(--card);border:2px solid #FFD700;border-radius:18px;padding:16px;margin-bottom:12px">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">';
+      h+='<div><div style="color:#fff;font-size:26px;font-weight:900">200 جنيه</div><div style="font-size:11px;color:var(--mut)">دفعة واحدة</div></div>';
+      h+='<div style="text-align:left"><div style="font-size:11px;color:#FFD700">رصيد العملات</div><div style="font-size:22px;font-weight:900;color:#fff">500 ⭐</div></div></div>';
+      h+='<button onclick="buyCoinsVoda()" style="width:100%;margin-top:14px;padding:14px;background:linear-gradient(90deg,#FFE55C,#FF9800);border:none;border-radius:14px;font-size:16px;font-weight:900;color:#111;cursor:pointer;box-shadow:0 3px 14px rgba(255,153,0,.4)">💳 ادفع بفودافون كاش</button>';
+      h+='<div style="font-size:11px;color:var(--mut);text-align:center;margin-top:8px">ارفع صورة التحويل في النافذة — وتستلم عملاتك بعد تأكيد الإدارة</div></div>';
+      h+='<div style="background:linear-gradient(135deg,#1a1033,#3d1b5e);border-radius:14px;padding:14px;display:flex;align-items:center;gap:10px;margin-bottom:12px">';
+      h+='<div style="flex:1"><div style="font-size:11px;color:rgba(255,255,255,.55)">اسمك مميز في قايمة المتصلين</div><div style="font-size:17px;font-weight:bold;margin-top:2px">'+styleName(me)+'</div><div style="font-size:11px;color:#FFD700;margin-top:4px">🎁 مجاناً الآن — جرّبه من "تميّز باسمك"</div></div></div>';
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
+      h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">🖼️</div><div style="font-weight:bold;font-size:13px;margin-top:6px">إطار حول صورتك</div><div style="font-size:11px;color:var(--mut);margin-top:4px">تميّز بإطار فريد — 100 عملة</div>';
+      h+=(me.framesUnlocked?'<div style="font-size:11px;color:var(--grn);font-weight:bold;margin-top:6px">✅ مُفتوحة</div>':(coins>=FRAME_COST?'<button class="adm-btn grn" style="margin-top:8px" onclick="buyFrameWithCoins()">🛒 اشترِ الآن</button>':'<div style="font-size:11px;color:var(--red);margin-top:6px">تحتاج '+(FRAME_COST-coins)+' عملة إضافية</div>'));
+      h+='</div>';
+      h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">✅</div><div style="font-weight:bold;font-size:13px;margin-top:6px">مضمونة</div><div style="font-size:11px;color:var(--mut);margin-top:4px">تستلم عملاتك فور تأكيد الإدارة</div></div>';
+      h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">♾️</div><div style="font-weight:bold;font-size:13px;margin-top:6px">لا تنتهي</div><div style="font-size:11px;color:var(--mut);margin-top:4px">عملاتك تبقى في حسابك بلا تاريخ انتهاء</div></div>';
+      h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center"><div style="font-size:26px">🔒</div><div style="font-weight:bold;font-size:13px;margin-top:6px">آمنة</div><div style="font-size:11px;color:var(--mut);margin-top:4px">العملات الصرفت لا تُسترد عند مخالفة القوانين</div></div>';
+      h+='</div></div>';
+      box.innerHTML=h;
+    }catch(e){}
+  };
+})();
+
+/* 3) بعد نجاح الإرسال: اقفل نافذة الدفع نفسها */
+var _stT=window.submitTopup;
+window.submitTopup=async function(){
+  if(!window._topupImg)return toast('📷 ارفع صورة التحويل الأول');
+  var note=(el('topupNote')?el('topupNote').value.trim():'');
+  toast('⏳ جاري إرسال الطلب...');
+  var url=await uploadMedia(window._topupImg,'.jpg');
+  if(!url)return toast('فشل رفع الصورة، حاول تاني');
+  var r=await sb.from('topup_requests').insert({
+    user:me.name,amount:500,price:200,img:url,note:note||null,status:'pending',time:Date.now()
+  });
+  if(r&&r.error)return toast('❌ خطأ: '+r.error.message);
+  window._topupImg=null;
+  closeModal('buyCoinsModal');
+  toast('✅ وصل طلبك للإدارة — هتستلم عملاتك بعد التأكيد');
+  try{renderWallet();}catch(e){}
+};
+})();
+/* ===== تميّز الاسم: بالعملات — 130 عملة لمدة 30 يوم ===== */
+(function(){
+if(window._nameStylePaid)return;window._nameStylePaid=true;
+var NAME_COST=130,NAME_DAYS=30;
+
+window.applyNameStyle=function(i){
+  var s=window._NAME_STYLES[i];if(!s||!me)return;
+  var coins=(me.coins)||0;
+  var isOwner=isOwnerName(me.name)||isAdmin();
+  if(!isOwner&&coins<NAME_COST)return toast('🪙 محتاج '+NAME_COST+' عملة — عندك '+coins+' | اشحن من "عملاتي"');
+  if(!isOwner&&!confirm('تفعيل نمط «'+s.name+'» بـ '+NAME_COST+' عملة لمدة '+NAME_DAYS+' يوم؟\nالرصيد الحالي: '+coins+' عملة'))return;
+  var exp=isOwner?null:(Date.now()+NAME_DAYS*86400000);
+  var patch={nameGradient:s.grad,nameDecorPre:s.pre,nameDecorPost:s.post,nameGlow:s.glow,nameStyleExp:exp,nameStyleName:s.name};
+  if(!isOwner)patch.coins=coins-NAME_COST;
+  updateMe(patch).then(function(){
+    toast(isOwner?'✨ تم التفعيل (إدارة — بدون خصم)':'✨ تم تفعيل «'+s.name+'» حتى '+new Date(exp).toLocaleDateString('ar-EG'));
+    updateProfile();renderOnline();renderMsgs();renderNameStyle();
+  });
+};
+
+window.removeNameStyle=function(){
+  updateMe({nameGradient:null,nameColor:null,nameDecorPre:null,nameDecorPost:null,nameGlow:null,nameStyleExp:null,nameStyleName:null});
+  toast('تم إزالة النمط');
+  updateProfile();renderOnline();renderMsgs();renderNameStyle();
+};
+
+/* إعادة رسم شاشة التميّز: تعرض تاريخ انتهاء النمط الحالي */
+window.renderNameStyle=(function(){
+  var _rn=window.renderNameStyle;
+  return function(){
+    var r=_rn?_rn():undefined;
+    try{
+      var box=el('nameStyleBody');if(!box||!me)return r;
+      var exp=me.nameStyleExp;
+      var info='';
+      if(exp){
+        var days=Math.max(0,Math.ceil((exp-Date.now())/86400000));
+        info='<div style="background:rgba(255,215,0,.12);border:1px solid #FFD700;border-radius:12px;padding:10px 14px;margin:0 4px 10px;text-align:center;font-size:13px;color:#FFD700;font-weight:bold">👑 نمط «'+escapeHtml(me.nameStyleName||'')+'» مُفعّل — متبقي '+days+' يوم</div>';
+      }else{
+        info='<div style="background:var(--card2);border-radius:12px;padding:10px 14px;margin:0 4px 10px;text-align:center;font-size:12px;color:var(--mut)">💡 التفعيل بـ <b style="color:#FFD700">'+NAME_COST+' عملة</b> لمدة '+NAME_DAYS+' يوم — اشحن من "عملاتي"</div>';
+      }
+      var first=box.children[0];
+      if(first)first.insertAdjacentHTML('afterend',info);
+    }catch(e){}
+    return r;
+  };
+})();
+
+/* الحصر التلقائي: انتهت المدة = الاسم يرجع عادي */
+setInterval(async function(){
+  try{
+    if(!me||!me.nameStyleExp)return;
+    if(Date.now()>me.nameStyleExp){
+      await updateMe({nameGradient:null,nameDecorPre:null,nameDecorPost:null,nameGlow:null,nameStyleExp:null,nameStyleName:null});
+      toast('⏰ انتهت مدة تميّز اسمك — رجع للاسم العادي');
+      updateProfile();renderOnline();
+    }
+  }catch(e){}
+},60000);
+
+/* الإدارة: زرار هدية/تجديد في قايمة العضو */
+try{
+  var um=document.getElementById('userModal');
+  if(um&&!el('giftNameStyleBtn')){
+    var btn=document.createElement('button');
+    btn.id='giftNameStyleBtn';
+    btn.style.cssText='background:#8b5cf6;color:#fff';
+    btn.innerHTML='👑 تفعيل تميّز الاسم (30 يوم مجاناً)';
+    btn.onclick=async function(){
+      if(!isAdmin())return toast('ممنوع');
+      var n=umTarget;
+      if(isOwnerName(n))return toast('👑 صاحب الموقع مفعّل دايماً');
+      var u=await SDB.getUser(n);
+      if(!u)return toast('العضو غير موجود');
+      var styleName2=u.nameStyleName||'أسطوري';
+      var st=(window._NAME_STYLES||[]).find(function(x){return x.name===styleName2;})||window._NAME_STYLES[0];
+      await SDB.patchUser(n,{nameGradient:st.grad,nameDecorPre:st.pre,nameDecorPost:st.post,nameGlow:st.glow,nameStyleExp:Date.now()+30*86400000,nameStyleName:st.name});
+      toast('👑 تم تفعيل التميّز لـ '+n+' لمدة 30 يوم');
+      logActivity('name_style','تفعيل تميّز اسم مجاني لـ '+n);
+      closeModal('userModal');refreshUsers();
+    };
+    var closeBtn=um.querySelector('button[onclick="closeModal(\'userModal\')"]');
+    um.insertBefore(btn,closeBtn);
+  }
+}catch(e){}
+
+/* إخفاء شارة "مجاناً" من القايمة — بقت بالعملات */
+try{
+  var mi=el('nameStyleMenuItem');
+  if(mi){
+    var badge=mi.querySelector('span span');
+    if(badge&&badge.innerText==='مجاناً'){
+      badge.innerText='130 عملة';
+      badge.style.background='linear-gradient(135deg,#FFD700,#FF9800)';
+      badge.style.color='#111';
+    }
+  }
+}catch(e){}
+})();
+/* ===== التجربة المجانية 48 ساعة عبر جوجل — فرصة واحدة لكل حساب ===== */
+(function(){
+if(window._gTrialDone)return;window._gTrialDone=true;
+var TRIAL_HOURS=48,NAME_COST=130;
+var GOOGLE_CLIENT_ID='460379934757-ar74mvdbmv6427k7e90fd3mkjg0o2blt.apps.googleusercontent.com'; // 👈 استبدله بمعرفك
+
+try{
+  if(GOOGLE_CLIENT_ID.indexOf('ضع_الـ')===-1&&!document.getElementById('gsiScript')){
+    var s=document.createElement('script');s.id='gsiScript';
+    s.src='https://accounts.google.com/gsi/client';s.async=true;
+    document.head.appendChild(s);
+  }
+}catch(e){}
+
+window._gJwt=function(t){
+  try{var p=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+  return JSON.parse(decodeURIComponent(atob(p).split('').map(function(c){return '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2);}).join('')));}catch(e){return null;}
+};
+
+window._onGoogleSigned=async function(res){
+  var p=window._gJwt(res.credential);
+  if(!p||!p.sub)return toast('فشل التحقق من جوجل');
+  await updateMe({google_id:p.sub,google_email:p.email||''});
+  closeModal('googleLinkModal');
+  toast('✅ تم ربط حساب جوجل: '+(p.email||''));
+  try{renderNameStyle();}catch(e){}
+};
+
+window.linkGoogle=function(){
+  if(!me)return toast('سجل دخولك أولاً');
+  if(typeof google==='undefined'||!google.accounts||!google.accounts.id)
+    return toast('⚠️ خدمة جوجل مش جاهزة — اتأكد من Client ID وحدّث الصفحة');
+  var old=el('googleLinkModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='googleLinkModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:320px"><h3>🔗 ربط حساب جوجل</h3>'
+  +'<p style="font-size:12px;color:var(--mut);text-align:center;line-height:1.9">اربط جوجل عشان تاخد <b style="color:var(--grn)">فرصة التجربة المجانية 48 ساعة</b><br>كل حساب جوجل = فرصة واحدة بس</p>'
+  +'<div id="gsiBtnBox" style="display:flex;justify-content:center;min-height:52px"></div>'
+  +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'googleLinkModal\')">إغلاق</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('googleLinkModal');};
+  document.body.appendChild(m);m.classList.add('open');
+  google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:window._onGoogleSigned});
+  google.accounts.id.renderButton(el('gsiBtnBox'),{theme:'filled_blue',size:'large',text:'continue_with',shape:'pill',locale:'ar'});
+};
+
+window._activateStyle=function(s,exp,free){
+  updateMe({nameGradient:s.grad,nameDecorPre:s.pre||'',nameDecorPost:s.post||'',nameGlow:s.glow,nameStyleExp:exp,nameStyleName:s.name}).then(async function(){
+    if(free){
+      try{await sb.from('google_trials').insert({google_id:me.google_id,site_user:me.name,time:Date.now()});await updateMe({free_trial_used:true});}catch(e){}
+    }
+    var msg=free?('🎁 تجربة مجانية لمدة '+TRIAL_HOURS+' ساعة!'):'✨ تم التفعيل حتى '+new Date(exp).toLocaleDateString('ar-EG');
+    toast(msg);
+    closeModal('styleChoiceModal');
+    updateProfile();renderOnline();renderMsgs();renderNameStyle();
+  });
+};
+
+window._payForStyle=function(i){
+  var s=window._NAME_STYLES[i];if(!s)return;
+  var coins=(me.coins)||0;
+  if(coins<NAME_COST)return toast('🪙 محتاج '+NAME_COST+' عملة — عندك '+coins+' | اشحن من "عملاتي"');
+  if(!confirm('تفعيل نمط «'+s.name+'» بـ '+NAME_COST+' عملة لمدة 30 يوم؟'))return;
+  _activateStyle(s,Date.now()+30*86400000,false);
+  updateMe({coins:coins-NAME_COST});
+};
+
+window._useFreeTrial=function(i){
+  var s=window._NAME_STYLES[i];if(!s)return;
+  if(!confirm('تفعيل «'+s.name+'» مجاناً لمدة '+TRIAL_HOURS+' ساعة؟\n⚠️ دي فرصتك المجانية الوحيدة على حساب جوجل ده!'))return;
+  _activateStyle(s,Date.now()+TRIAL_HOURS*3600000,true);
+};
+
+window.applyNameStyle=function(i){
+  var s=window._NAME_STYLES[i];if(!s||!me)return;
+  if(isOwnerName(me.name)||isAdmin()){
+    _activateStyle(s,Date.now()+30*86400000,false);
+    return;
+  }
+  var old=el('styleChoiceModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='styleChoiceModal';m.className='modal';
+  var nh='<span style="filter:drop-shadow(0 0 6px '+s.glow+')">'+(s.pre||'')+'<span style="background:'+s.grad+';-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:bold">'+escapeHtml(me.displayName||me.name)+'</span>'+(s.post||'')+'</span>';
+  var h='<div class="m-card2" style="width:330px"><h3>👑 تميّز باسمك</h3>'
+  +'<div style="text-align:center;font-size:17px;min-height:30px">'+nh+'</div>'
+  +'<div style="font-size:12px;color:var(--mut);text-align:center;margin-bottom:6px">نمط «'+s.name+'»</div>';
+  h+='<div id="styleChoiceBtns" style="display:flex;flex-direction:column;gap:8px"><div style="text-align:center;color:var(--mut);font-size:12px">جاري الفحص...</div></div>';
+  h+='<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'styleChoiceModal\')">إغلاق</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('styleChoiceModal');};
+  document.body.appendChild(m);m.classList.add('open');
+  var finish=function(googleOk){
+    var b=el('styleChoiceBtns');if(!b)return;
+    var h2='';
+    if(googleOk){
+      h2+='<button style="background:var(--grn);color:#fff" onclick="_useFreeTrial('+i+')">🎁 جرّبه مجاناً '+TRIAL_HOURS+' ساعة — فرصتك الوحيدة!</button>';
+    }else if(!me.google_id){
+      h2+='<button style="background:#4285F4;color:#fff" onclick="closeModal(\'styleChoiceModal\');linkGoogle()">🔗 اربط حساب جوجل وجرّبه مجاناً 48 ساعة</button>';
+    }else{
+      h2+='<div style="font-size:11px;color:var(--mut);text-align:center;background:var(--card2);border-radius:8px;padding:6px">❌ استهلكت فرصتك المجانية على حساب جوجل ده</div>';
+    }
+    if((me.coins||0)>=NAME_COST){
+      h2+='<button style="background:linear-gradient(90deg,#FFE55C,#FF9800);color:#111" onclick="_payForStyle('+i+')">🪙 فعّل بـ '+NAME_COST+' عملة — 30 يوم</button>';
+    }else{
+      h2+='<button style="background:var(--card2);color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'styleChoiceModal\');go(\'wallet\',null)">🪙 رصيدك '+((me.coins)||0)+' — اشحن '+NAME_COST+' عملة</button>';
+    }
+    b.innerHTML=h2;
+  };
+  if(me.google_id&&!me.free_trial_used){
+    sb.from('google_trials').select('id').eq('google_id',me.google_id).limit(1).then(function(d){
+      finish(!(d.data&&d.data.length));
+    });
+  }else{
+    finish(false);
+  }
+};
+
+/* شاشة التميّز المحدثة: شريط حالة التجربة + الربط */
+window.renderNameStyle=function(){
+  try{
+    var STYLES=window._NAME_STYLES||[];
+    var box=el('nameStyleBody');if(!box||!me)return;
+    var h='';
+    h+='<div style="background:linear-gradient(135deg,#1a1033,#3d1b5e);border-radius:18px;padding:24px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(255,255,255,.08)">';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:10px">هكذا يليق اسمك</div>';
+    h+='<div style="font-size:22px;font-weight:bold">'+styleName(me)+'</div>';
+    var st='';
+    if(isOwnerName(me.name)||isAdmin())st='<div style="background:rgba(255,255,255,.12);color:#fff;border-radius:12px;padding:6px 14px;display:inline-block;margin-top:10px;font-size:12px">👑 إدارة — تفعيل مجاني دائم</div>';
+    else if(!me.google_id)st='<div style="background:rgba(66,133,244,.15);border:1px solid #4285F4;color:#9ec3ff;border-radius:12px;padding:6px 14px;display:inline-block;margin-top:10px;font-size:12px">🎁 اربط جوجل وخد فرصة مجانية 48 ساعة <button onclick="linkGoogle()" style="background:#4285F4;color:#fff;border:none;border-radius:8px;padding:3px 12px;font-size:11px;font-weight:bold;cursor:pointer;margin-right:8px">ربط</button></div>';
+    else if(!me.free_trial_used)st='<div style="background:rgba(34,197,94,.15);border:1px solid var(--grn);color:#86efac;border-radius:12px;padding:6px 14px;display:inline-block;margin-top:10px;font-size:12px">🎁 فرصتك المجانية متاحة — جوجل: '+escapeHtml(me.google_email||'')+'</div>';
+    else st='<div style="background:rgba(230,69,83,.12);border:1px solid var(--red);color:#fca5a5;border-radius:12px;padding:6px 14px;display:inline-block;margin-top:10px;font-size:12px">❌ استهلكت الفرصة المجانية — التفعيل بـ '+NAME_COST+' عملة</div>';
+    h+=st+'</div>';
+    if(me.nameStyleExp){
+      var days=Math.max(0,Math.ceil((me.nameStyleExp-Date.now())/86400000));
+      h+='<div style="background:rgba(255,215,0,.12);border:1px solid #FFD700;border-radius:12px;padding:10px 14px;margin:0 4px 10px;text-align:center;font-size:13px;color:#FFD700;font-weight:bold">👑 نمط «'+escapeHtml(me.nameStyleName||'')+'» مُفعّل — متبقي '+days+' '+(me.nameStyleExp-Date.now()<86400000*2&&me.nameStyleExp-Date.now()>86400000?'يوم':'يوم')+'</div>';
+    }
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">';
+    STYLES.forEach(function(s2,i){
+      var sel=(me.nameGradient===s2.grad&&me.nameDecorPost===s2.post);
+      var nh='<span style="filter:drop-shadow(0 0 6px '+s2.glow+')">'+(s2.pre||'')+'<span style="background:'+s2.grad+';-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:bold">'+escapeHtml(me.displayName||me.name)+'</span>'+(s2.post||'')+'</span>';
+      h+='<div onclick="applyNameStyle('+i+')" style="background:var(--card);border:2px solid '+(sel?'var(--acc)':'var(--line)')+';border-radius:14px;padding:14px 8px;text-align:center;cursor:pointer">'
+      +'<div style="font-size:16px;min-height:26px;word-break:break-word">'+nh+'</div>'
+      +'<div style="font-size:13px;font-weight:bold;color:var(--txt);margin-top:8px">'+s2.name+'</div>'
+      +'<div style="font-size:10px;color:var(--mut);margin-top:3px">'+s2.desc+'</div>'
+      +(sel?'<div style="font-size:10px;color:var(--grn);font-weight:bold;margin-top:4px">✅ مُفعّل</div>':'')
+      +'</div>';
+    });
+    h+='</div>';
+    h+='<button class="lbtn" onclick="removeNameStyle()" style="margin-top:14px;background:var(--red)">🗑️ إزالة النمط</button>';
+    box.innerHTML=h;
+  }catch(e){}
+};
+})();
