@@ -1,0 +1,281 @@
+/* ============================================================
+   ⚡ شات سونيك — ملف التنسيقات الكامل (style.css)
+   ============================================================ */
+
+/* ===== شاشة البداية (Splash) ===== */
+@keyframes sonicPulse{0%{transform:scale(1);filter:drop-shadow(0 0 20px #00a3ff)}100%{transform:scale(1.08);filter:drop-shadow(0 0 35px #ff0050)}}
+
+/* ===== المتغيرات العامة ===== */
+:root{--bg:linear-gradient(135deg,#000000 0%,#0a1628 50%,#050d1a 100%);--card:#1a1a1a;--card2:#141414;--line:#2a394b;--txt:#e7ecf3;--mut:#8b99a7;--acc:#3b82f6;--red:#e64553;--grn:#22c55e;--yel:#ffc107}
+body.light{--bg:#f2f5f9;--card:#ffffff;--card2:#eef2f6;--line:#d7dee6;--txt:#1a2430;--mut:#5c6b7a}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,sans-serif}
+body{background:var(--bg);color:var(--txt);display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;background-attachment:scroll!important}
+body.smooth *{transition:background .25s,color .25s}
+.hide{display:none!important}
+
+/* ===== الطبقات العلوية (Overlay) ===== */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;justify-content:center;align-items:center;z-index:1000;padding:15px}
+.login-card{background:var(--card);width:100%;max-width:400px;border-radius:12px;border:1px solid var(--line);overflow:hidden}
+.auth-tabs{display:flex;background:var(--card2);border-bottom:1px solid var(--line)}
+.auth-tab{flex:1;padding:12px 4px;text-align:center;font-size:13px;font-weight:bold;color:var(--acc);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.auth-tab.active{background:var(--card);border-bottom-color:var(--acc)}
+.auth-body{padding:20px;max-height:75vh;overflow-y:auto}
+.pane{display:none}.pane.active{display:block}
+.ig{margin-bottom:12px}.ig label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px}
+.ig input,.ig select{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;outline:none;font-size:14px}
+.lbtn{width:100%;padding:11px;background:var(--acc);color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;font-size:15px;margin-top:6px}
+
+/* ===== تحسين شاشة الدخول (زجاجي) ===== */
+#loginModal .login-card{background:rgba(10,15,30,.88)!important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.18)!important;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+#loginModal .auth-body{background:transparent}
+#loginModal .auth-tabs{background:rgba(0,0,0,.35)!important}
+
+/* ===== الهيدر والبحث ===== */
+.app-header{background:var(--card);padding:10px 12px;border-bottom:1px solid var(--line)}
+.search-box{display:flex;align-items:center;gap:8px;background:var(--card2);padding:8px 12px;border-radius:22px;border:1px solid var(--line)}
+.search-box input{flex:1;border:none;background:transparent;color:var(--txt);outline:none;font-size:13px}
+.chip{background:var(--acc);color:#fff;font-size:11px;padding:3px 10px;border-radius:14px;cursor:pointer;white-space:nowrap}
+.adv-panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:8px;display:none;flex-direction:column;gap:10px}
+.adv-panel.open{display:flex}
+.adv-row{display:flex;align-items:center;justify-content:space-between;font-size:13px;gap:10px}
+.radio-box{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:hidden;flex:1}
+.radio-opt{flex:1;padding:7px;text-align:center;font-size:12px;cursor:pointer;user-select:none}
+.radio-opt.sel{background:rgba(230,92,0,.25);color:var(--acc);font-weight:bold}
+.adv-actions{display:flex;gap:8px;justify-content:space-between}
+.abtn{border:none;border-radius:6px;padding:8px 16px;font-weight:bold;font-size:12px;cursor:pointer;color:#fff}
+
+/* ===== الشاشات ===== */
+.content{flex:1;overflow-y:auto;padding:10px;min-height:0}
+@keyframes smoothIn{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+body.smooth .screen.active{animation:smoothIn .3s ease}
+.screen{display:none}.screen.active{display:block}
+
+/* ===== شاشة الشات (ملزقة من فوق لتحت) ===== */
+#s-chat.active{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;margin:0!important;padding:0!important;z-index:400!important;border-radius:0!important;background:var(--bg)!important;display:flex;flex-direction:column}
+#s-chat.active .chat-head{border-radius:0!important;margin:0!important;border:none!important;border-bottom:1px solid var(--line)!important;flex-shrink:0}
+#s-chat.active .chat-box{border-radius:0!important;margin:0!important;border:none!important;flex:1!important}
+#s-chat.active .media-banner,#s-chat.active .typing-indicator,#s-chat.active .reply-bar{border-radius:0!important;margin:0!important}
+#s-chat.active .typing-indicator{padding-left:10px;padding-right:10px}
+.sonic-input-row{padding:0!important;margin:0!important;flex-shrink:0}
+.sonic-input-row .chat-input{border-radius:0!important;border:none!important;border-top:1px solid var(--line)!important;margin:0!important;height:58px}
+.sonic-input-row .ic-btn[data-send]{border-radius:0!important;height:58px!important;width:58px!important;margin:0!important;align-self:stretch;font-size:24px!important}
+
+/* ===== كروت المستخدمين ===== */
+.u-card{display:flex;align-items:center;gap:10px;background:var(--card);padding:12px;border-radius:10px;margin-bottom:8px;border:1px solid var(--line);cursor:pointer}
+.u-ava{width:46px;height:46px;border-radius:50%;background:var(--card2);object-fit:cover;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;flex-shrink:0;position:relative}
+.u-ava img{width:100%;height:100%;object-fit:cover}
+.ava-frame-wrap{position:relative;width:52px;height:52px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ava-frame-wrap .u-ava,.ava-frame-wrap .ava{width:40px;height:40px;z-index:1}
+.ava-frame-wrap .frame-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;z-index:2;filter:drop-shadow(0 0 6px rgba(230,92,0,.6));animation:frameGlow 2.5s ease-in-out infinite alternate}
+@keyframes frameGlow{0%{filter:drop-shadow(0 0 4px rgba(230,92,0,.4))}100%{filter:drop-shadow(0 0 12px rgba(230,92,0,.9))}}
+.p-ava-frame{position:relative;width:70px;height:70px;display:flex;align-items:center;justify-content:center}
+.p-ava-frame .p-ava{width:55px;height:55px;z-index:1}
+.p-ava-frame .frame-img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;z-index:2;filter:drop-shadow(0 0 6px rgba(230,92,0,.6))}
+.u-name{font-size:15px;font-weight:600;color:var(--acc)}
+.u-dots{margin-right:auto;color:var(--mut);font-size:18px;cursor:pointer;padding:4px 8px}
+.flag{font-size:18px}.g-m{color:#64b5f6}.g-f{color:#ff5c8d}
+.r-card{display:flex;align-items:center;gap:12px;background:var(--card);padding:14px;border-radius:10px;margin-bottom:8px;border:1px solid var(--line);cursor:pointer}
+.r-icon{font-size:22px;background:rgba(230,92,0,.15);width:45px;height:45px;display:flex;align-items:center;justify-content:center;border-radius:10px;overflow:hidden}
+.r-icon img{width:100%;height:100%;object-fit:cover}
+
+/* ===== الشات ===== */
+.chat-win{display:flex;flex-direction:column;flex:1;min-height:0;position:relative}
+.chat-head{background:var(--card);padding:16px 18px;border-radius:12px;display:flex;align-items:center;gap:12px;margin-bottom:10px;border:1px solid var(--line);position:relative;flex-shrink:0}
+.chat-head .ava{width:46px;height:46px;border-radius:50%;background:var(--card2);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px}
+.chat-head .ava img{width:100%;height:100%;object-fit:cover}
+.chat-head .nm{font-weight:bold;font-size:17px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.dot.on{background:var(--grn);box-shadow:0 0 6px var(--grn)}.dot.off{background:var(--mut)}
+.st-txt{font-size:12px}.st-txt.on{color:var(--grn)}.st-txt.off{color:var(--mut)}
+.dots-btn{margin-right:auto;cursor:pointer;font-size:24px;color:var(--mut);user-select:none;padding:2px 8px}
+.back-wrap{position:relative}
+.back-btn{background:none;border:none;color:var(--txt);font-size:18px;cursor:pointer}
+.rdot{position:absolute;top:-2px;left:0;width:8px;height:8px;background:var(--red);border-radius:50%;box-shadow:0 0 4px var(--red)}
+.ticks{font-size:12px;opacity:1;margin-right:5px;display:inline-block;margin-top:3px}
+.ticks.read{color:#7fd4ff}
+.chat-menu{position:absolute;top:64px;left:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;display:none;flex-direction:column;width:195px;z-index:520;box-shadow:0 4px 12px rgba(0,0,0,.5);overflow:hidden}
+.chat-menu.open{display:flex}
+.chat-menu button{background:none;border:none;color:var(--txt);padding:12px;text-align:right;font-size:13px;cursor:pointer;border-bottom:1px solid var(--line)}
+.chat-menu button:last-child{border-bottom:none}
+.chat-menu button:hover{background:var(--card2)}
+.media-banner{background:var(--acc);color:#fff;padding:10px 14px;border-radius:10px;display:none;align-items:center;gap:10px;margin-bottom:8px;font-size:13px;flex-shrink:0}
+.media-banner button{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:24px;height:24px;cursor:pointer}
+.sticker-panel{display:none;position:absolute;bottom:85px;right:10px;left:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;max-height:280px;overflow-y:auto;grid-template-columns:repeat(9,1fr);gap:2px;z-index:520;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.sticker-panel.open{display:grid}
+.sticker-panel img{width:100%;height:40px;object-fit:contain;cursor:pointer}
+.chat-box{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:10px;background-size:cover;background-position:center;min-height:0}
+.chat-box::before{content:'';margin-top:auto}
+.chat-box .bub:first-child{margin-top:0!important}
+.bub{max-width:85%;padding:12px 16px;border-radius:16px;font-size:16px;word-break:break-word;align-self:flex-end;background:var(--acc);color:#fff;line-height:1.6;position:relative}
+.bub.in{align-self:flex-start;background:var(--card);border:1px solid var(--line);color:var(--txt)}
+.bub.sys{align-self:center;background:transparent;color:var(--mut);font-size:12px}
+.bub img{max-width:100%;border-radius:8px}
+.bub img.stick{width:95px;height:95px;object-fit:contain;border-radius:0}
+.bub audio{width:230px;max-width:100%}
+.rec{color:var(--red)!important;animation:pul 1s infinite}
+@keyframes pul{50%{opacity:.3}}
+.chat-input{display:flex;gap:12px;align-items:center;background:var(--card);padding:14px 18px;border-radius:30px;border:1px solid var(--line);flex-shrink:0}
+.chat-input input{flex:1;background:transparent;border:none;color:var(--txt);outline:none;font-size:16px;text-align:right;min-width:50px}
+#inlineStickers{display:flex;gap:3px;flex-shrink:0;align-items:center}
+#inlineStickers img{height:22px;width:22px;object-fit:contain;border-radius:4px;cursor:pointer}
+.ic-btn{background:none;border:none;color:var(--acc);font-size:22px;cursor:pointer;padding:4px}
+.priv-chat .bub{font-size:18px;padding:15px 20px}
+
+/* ===== الرسائل ===== */
+.msg-head{display:flex;align-items:center;justify-content:space-between;background:var(--card);padding:12px 15px;border-radius:12px;border:1px solid var(--line);margin-bottom:10px}
+.tabs{display:flex;background:var(--card2);border-bottom:2px solid var(--line);margin-bottom:10px}
+.tab{flex:1;text-align:center;padding:10px;font-size:13px;color:var(--mut);cursor:pointer;border-bottom:2px solid transparent}
+.tab.sel{color:var(--acc);border-bottom-color:var(--acc)}
+.m-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;position:relative}
+.m-card.selected{border-color:var(--grn);background:rgba(34,197,94,.08)}
+.m-check{position:absolute;top:10px;left:10px;width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:none;align-items:center;justify-content:center;font-size:12px;color:#fff;background:var(--card2)}
+.m-card.selected .m-check{display:flex;background:var(--grn);border-color:var(--grn)}
+.m-name{font-weight:bold;font-size:14px;margin-bottom:3px}
+.m-last{font-size:12px;color:var(--mut)}
+.m-badge{background:var(--red);color:#fff;border-radius:12px;font-size:10px;min-width:20px;text-align:center;padding:2px 7px}
+.nbadge{position:absolute;top:-4px;left:-8px;background:var(--red);color:#fff;border-radius:12px;font-size:9px;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 4px}
+.pin-icon{color:var(--acc);font-size:11px;margin-right:4px}
+
+/* ===== الإعدادات ===== */
+.p-card{background:var(--card);padding:15px;border-radius:12px;display:flex;align-items:center;gap:12px;margin-bottom:12px;border:1px solid var(--line)}
+.p-ava{width:55px;height:55px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;position:relative;cursor:pointer;flex-shrink:0}
+.p-ava img{width:100%;height:100%;object-fit:cover}
+.p-ava .cam{position:absolute;bottom:0;right:0;background:var(--acc);border-radius:50%;width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center}
+.menu-list{background:var(--card);border-radius:12px;overflow:hidden;border:1px solid var(--line);margin-bottom:12px}
+.m-item{padding:14px 15px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-size:14px;cursor:pointer}
+.m-item:last-child{border-bottom:none}
+.m-item:hover{background:var(--card2)}
+.logout{margin:0 auto;display:flex;padding:12px 40px;background:var(--red);color:#fff;border:none;border-radius:10px;font-weight:bold;cursor:pointer;font-size:14px;gap:8px}
+.watermark{text-align:center;margin:18px 0;font-size:11px;color:var(--mut)}
+.watermark span{color:var(--acc);font-weight:bold}
+.sw{position:relative;display:inline-block;width:46px;height:24px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sl{position:absolute;cursor:pointer;inset:0;background:var(--line);transition:.3s;border-radius:24px}
+.sl:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;transition:.3s;border-radius:50%}
+.sw input:checked + .sl{background:var(--acc)}
+.sw input:checked + .sl:before{transform:translateX(22px)}
+.set-row{display:flex;justify-content:space-between;align-items:center;background:var(--card);padding:14px;border:1px solid var(--line);margin-bottom:8px;border-radius:10px}
+.set-row h4{font-size:14px;margin-bottom:3px}
+.set-row p{font-size:11px;color:var(--mut)}
+.sub-title{display:flex;align-items:center;gap:8px;font-size:15px;margin-bottom:12px;cursor:pointer}
+input[type=range]{width:100%}
+
+/* ===== لوحة الإدارة ===== */
+.adm-sec{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.adm-sec h4{color:var(--acc);font-size:13px;margin-bottom:10px}
+.adm-row{display:flex;gap:8px;margin-bottom:8px}
+.adm-row input{flex:1;padding:8px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:6px;font-size:12px}
+.adm-btn{padding:8px 14px;background:var(--acc);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer}
+.adm-btn.red{background:var(--red)}
+.adm-btn.grn{background:var(--grn)}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+th,td{border:1px solid var(--line);padding:6px;text-align:right}
+.xbtn{background:var(--red);border:none;color:#fff;border-radius:4px;cursor:pointer;padding:2px 7px}
+.ebtn{background:var(--acc);border:none;color:#fff;border-radius:4px;cursor:pointer;padding:2px 7px}
+.ubtn{background:var(--grn);border:none;color:#fff;border-radius:4px;cursor:pointer;padding:2px 7px}
+.admin-sidebar{display:flex;gap:10px;overflow-x:auto;padding:10px;background:var(--card2);border-bottom:1px solid var(--line);margin-bottom:10px}
+.admin-tab{white-space:nowrap;padding:8px 14px;background:var(--card);border:1px solid var(--line);border-radius:20px;font-size:12px;cursor:pointer;color:var(--txt)}
+.admin-tab.sel{background:var(--acc);color:#fff;border-color:var(--acc)}
+.admin-panel{display:none}
+.admin-panel.open{display:block}
+.emoji-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;max-height:250px;overflow-y:auto}
+.emoji-item{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center;position:relative}
+.emoji-item img{max-width:100%;height:40px;object-fit:contain}
+.emoji-item .del-emoji{position:absolute;top:2px;left:2px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer}
+.room-card{display:flex;align-items:center;gap:10px;background:var(--card);padding:12px;border-radius:10px;margin-bottom:8px;border:1px solid var(--line)}
+.room-card img{width:40px;height:40px;border-radius:8px;object-fit:cover}
+.log-row{padding:8px;border-bottom:1px solid var(--line);font-size:12px}
+.log-row b{color:var(--acc)}
+.protected-btn{background:#2a394b!important;color:#8b99a7!important;cursor:not-allowed!important;font-size:10px!important}
+
+/* ===== التنقل السفلي ===== */
+.bottom-nav{background:var(--card);display:flex;border-top:1px solid var(--line);padding:6px 0;flex-shrink:0}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;color:var(--mut);font-size:11px;cursor:pointer;gap:3px}
+.nav-item .icon{font-size:17px;padding:4px 16px;border-radius:20px}
+.nav-item.active{color:var(--txt);font-weight:bold}
+.nav-item.active .icon{background:var(--acc);color:#fff}
+
+/* ===== المودالات ===== */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;justify-content:center;align-items:center;z-index:1100}
+.modal.open{display:flex}
+.m-card2{background:var(--card);border:1px solid var(--line);border-radius:12px;width:280px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.m-card2 h3{color:var(--acc);font-size:15px;text-align:center;margin-bottom:6px}
+.m-card2 button{padding:10px;border:none;border-radius:8px;font-size:13px;font-weight:bold;cursor:pointer}
+.empty{text-align:center;padding:60px 20px;color:var(--mut);font-size:13px}
+.empty .big{font-size:50px;background:var(--card);width:110px;height:110px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 15px}
+
+/* ===== تفاعلات الرسائل ===== */
+.msg-actions{position:absolute;top:4px;left:4px;display:flex;gap:4px;z-index:70;opacity:0.4}
+.bub:hover .msg-actions,.bub:active .msg-actions{opacity:1}
+.msg-act-btn{background:rgba(0,0,0,.4);border:none;color:#fff;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.bub.in .msg-actions{left:auto;right:4px;opacity:0.4}
+.bub.in:hover .msg-actions,.bub.in:active .msg-actions{opacity:1}
+.reply-bar{background:var(--card2);border-right:3px solid var(--acc);padding:6px 10px;border-radius:8px;margin-bottom:6px;font-size:12px;color:var(--mut);display:none}
+.reply-bar.open{display:block}
+.reply-bar b{color:var(--acc)}
+.reactions{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.reaction-btn{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:2px 8px;font-size:12px;cursor:pointer;color:var(--txt)}
+.reaction-btn.mine{background:rgba(230,92,0,.25);border-color:var(--acc)}
+.typing-indicator{font-size:12px;color:var(--grn);padding:8px 16px;display:none;font-weight:bold}
+.typing-indicator.open{display:block}
+.mention{color:var(--acc);font-weight:bold;cursor:pointer}
+.chat-search{position:absolute;top:70px;left:10px;right:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;display:none;z-index:520;gap:8px;align-items:center}
+.chat-search.open{display:flex}
+.chat-search input{flex:1;background:transparent;border:none;color:var(--txt);outline:none;font-size:13px}
+.msg-menu{position:absolute;background:var(--card);border:1px solid var(--line);border-radius:10px;display:none;flex-direction:column;width:150px;z-index:530;box-shadow:0 4px 12px rgba(0,0,0,.5);overflow:hidden}
+.msg-menu.open{display:flex}
+.msg-menu button{background:none;border:none;color:var(--txt);padding:10px;text-align:right;font-size:12px;cursor:pointer;border-bottom:1px solid var(--line)}
+.msg-menu button:last-child{border-bottom:none}
+.msg-menu button:hover{background:var(--card2)}
+
+/* ===== حائط الإبداع ===== */
+.w-post{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.w-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.w-ava{width:42px;height:42px;border-radius:50%;background:var(--card2);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:18px}
+.w-ava img{width:100%;height:100%;object-fit:cover}
+.w-meta{flex:1}
+.w-name{font-weight:bold;font-size:15px;color:var(--acc)}
+.w-time{font-size:11px;color:var(--mut)}
+.w-body{font-size:15px;line-height:1.7;margin-bottom:10px;word-break:break-word}
+.w-media{width:100%;border-radius:10px;margin-top:8px;max-height:300px;object-fit:cover}
+.w-yt{position:relative;width:100%;padding-bottom:56.25%;background:#000;border-radius:10px;overflow:hidden;margin-top:8px}
+.w-yt iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+.w-actions{display:flex;gap:12px;align-items:center;padding-top:10px;border-top:1px solid var(--line)}
+.w-btn{background:none;border:none;color:var(--mut);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.w-btn.liked{color:var(--red)}
+.w-comments{background:var(--bg);border-radius:10px;padding:10px;margin-top:10px;display:none}
+.w-comments.open{display:block}
+.w-comment{display:flex;gap:8px;margin-bottom:8px;font-size:13px}
+.w-comment b{color:var(--acc);white-space:nowrap}
+.w-comment-input{display:flex;gap:8px;margin-top:8px}
+.w-comment-input input{flex:1;padding:8px;background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px}
+
+/* ===== عام ===== */
+.contact-btn{display:inline-block;padding:11px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:bold;margin:5px;color:#fff}
+.contact-btn.tg{background:#0088cc}
+#imageViewerModal{z-index:1300!important}
+#scrollDownBtn{z-index:450!important}
+#newMsgPill{z-index:450!important}
+
+/* ===== نقطة الحالة: برتقالي غامق ===== */
+#statusBadge{background:#ea580c!important;box-shadow:0 0 7px rgba(234,88,12,.85)!important;border-color:var(--card)!important}
+
+/* ===== إخفاء زرار تثبيت التطبيق مؤقتاً ===== */
+button[onclick*="قيد المراجعة"]{display:none!important}
+
+/* ===== الإطارات ===== */
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+
+/* ===== صفحة الافتتاح (Landing) ===== */
+@keyframes lpPulse{0%{transform:scale(1)}100%{transform:scale(1.06)}}
+.lpH{color:#ff9fe0;text-align:center;font-size:19px;font-weight:900;text-shadow:0 0 14px rgba(255,79,216,.5);margin:8px 0 2px}
+.lpGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lpCard{background:rgba(18,6,28,.72);border:1px solid rgba(255,79,216,.28);border-radius:14px;padding:14px 12px;text-align:center;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.lpW{text-align:right}
+.lpW>div{display:flex;gap:12px;align-items:flex-start}
+.lpW .lpIc{margin-bottom:0}
+.lpIc{font-size:30px;margin-bottom:6px;filter:drop-shadow(0 0 8px rgba(255,79,216,.7))}
+.lpT{color:#ffb8ec;font-weight:bold;font-size:14.5px;margin-bottom:4px}
+.lpB{color:rgba(255,255,255,.88);font-size:12px;line-height:1.95}
+.lpBtn{margin-top:10px;background:rgba(255,79,216,.12);border:1px solid rgba(255,79,216,.45);color:#ffb8ec;border-radius:10px;padding:8px 16px;font-size:12px;font-weight:bold;cursor:pointer}
+.lpFAQ{background:rgba(18,6,28,.72);border:1px solid rgba(255,79,216,.28);border-radius:14px;padding:16px 14px;text-align:right}
