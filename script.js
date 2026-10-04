@@ -9312,3 +9312,25 @@ window.applyPageBg=function(){
   return r;
 };
 })();
+/* ===== إصلاح الإيموجي الشامل: أي إيموجي قديم أو جديد يظهر على أي جهاز ===== */
+(function(){
+  /* 1) تحميل خط الإيموجي العالمي (بيحمل بس الرموز المستخدمة - خفيف) */
+  if(!document.getElementById('notoEmojiFont')){
+    var l=document.createElement('link');
+    l.id='notoEmojiFont';
+    l.rel='stylesheet';
+    l.href='https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap';
+    document.head.appendChild(l);
+  }
+
+  /* 2) تطبيق الخط على كل عناصر الموقع — الإيموجي اللي الجهاز مش يعرفه يتسحب من الخط */
+  var old=document.getElementById('emojiFontFix');
+  if(old)old.remove();
+  var st=document.createElement('style');
+  st.id='emojiFontFix';
+  st.textContent="body,div,span,p,b,strong,h1,h2,h3,h4,label,button,a,td,th,li,input,textarea,select,.bub,.chat-box,.chat-input,.chat-input input,.u-name,.u-card,.m-card,.m-last,.m-name,.m-card2,.w-body,.w-name,.w-comment,.w-time,.set-row,.m-item,.reply-bar,#replyText,.st-txt,.reaction-btn,.mention,.typing-indicator,.msg-menu,.chat-menu,.modal,.empty,.log-row,.w-post,.w-btn,.lpB,.lpT,.lpCard,.lpFAQ,.nbadge,.m-badge,.ticks,.watermark,#chatStatus,#chatName,#chatMenu,#storyViewBox,#storyReplyInput,#msgInput,#announceBannerText,#announceBanner,#currentAnnounce,#scText,#stText,#stTxArea{font-family:system-ui,-apple-system,sans-serif,'Noto Color Emoji'!important}";
+  document.head.appendChild(st);
+
+  /* 3) أي رسالة جديدة تتعمل بعدين بياخد نفس الخط أوتوماتيك من الـ CSS فوق */
+})();
+         
