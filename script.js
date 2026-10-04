@@ -9238,3 +9238,77 @@ window.pickPenColor=function(n){var r=_ppAC?_ppAC(n):undefined;try{setTimeout(pa
 var _ppaAC=window.pickPenApply;
 window.pickPenApply=function(n){var r=_ppaAC?_ppaAC(n):undefined;try{setTimeout(paintEverywhere,300);}catch(e){}return r;};
 })();
+/* ===== 🖼️ خلفية الصفحة الافتراضية + تغييرها لكل عضو ===== */
+(function(){
+if(window._pageBgNew)return;window._pageBgNew=true;
+var DEFAULT_BG='https://cdn.phototourl.com/member/2026-10-04-7ae8f3b0-456e-41c0-9065-572be6aaad49.jpg';
+
+/* 1) الخلفية الافتراضية: لكل الأعضاء (تتحفظ محلياً أول دخول) */
+(function(){
+  try{
+    if(!LS.getItem('page_bg'))LS.setItem('page_bg',DEFAULT_BG);
+  }catch(e){}
+})();
+
+/* 2) إضافة عنصر تغيير الخلفية في إعدادات المظهر */
+try{
+  var scr=el('s-appearance');
+  if(scr&&!el('pageBgItem')){
+    var row=document.createElement('div');
+    row.className='set-row';row.id='pageBgItem';
+    row.style.display='block';
+    row.innerHTML='<h4>🖼️ خلفية الموقع</h4>'
+    +'<p>اختار خلفية تخصك — ليك انت بس</p>'
+    +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">'
+    +'<button class="adm-btn" onclick="document.getElementById(\'pageBgPickInput\').click()">📷 اختيار خلفية</button>'
+    +'<button class="adm-btn red" onclick="resetPageBgDefault()">↩️ رجوع الافتراضية</button>'
+    +'<input type="file" id="pageBgPickInput" accept="image/*,.gif" style="display:none" onchange="setMyPageBg(event)">'
+    +'</div>';
+    /* نحطها أول إعدادات المظهر */
+    var first=scr.querySelector('.set-row');
+    if(first)scr.insertBefore(row,first);else scr.appendChild(row);
+  }
+}catch(e){}
+
+/* 3) تغيير الخلفية الشخصية (للكل عضو) */
+window.setMyPageBg=function(e){
+  var f=e.target.files[0];if(!f)return;
+  toast('⏳ جاري تغيير الخلفية...');
+  compressImg(f,function(dataUrl){
+    try{
+      LS.setItem('page_bg',dataUrl);
+      applyPageBg();
+      forceRepaint();
+      toast('🖼️ تم تغيير خلفيتك ✅');
+    }catch(e){toast('الصورة كبيرة — جرب صورة أصغر');}
+  });
+  e.target.value='';
+};
+
+/* 4) رجوع الخلفية الافتراضية */
+window.resetPageBgDefault=function(){
+  try{
+    LS.setItem('page_bg',DEFAULT_BG);
+    applyPageBg();
+    forceRepaint();
+    toast('↩️ رجعت الخلفية الافتراضية');
+  }catch(e){}
+};
+
+/* 5) التأكد إن applyPageBg بتحترم اختيار العضو (لو هو غيرها تظهر خلفيته) */
+var _apb=window.applyPageBg;
+window.applyPageBg=function(){
+  var r=_apb?_apb():undefined;
+  try{
+    var bg=LS.getItem('page_bg');
+    if(bg){
+      var dim=(LS.getItem('page_dim')||40)/100;
+      document.body.style.backgroundImage='linear-gradient(rgba(0,0,0,'+dim+'),rgba(0,0,0,'+dim+')),url('+bg+')';
+      document.body.style.backgroundSize='cover';
+      document.body.style.backgroundPosition='center';
+      document.body.style.backgroundAttachment='scroll';
+    }
+  }catch(e){}
+  return r;
+};
+})();
