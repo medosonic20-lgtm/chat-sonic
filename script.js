@@ -9334,3 +9334,426 @@ window.applyPageBg=function(){
   /* 3) أي رسالة جديدة تتعمل بعدين بياخد نفس الخط أوتوماتيك من الـ CSS فوق */
 })();
          
+/* ===== 🎁 إرسال هدية عملات داخل الشات ===== */
+(function(){
+if(window._giftSys)return;window._giftSys=true;
+var MIN_GIFT=10;
+
+/* 1) زرار الهدية في قائمة الشات (الخاص فقط) */
+var _tcG=window.toggleChatMenu;
+window.toggleChatMenu=function(e){
+  try{
+    if(e)e.stopPropagation();
+    var menu=el('chatMenu');
+    if(!menu)return _tcG?_tcG(e):undefined;
+    if(chat&&chat.type==='user'){
+      var _mm=(me&&me.allowMedia===false)?'<button onclick="toggleMediaPerm()" id="mediaPermBtn">🖼️ '+(me.mediaBlock&&me.mediaBlock[chat.id]?'السماح بالوسائط':'منع الوسائط')+'</button>':'';
+      menu.innerHTML=_mm
+      +'<button onclick="openGiftModal()">🎁 إرسال هدية عملات</button>'
+      +'<button onclick="openReport()">🚨 إبلاغ الإدارة</button>'
+      +'<button onclick="toggleChatSearch()">🔍 بحث في المحادثة</button>'
+      +'<button onclick="delChat()">🗑️ حذف المحادثة</button>'
+      +'<button onclick="blockTarget()" id="chatBlockBtn">⛔ حظر المستخدم</button>';
+    }else{
+      menu.innerHTML='<button onclick="toggleChatSearch()">🔍 بحث في المحادثة</button>';
+    }
+    menu.classList.toggle('open');
+  }catch(err){if(_tcG)_tcG(e);}
+};
+
+/* 2) نافذة الهدية */
+window.openGiftModal=function(){
+  if(!chat||chat.type!=='user')return toast('افتح محادثة خاصة أولاً');
+  if(isBlockedByMe(chat.id))return toast('⛔ حظرت هذا المستخدم');
+  var coins=(me.coins)||0;
+  var old=el('giftModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='giftModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:320px">'
+  +'<h3 style="color:#FFD700">🎁 إرسال هدية</h3>'
+  +'<p style="font-size:12.5px;text-align:center;color:var(--txt)">هديتك لـ <b style="color:var(--acc)">'+escapeHtml(getMsgName(chat.id))+'</b></p>'
+  +'<input id="giftAmount" type="number" min="'+MIN_GIFT+'" placeholder="عدد العملات (من '+MIN_GIFT+')" style="width:100%;padding:12px;background:var(--bg);border:2px solid #FFD700;color:var(--txt);border-radius:12px;font-size:18px;font-weight:900;text-align:center">'
+  +'<div style="font-size:11px;color:var(--mut);text-align:center;margin:6px 0">رصيدك: 🪙 '+coins+' عملة</div>'
+  +'<div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px">'
+  +'<button class="adm-btn" style="background:var(--card2);color:var(--txt)" onclick="el(\'giftAmount\').value=50">50</button>'
+  +'<button class="adm-btn" style="background:var(--card2);color:var(--txt)" onclick="el(\'giftAmount\').value=100">100</button>'
+  +'<button class="adm-btn" style="background:var(--card2);color:var(--txt)" onclick="el(\'giftAmount\').value=250">250</button>'
+  +'<button class="adm-btn" style="background:var(--card2);color:var(--txt)" onclick="el(\'giftAmount\').value=500">500</button>'
+  +'</div>'
+  +'<button style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900" onclick="sendGift()">🎁 إرسال الهدية</button>'
+  +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'giftModal\')">إلغاء</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('giftModal');};
+  document.body.appendChild(m);
+  m.classList.add('open');
+};
+
+/* 3) تنفيذ الإرسال */
+window.sendGift=async function(){
+  if(!chat||chat.type!=='user')return;
+  var amt=parseInt(el('giftAmount').value);
+  if(isNaN(amt)||amt<MIN_GIFT)return toast('أقل هدية: '+MIN_GIFT+' عملة');
+  var coins=(me.coins)||0;
+  if(coins<amt)return toast('🪙 عملاتك مش كفاية — رصيدك '+coins);
+  var to=chat.id;
+  if(!confirm('إرسال هدية بـ '+amt+' عملة لـ '+getMsgName(to)+'؟'))return;
+  closeModal('giftModal');
+  /* الخصم والإضافة */
+  await updateMe({coins:coins-amt});
+  var u=await SDB.getUser(to);
+  if(!u)return toast('العضو غير موجود');
+  await SDB.patchUser(to,{coins:((u.coins)||0)+amt});
+  /* رسالة الهدية في الشات */
+  var convId=curConvId();
+  var m={_id:'m'+Date.now()+'g'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:'',type:'text',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{},meta:{gift:true,amount:amt}};
+  msgsCache.push(m);appendMsg(m);scrollChat();
+  await SDB.addMsg(m);
+  await SDB.upsertConv(convId,{a:me.name,b:to,t:Date.now(),lastFrom:me.name,lastMsg:'🎁 هدية '+amt+' عملة'});
+  /* إشعار فوري للمستلم */
+  try{
+    var arr=(await SDB.loadSettings()).gift_notices;
+    arr=Array.isArray(arr)?arr:[];
+    arr.push({id:'gn'+Date.now(),to:to,amount:amt,from:me.name,time:Date.now()});
+    if(arr.length>200)arr=arr.slice(-200);
+    await SDB.saveSetting('gift_notices',arr);
+  }catch(e){}
+  toast('🎁 تم إرسال هدية '+amt+' عملة!');
+  try{logActivity('gift','هدية '+amt+' عملة من '+me.name+' إلى '+to);}catch(e){}
+};
+
+/* 4) عرض رسالة الهدية بشكل ذهبي فخم */
+var _rmcG=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  try{
+    if(m&&m.meta&&m.meta.gift&&!m.deleted){
+      var isMine=(m.from===me.name);
+      var html='<div style="background:linear-gradient(135deg,#3a2a00,#1a1400);border:2px solid #FFD700;border-radius:18px;padding:16px;text-align:center;min-width:190px;box-shadow:0 0 18px rgba(255,215,0,.35)">';
+      html+='<div style="font-size:40px;margin-bottom:4px">🎁</div>';
+      html+='<div style="font-size:17px;font-weight:900;color:#FFD700">هدية '+m.meta.amount+' عملة</div>';
+      html+='<div style="font-size:11px;color:rgba(255,215,0,.7);margin-top:4px">'+(isMine?'أرسلتها لـ '+escapeHtml(getMsgName(chat&&chat.id||'')):'وصلتك هدية! 🎉')+'</div>';
+      html+='</div>';
+      if(m.from===me.name)html+=' <span class="ticks '+(m.read?'read':'')+'">'+(m.read?'✓✓':'✓')+'</span>';
+      return html;
+    }
+  }catch(e){}
+  return _rmcG?_rmcG(m):'';
+};
+
+/* 5) استلام الإشعار: فوري بالفحص السريع + نافذة ذهبية */
+var _lastGiftChk=0;
+window.checkGiftNotices=async function(){
+  try{
+    if(!me)return;
+    var now=Date.now();
+    if(now-_lastGiftChk<8000)return;
+    _lastGiftChk=now;
+    var s=await SDB.loadSettings();
+    var arr=Array.isArray(s.gift_notices)?s.gift_notices:[];
+    var mine=arr.filter(function(x){return x&&x.to===me.name;});
+    if(!mine.length)return;
+    var rest=arr.filter(function(x){return !(x&&x.to===me.name);});
+    await SDB.saveSetting('gift_notices',rest);
+    var old=el('giftNoticeModal');if(old)old.remove();
+    var m=document.createElement('div');m.id='giftNoticeModal';m.className='modal';
+    var list='';
+    mine.forEach(function(x){
+      list+='<div style="background:linear-gradient(135deg,#3a2a00,#1a1400);border:2px solid #FFD700;border-radius:14px;padding:14px;margin-bottom:8px;text-align:center">'
+      +'<div style="font-size:34px">🎁</div>'
+      +'<div style="font-size:16px;font-weight:900;color:#FFD700">وصلتك هدية بـ '+x.amount+' عملة!</div>'
+      +'<div style="font-size:12px;color:rgba(255,215,0,.8);margin-top:4px">من: '+escapeHtml(getMsgName(x.from))+'</div></div>';
+    });
+    m.innerHTML='<div class="m-card2" style="width:320px"><h3 style="color:#FFD700">🎁 هدايا وصلتك</h3>'+list
+    +'<button style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111" onclick="closeModal(\'giftNoticeModal\')">شكراً! 🎉</button></div>';
+    m.onclick=function(e){if(e.target===m)closeModal('giftNoticeModal');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+    if(me.sndNotif!==false)try{beep(1200);}catch(e){}
+  }catch(e){}
+};
+var _saGN=window.startAll;
+window.startAll=async function(){var r=await _saGN();try{checkGiftNotices();}catch(e){}return r;};
+setInterval(function(){try{checkGiftNotices();}catch(e){}},15000);
+})();
+/* ===== 📊 سجل المعاملات (صرف/هدايا/مشتريات) ===== */
+(function(){
+if(window._transLog)return;window._transLog=true;
+
+/* 1) دالة تسجيل موحدة */
+window.logTrans=function(type,amount,detail,other){
+  try{
+    var all=JSON.parse(LS.getItem('trans_log_'+me.name)||'[]');
+    all.push({type:type,amount:amount,detail:detail||'',other:other||'',time:Date.now()});
+    if(all.length>200)all=all.slice(-200);
+    LS.setItem('trans_log_'+me.name,JSON.stringify(all));
+  }catch(e){}
+};
+
+/* 2) التسجيل تلقائي مع كل عملية */
+
+/* أ) الهدايا المرسلة */
+var _sgT=window.sendGift;
+window.sendGift=async function(){
+  var to=chat&&chat.id;
+  var amt=parseInt(el('giftAmount')?el('giftAmount').value:0);
+  var r=await _sgT();
+  try{if(to&&amt>=10)logTrans('gift_sent',amt,'هدية مرسلة',to);}catch(e){}
+  return r;
+};
+/* الهدايا المستلمة: عند الفحص */
+var _cgn=window.checkGiftNotices;
+window.checkGiftNotices=async function(){
+  try{
+    if(me){
+      var s=await SDB.loadSettings();
+      var arr=Array.isArray(s.gift_notices)?s.gift_notices:[];
+      var mine=arr.filter(function(x){return x&&x.to===me.name;});
+      mine.forEach(function(x){
+        try{
+          var all=JSON.parse(LS.getItem('trans_log_'+me.name)||'[]');
+          all.push({type:'gift_recv',amount:x.amount,detail:'هدية مستلمة',other:x.from||'',time:x.time||Date.now()});
+          LS.setItem('trans_log_'+me.name,JSON.stringify(all));
+        }catch(e){}
+      });
+    }
+  }catch(e){}
+  return _cgn?await _cgn():undefined;
+};
+
+/* ب) مشتريات المتجر */
+var _bp=window.buyProduct;
+window.buyProduct=async function(k){
+  var names={frame:'إطار حول صورتك',name:'تميّز الاسم',hide:'الوضع المخفي',namecolor:'ألوان الاسم',framesFree:'قسم الجيمنج VIP'};
+  var costs={frame:100,name:130,hide:80,namecolor:60,framesFree:150};
+  var r=await _bp(k);
+  try{if(names[k])logTrans('buy',costs[k],'شراء: '+names[k],'');}catch(e){}
+  return r;
+};
+
+/* ج) اشتراك لون الرسايل */
+var _ppsT=window.pickPenScreenColor;
+window.pickPenScreenColor=function(n){
+  var before=(me&&me.coins)||0;
+  var r=_ppsT?_ppsT(n):undefined;
+  setTimeout(function(){
+    try{
+      var after=(me&&me.coins)||0;
+      if(after<before)logTrans('buy',before-after,'اشتراك: لون الرسايل','');
+    }catch(e){}
+  },2000);
+  return r;
+};
+
+/* د) اشتراك تميّز الاسم بالعملات */
+var _pna=window._payNameSub;
+window._payNameSub=function(i){
+  var r=_pna?_pna(i):undefined;
+  try{setTimeout(function(){logTrans('buy',130,'اشتراك: تميّز الاسم','');},2000);}catch(e){}
+  return r;
+};
+
+/* هـ) شحن عملات (لما الإدارة توافق) */
+var _apT3=window.approveTopup;
+window.approveTopup=async function(id,amount,user){
+  var r=await _apT3(id,amount,user);
+  try{
+    var all=JSON.parse(LS.getItem('trans_log_'+user)||'[]');
+    var d=await sb.from('topup_requests').select('price').eq('id',id).limit(1);
+    var price=(d.data&&d.data[0]&&d.data[0].price)||0;
+    all.push({type:'topup',amount:amount,detail:'شحن ('+price+' جنيه)',other:'',time:Date.now()});
+    if(all.length>200)all=all.slice(-200);
+    LS.setItem('trans_log_'+user,JSON.stringify(all));
+  }catch(e){}
+  return r;
+};
+
+/* 3) الشاشة */
+if(!el('s-translog')){
+  var scr=document.createElement('div');
+  scr.className='screen';scr.id='s-translog';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ سجل المعاملات</div><div id="transBody" style="padding:4px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+  else content.appendChild(scr);
+}
+
+try{
+  var lists=document.querySelectorAll('#s-settings .menu-list');
+  var tgt=lists[0];
+  if(tgt&&!el('transMenuItem')){
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='transMenuItem';
+    mi.innerHTML='<span>📊 سجل المعاملات</span><span>👈</span>';
+    mi.onclick=function(){go('translog',null);};
+    tgt.insertBefore(mi,tgt.firstChild);
+  }
+}catch(e){}
+
+window.renderTransLog=function(){
+  try{
+    var box=el('transBody');if(!box||!me)return;
+    var all=[];
+    try{all=JSON.parse(LS.getItem('trans_log_'+me.name)||'[]');}catch(e){}
+    all.sort(function(a,b){return (b.time||0)-(a.time||0);});
+    var h='';
+    var totalIn=0,totalOut=0;
+    all.forEach(function(x){
+      if(x.type==='topup'||x.type==='gift_recv')totalIn+=x.amount;
+      else totalOut+=x.amount;
+    });
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
+    h+='<div style="background:linear-gradient(135deg,#064e3b,#022c22);border:1px solid var(--grn);border-radius:14px;padding:14px;text-align:center"><div style="font-size:11px;color:#86efac">إجمالي المستلم 📥</div><div style="font-size:22px;font-weight:900;color:#22c55e;margin-top:4px">🪙 '+totalIn+'</div></div>';
+    h+='<div style="background:linear-gradient(135deg,#4c1d1d,#2c0a0a);border:1px solid var(--red);border-radius:14px;padding:14px;text-align:center"><div style="font-size:11px;color:#fca5a5">إجمالي المصروف 📤</div><div style="font-size:22px;font-weight:900;color:#e64553;margin-top:4px">🪙 '+totalOut+'</div></div>';
+    h+='</div>';
+    if(!all.length){
+      h+='<div class="empty"><div class="big">📊</div>لا توجد معاملات بعد<br>اشحن أو اشترِ وسيظهر السجل هنا</div>';
+    }else{
+      h+='<div style="display:flex;flex-direction:column;gap:8px">';
+      all.forEach(function(x){
+        var isIn=(x.type==='topup'||x.type==='gift_recv');
+        var icon=isIn?'📥':'📤';
+        var color=isIn?'var(--grn)':'var(--red)';
+        var sign=isIn?'+':'-';
+        var label='';
+        if(x.type==='gift_sent')label='🎁 هدية مرسلة';
+        else if(x.type==='gift_recv')label='🎁 هدية مستلمة';
+        else if(x.type==='buy')label='🛒 عملية شراء';
+        else if(x.type==='topup')label='💎 شحن عملات';
+        var d=new Date(x.time);
+        var ds=d.toLocaleDateString('ar-EG',{day:'2-digit',month:'2-digit'})+' • '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+        h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px">';
+        h+='<span style="font-size:20px">'+icon+'</span>';
+        h+='<div style="flex:1;min-width:0"><div style="font-weight:bold;font-size:13px;color:var(--txt)">'+label+'</div>';
+        h+='<div style="font-size:11px;color:var(--mut);margin-top:2px">'+ds+(x.other?' • من/إلى: '+escapeHtml(getMsgName(x.other)):'')+'</div></div>';
+        h+='<div style="font-size:15px;font-weight:900;color:'+color+'">'+sign+x.amount+' 🪙</div></div>';
+      });
+      h+='</div>';
+    }
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+var _goTL=window.go;
+window.go=function(s,nv,fb){
+  var r=_goTL(s,nv,fb);
+  try{if(s==='translog')renderTransLog();}catch(e){}
+  return r;
+};
+})();
+/* ===== 🔴 نقطة حمراء لسجل المعاملات (هدايا ووصولات جديدة) ===== */
+(function(){
+if(window._transBadge)return;window._transBadge=true;
+
+/* 1) إضافة النقطة لعنصر السجل */
+function ensureDot(){
+  try{
+    var mi=el('transMenuItem');
+    if(!mi||el('transRedDot'))return;
+    var d=document.createElement('span');
+    d.id='transRedDot';
+    d.style.cssText='position:absolute;top:-4px;left:-8px;min-width:16px;height:16px;background:#e64553;color:#fff;border-radius:10px;font-size:9px;font-weight:bold;line-height:16px;text-align:center;padding:0 4px;display:none;border:2px solid var(--card)';
+    mi.style.position='relative';
+    mi.appendChild(d);
+  }catch(e){}
+}
+
+/* 2) تحديث العداد: معاملات جديدة بعد آخر فتح للسجل */
+window.updateTransBadge=function(){
+  try{
+    if(!me)return;
+    var all=[];
+    try{all=JSON.parse(LS.getItem('trans_log_'+me.name)||'[]');}catch(e){}
+    var seen=parseInt(LS.getItem('trans_seen_'+me.name)||'0');
+    var n=0;
+    all.forEach(function(x){if((x.time||0)>seen)n++;});
+    var d=el('transRedDot');
+    if(d){if(n>0){d.style.display='block';d.innerText=n;}else d.style.display='none';}
+  }catch(e){}
+};
+
+/* 3) فتح السجل = التصفير */
+var _goT=window.go;
+window.go=function(s,nv,fb){
+  var r=_goT(s,nv,fb);
+  try{
+    if(s==='translog'){
+      LS.setItem('trans_seen_'+me.name,String(Date.now()));
+      setTimeout(function(){updateTransBadge();},300);
+      try{renderTransLog();}catch(e){}
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 4) كل عملية تسجيل جديدة = النقطة تظهر فوراً */
+var _ltO=window.logTrans;
+window.logTrans=function(type,amount,detail,other){
+  var r=_ltO?_ltO(type,amount,detail,other):undefined;
+  try{
+    /* نمرر وقت العملية نفسه (مش الوقت الحالي) عشان العداد يعد صح */
+    var all=[];
+    try{all=JSON.parse(LS.getItem('trans_log_'+me.name)||'[]');}catch(e){}
+    var latest=0;
+    all.forEach(function(x){if((x.time||0)>latest)latest=x.time;});
+    var seen=parseInt(LS.getItem('trans_seen_'+me.name)||'0');
+    if(latest>seen){
+      var d=el('transRedDot');
+      if(d){
+        var n=0;
+        all.forEach(function(x){if((x.time||0)>seen)n++;});
+        d.style.display='block';d.innerText=n;
+      }
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 5) تشغيل مستمر */
+setInterval(function(){try{ensureDot();updateTransBadge();}catch(e){}},5000);
+var _saTB=window.startAll;
+window.startAll=async function(){var r=await _saTB();try{ensureDot();updateTransBadge();}catch(e){}return r;};
+})();
+/* ===== تصحيح: النقطة جنب نص "سجل المعاملات" ===== */
+(function(){
+if(window._dotFix)return;window._dotFix=true;
+
+function placeDot(){
+  try{
+    var mi=el('transMenuItem');
+    if(!mi)return;
+    /* ننشئها لو مش موجودة */
+    var d=el('transRedDot');
+    if(!d){
+      d=document.createElement('b');
+      d.id='transRedDot';
+      document.body.appendChild(d);
+    }
+    /* النمط: جوه السطر جنب النص */
+    d.style.cssText='display:none;min-width:17px;height:17px;background:#e64553;color:#fff;border-radius:9px;font-size:9px;font-weight:bold;line-height:17px;text-align:center;padding:0 4px;margin-right:6px;vertical-align:middle;position:static';
+    /* نحطها جنب كلمة "سجل المعاملات" — جوه أول span */
+    var span=mi.querySelector('span');
+    if(span&&d.parentElement!==span){
+      /* نشيلها من أي مكان تاني */
+      if(d.parentElement)d.parentElement.removeChild(d);
+      span.appendChild(d);
+    }
+    updateTransBadge();
+  }catch(e){}
+}
+
+/* نعيد ربط الدوال القديمة بالتصحيح */
+window.updateTransBadge=function(){
+  try{
+    if(!me)return;
+    placeDot();
+    var all=[];
+    try{all=JSON.parse(LS.getItem('trans_log_'+me.name)||'[]');}catch(e){}
+    var seen=parseInt(LS.getItem('trans_seen_'+me.name)||'0');
+    var n=0;
+    all.forEach(function(x){if((x.time||0)>seen)n++;});
+    var d=el('transRedDot');
+    if(d){if(n>0){d.style.display='inline-block';d.innerText=n;}else d.style.display='none';}
+  }catch(e){}
+};
+
+/* نقل النقطة لو القايمة اترسمت من جديد */
+setInterval(function(){try{placeDot();}catch(e){}},3000);
+})();
