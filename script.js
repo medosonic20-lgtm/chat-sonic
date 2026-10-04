@@ -7825,3 +7825,84 @@ window.openNameFix=function(){
   },400);
 };
 })();
+/* ===== صفحة التحديثات بنسخة محسنة: تعديل جنب الحذف ===== */
+(function(){
+if(window._updPageFinal)return;window._updPageFinal=true;
+async function _ld(){try{var s=await SDB.loadSettings();return Array.isArray(s.updates)?s.updates:[];}catch(e){return[];}}
+async function _sv(a){await SDB.saveSetting('updates',a);}
+
+window.renderUpdatesPage=async function(){
+  try{
+    if(!me)return;
+    var own=isOwner();
+    var box=el('updatesBody');if(!box)return;
+    box.innerHTML='<div style="text-align:center;color:var(--mut);padding:20px">جاري التحميل...</div>';
+    var all=await _ld();
+    all.sort(function(a,b){return (b.date||0)-(a.date||0);});
+    var list=all.filter(function(u){return own||u.pub!==false;});
+    try{LS.setItem('updates_seen',String(Date.now()));}catch(e){}
+    try{updateUpdatesBadge();}catch(e){}
+    var h='';
+    if(own)h+='<button class="lbtn" onclick="updAddOpen()" style="margin-bottom:12px">➕ إضافة تحديث جديد</button>';
+    if(!list.length)h+='<div class="empty"><div class="big">🔔</div>لا توجد تحديثات بعد</div>';
+    list.forEach(function(u){
+      var ownOnly=(u.pub===false);
+      var ds=new Date(Number(u.date||Date.now())).toLocaleDateString('ar-EG',{day:'2-digit',month:'2-digit',year:'numeric'});
+      h+='<div style="background:var(--card);border:1px solid '+(ownOnly?'var(--yel)':'var(--line)')+';border-right:4px solid '+(ownOnly?'var(--yel)':'var(--grn)')+';border-radius:12px;padding:14px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="color:var(--acc);font-size:16px">'+escapeHtml(u.title||'')+'</b><span style="font-size:11px;color:var(--mut);white-space:nowrap">'+ds+'</span></div>'
+      +(ownOnly?'<div style="font-size:11px;color:var(--yel);font-weight:bold;margin-top:4px">🔒 خاص بالإدارة فقط</div>':'')
+      +'<div style="font-size:14px;line-height:2;color:var(--txt);margin-top:8px;white-space:pre-line">'+escapeHtml(u.body||'')+'</div>';
+      if(own){
+        h+='<div style="display:flex;gap:8px;margin-top:10px">'
+        +'<button class="ebtn" onclick="updEditOpen(\''+u.id+'\')">✏️ تعديل</button>'
+        +'<button class="xbtn" onclick="updDel(\''+u.id+'\')">🗑️ حذف</button>'
+        +'<button class="ebtn" style="background:#8b5cf6" onclick="updToggle(\''+u.id+'\')">'+(ownOnly?'🌍 إظهار للجميع':'🔒 إخفاء')+'</button>'
+        +'</div>';
+      }
+      h+='</div>';
+    });
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+/* نافذة التعديل */
+window.updEditOpen=function(id){
+  if(!isOwner())return toast('لصاحب الموقع فقط');
+  (async function(){
+    try{
+      var all=await _ld();
+      var u=all.find(function(x){return x.id===id;});
+      if(!u)return toast('التحديث غير موجود');
+      var f=el('updFormModal');if(f)f.remove();
+      f=document.createElement('div');f.id='updFormModal';f.className='modal';
+      f.innerHTML='<div class="m-card2" style="width:330px"><h3>✏️ تعديل التحديث</h3>'
+      +'<input id="updTitle" placeholder="عنوان التحديث" value="'+String(u.title||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px">'
+      +'<textarea id="updBody" placeholder="اكتب تفاصيل التحديث..." style="width:100%;min-height:90px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:10px;font-size:13px;resize:none;margin-top:8px">'+escapeHtml(u.body||'')+'</textarea>'
+      +'<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:10px 0;cursor:pointer"><input type="checkbox" id="updPriv" '+(u.pub===false?'checked':'')+'> 🔒 خاص بصاحب الموقع فقط</label>'
+      +'<button style="background:var(--grn);color:#fff" onclick="updEditSave(\''+id+'\')">💾 حفظ التعديل</button>'
+      +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'updFormModal\')">إلغاء</button></div>';
+      f.onclick=function(e){if(e.target===f)closeModal('updFormModal');};
+      document.body.appendChild(f);
+      f.classList.add('open');
+    }catch(e){toast('خطأ: '+e.message);}
+  })();
+};
+
+window.updEditSave=async function(id){
+  if(!isOwner())return;
+  try{
+    var t=el('updTitle').value.trim(),b=el('updBody').value.trim();
+    if(!t)return toast('اكتب العنوان');
+    if(!b)return toast('اكتب التفاصيل');
+    var priv=el('updPriv').checked;
+    var all=await _ld();
+    all.forEach(function(u){
+      if(u.id===id){u.title=t;u.body=b;u.pub=!priv;u.edited=true;}
+    });
+    await _sv(all);
+    closeModal('updFormModal');
+    toast('✅ تم حفظ التعديل');
+    renderUpdatesPage();
+  }catch(e){toast('خطأ: '+e.message);}
+};
+})();
