@@ -7906,3 +7906,1335 @@ window.updEditSave=async function(id){
   }catch(e){toast('خطأ: '+e.message);}
 };
 })();
+/* ===== ✨ قلم الألوان: رسايلك بتدرج متوهج — زي المرجع ===== */
+(function(){
+if(window._penDone)return;window._penDone=true;
+
+var COLORS=[
+ {n:'بنفسجي',c1:'#8B5CF6',c2:'#D946EF'},
+ {n:'نيون وردي',c1:'#FF3EF5',c2:'#FF71CE'},
+ {n:'سماوي',c1:'#00E5FF',c2:'#7CFFCB'},
+ {n:'أخضر',c1:'#00E676',c2:'#B2FF59'},
+ {n:'ذهبي',c1:'#FFD700',c2:'#FF9F43'},
+ {n:'أحمر',c1:'#FF4E6A',c2:'#FF2E88'},
+ {n:'أزرق',c1:'#4A90FF',c2:'#00E0FF'},
+ {n:'برتقالي',c1:'#FFB300',c2:'#FF6A00'}
+];
+window._PEN_COLORS=COLORS;
+
+/* لون العضو المحفوظ */
+function myGrad(){try{var c=COLORS.find(function(x){return x.n===(me&&me.penColor);});return c||null;}catch(e){return null;}}
+
+/* 1) بناء القلم جنب الكاميرا */
+function buildPen(){
+  try{
+    var camLabel=document.querySelector('label[for="imgInput"]');
+    if(!camLabel||el('penColorBtn'))return;
+    var wrap=camLabel.parentElement;
+    var btn=document.createElement('button');
+    btn.id='penColorBtn';
+    btn.className='ic-btn';
+    btn.style.cssText='cursor:pointer;flex-shrink:0;position:relative;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;margin-right:6px';
+    btn.title='لون رسائلك';
+    btn.onclick=function(e){e.preventDefault();e.stopPropagation();openPenPalette();};
+    wrap.insertBefore(btn,camLabel);
+    updatePenLook();
+  }catch(e){}
+}
+function updatePenLook(){
+  try{
+    var btn=el('penColorBtn');if(!btn||!me)return;
+    var g=myGrad();
+    if(g){
+      btn.innerHTML='🪄';
+      btn.style.background='linear-gradient(135deg,'+g.c1+','+g.c2+')';
+      btn.style.boxShadow='0 0 10px '+g.c1+'88';
+      btn.style.border='2px solid '+g.c2;
+    }else{
+      btn.innerHTML='🪄';
+      btn.style.background='var(--card2)';
+      btn.style.boxShadow='none';
+      btn.style.border='1px dashed var(--line)';
+    }
+    /* الحقل نفسه يتلون */
+    var inp=el('msgInput');
+    if(inp){
+      var row=inp.closest('.chat-input');
+      if(row){
+        if(g){
+          row.style.border='2px solid transparent';
+          row.style.backgroundImage='linear-gradient(var(--card),var(--card)),linear-gradient(135deg,'+g.c1+','+g.c2+')';
+          row.style.backgroundOrigin='border-box';
+          row.style.backgroundClip='padding-box,border-box';
+          row.style.boxShadow='0 0 12px '+g.c1+'44';
+        }else{
+          row.style.border='';
+          row.style.backgroundImage='';
+          row.style.boxShadow='';
+        }
+      }
+    }
+  }catch(e){}
+}
+
+/* 2) قايمة الألوان */
+function openPenPalette(){
+  try{
+    var old=el('penPalette');if(old)old.remove();
+    var g=myGrad();
+    var m=document.createElement('div');m.id='penPalette';m.className='modal';
+    var h='<div class="m-card2" style="width:310px"><h3>✨ لون رسائلك</h3>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+    COLORS.forEach(function(c){
+      var sel=g&&g.n===c.n;
+      h+='<div onclick="pickPenColor(\''+c.n+'\')" style="cursor:pointer;border:2px solid '+(sel?'#fff':'transparent')+';border-radius:14px;padding:10px;text-align:center;background:var(--bg)">';
+      h+='<div style="height:34px;border-radius:18px;background:linear-gradient(135deg,'+c.c1+','+c.c2+');margin-bottom:6px;box-shadow:0 0 10px '+c.c1+'66"></div>';
+      h+='<div style="font-size:12px;font-weight:bold;color:var(--txt)">'+c.n+(sel?' ✅':'')+'</div></div>';
+    });
+    h+='</div>';
+    h+='<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="pickPenColor(null)">❌ من غير لون (عادي)</button></div>';
+    m.innerHTML=h;
+    m.onclick=function(e){if(e.target===m)closeModal('penPalette');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+  }catch(e){}
+}
+window.pickPenColor=function(n){
+  updateMe({penColor:n||null}).then(function(){
+    closeModal('penPalette');
+    toast(n?('✨ رسايلك بقت بلون: '+n):'رجعت الرسايل عادية');
+    updatePenLook();
+  });
+};
+
+/* 3) الرسايل المرسلة بتاخد التدرج */
+var _apP=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apP(m);
+  try{
+    if(m&&m.from===me.name&&m.type==='text'&&me.penColor){
+      var c=COLORS.find(function(x){return x.n===me.penColor;});
+      if(c){
+        setTimeout(function(){
+          var el2=document.querySelector('[data-id="'+m._id+'"]');
+          if(el2&&!el2.classList.contains('in')&&!el2.classList.contains('sys')){
+            el2.style.border='2px solid transparent';
+            el2.style.backgroundImage='linear-gradient(rgba(10,10,25,.72),rgba(10,10,25,.72)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+            el2.style.backgroundOrigin='border-box';
+            el2.style.backgroundClip='padding-box,border-box';
+            el2.style.boxShadow='0 0 12px '+c.c1+'66,0 0 20px '+c.c2+'33';
+            var tk=el2.querySelector('.ticks');
+            if(tk)tk.style.color=c.c2;
+          }
+        },30);
+      }
+    }
+  }catch(e){}
+  return r;
+};
+var _smP=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smP();
+  try{
+    setTimeout(function(){
+      try{
+        if(!me||!me.penColor)return;
+        var c=COLORS.find(function(x){return x.n===me.penColor;});
+        if(!c)return;
+        var box=el('chatBox');if(!box)return;
+        var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+        for(var i=0;i<bubs.length;i++){
+          if(bubs[i].getAttribute('data-pen')!=='1'){
+            bubs[i].setAttribute('data-pen','1');
+            bubs[i].style.border='2px solid transparent';
+            bubs[i].style.backgroundImage='linear-gradient(rgba(10,10,25,.72),rgba(10,10,25,.72)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+            bubs[i].style.backgroundOrigin='border-box';
+            bubs[i].style.backgroundClip='padding-box,border-box';
+            bubs[i].style.boxShadow='0 0 12px '+c.c1+'66,0 0 20px '+c.c2+'33';
+            var tk=bubs[i].querySelector('.ticks');
+            if(tk)tk.style.color=c.c2;
+          }
+        }
+      }catch(e){}
+    },400);
+  }catch(e){}
+  return r;
+};
+
+/* 4) تشغيل القلم: أول ما الشات يفتح + دوري */
+var _ouP2=window.openUser;
+window.openUser=function(n){var r=_ouP2(n);try{setTimeout(buildPen,400);setTimeout(buildPen,1000);}catch(e){}return r;};
+var _jrP=window.joinRoom;
+window.joinRoom=async function(rid){var r=await _jrP(rid);try{setTimeout(buildPen,400);setTimeout(buildPen,1000);}catch(e){}return r;};
+setInterval(function(){try{if(el('s-chat')&&el('s-chat').classList.contains('active'))buildPen();}catch(e){}},2000);
+})();
+/* ===== 🪄 قلم ألوان الرسايل: جنب الكاميرا — ظهور مضمون ===== */
+(function(){
+if(window._penStrong)return;window._penStrong=true;
+
+var COLORS=[
+ {n:'بنفسجي',c1:'#8B5CF6',c2:'#D946EF'},
+ {n:'نيون وردي',c1:'#FF3EF5',c2:'#FF71CE'},
+ {n:'سماوي',c1:'#00E5FF',c2:'#7CFFCB'},
+ {n:'أخضر',c1:'#00E676',c2:'#B2FF59'},
+ {n:'ذهبي',c1:'#FFD700',c2:'#FF9F43'},
+ {n:'أحمر',c1:'#FF4E6A',c2:'#FF2E88'},
+ {n:'أزرق',c1:'#4A90FF',c2:'#00E0FF'},
+ {n:'برتقالي',c1:'#FFB300',c2:'#FF6A00'}
+];
+function myGrad(){try{return COLORS.find(function(x){return x.n===(me&&me.penColor);})||null;}catch(e){return null;}}
+
+/* بناء القلم بأكتر من طريقة بحث */
+function buildPen(){
+  try{
+    if(el('penColorBtn'))return updatePenLook();
+    var row=el('msgInput');
+    if(!row)return;
+    row=row.closest('.chat-input');
+    if(!row)return;
+    var btn=document.createElement('button');
+    btn.id='penColorBtn';
+    btn.className='ic-btn';
+    btn.title='لون رسائلك';
+    btn.style.cssText='cursor:pointer;flex-shrink:0;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-right:6px';
+    btn.onclick=function(e){e.preventDefault();e.stopPropagation();openPenPalette();};
+    /* المكان: جنب الكاميرا لو موجودة، وإلا أول الشريط */
+    var cam=row.querySelector('label[for="imgInput"]');
+    if(cam)cam.parentElement.insertBefore(btn,cam);
+    else row.insertBefore(btn,row.firstChild);
+    updatePenLook();
+  }catch(e){}
+}
+
+function updatePenLook(){
+  try{
+    var btn=el('penColorBtn');if(!btn)return;
+    var g=myGrad();
+    if(g){
+      btn.innerHTML='🪄';
+      btn.style.background='linear-gradient(135deg,'+g.c1+','+g.c2+')';
+      btn.style.boxShadow='0 0 10px '+g.c1+'88';
+      btn.style.border='2px solid '+g.c2;
+    }else{
+      btn.innerHTML='🪄';
+      btn.style.background='var(--card2)';
+      btn.style.boxShadow='none';
+      btn.style.border='1px dashed var(--line)';
+    }
+    var inp=el('msgInput');
+    if(inp){
+      var row=inp.closest('.chat-input');
+      if(row){
+        if(g){
+          row.style.border='2px solid transparent';
+          row.style.backgroundImage='linear-gradient(var(--card),var(--card)),linear-gradient(135deg,'+g.c1+','+g.c2+')';
+          row.style.backgroundOrigin='border-box';
+          row.style.backgroundClip='padding-box,border-box';
+          row.style.boxShadow='0 0 12px '+g.c1+'44';
+        }else{
+          row.style.border='';row.style.backgroundImage='';row.style.boxShadow='';
+        }
+      }
+    }
+  }catch(e){}
+}
+
+window.openPenPalette=function(){
+  try{
+    var old=el('penPalette');if(old)old.remove();
+    var g=myGrad();
+    var m=document.createElement('div');m.id='penPalette';m.className='modal';
+    var h='<div class="m-card2" style="width:310px"><h3>✨ لون رسائلك</h3>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+    COLORS.forEach(function(c){
+      var sel=g&&g.n===c.n;
+      h+='<div onclick="pickPenColor(\''+c.n+'\')" style="cursor:pointer;border:2px solid '+(sel?'#fff':'transparent')+';border-radius:14px;padding:10px;text-align:center;background:var(--bg)">';
+      h+='<div style="height:34px;border-radius:18px;background:linear-gradient(135deg,'+c.c1+','+c.c2+');margin-bottom:6px;box-shadow:0 0 10px '+c.c1+'66"></div>';
+      h+='<div style="font-size:12px;font-weight:bold;color:var(--txt)">'+c.n+(sel?' ✅':'')+'</div></div>';
+    });
+    h+='</div><button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="pickPenColor(null)">❌ من غير لون (عادي)</button></div>';
+    m.innerHTML=h;
+    m.onclick=function(e){if(e.target===m)closeModal('penPalette');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+  }catch(e){}
+};
+
+window.pickPenColor=function(n){
+  updateMe({penColor:n||null}).then(function(){
+    closeModal('penPalette');
+    toast(n?('✨ رسايلك بقت بلون: '+n):'رجعت الرسايل عادية');
+    updatePenLook();
+    /* تلون الرسايل الموجودة فوراً */
+    setTimeout(paintAllPen,100);
+  });
+};
+
+function paintAllPen(){
+  try{
+    if(!me||!me.penColor)return;
+    var c=COLORS.find(function(x){return x.n===me.penColor;});
+    if(!c)return;
+    var box=el('chatBox');if(!box)return;
+    var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+    for(var i=0;i<bubs.length;i++){
+      bubs[i].style.border='2px solid transparent';
+      bubs[i].style.backgroundImage='linear-gradient(rgba(10,10,25,.72),rgba(10,10,25,.72)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+      bubs[i].style.backgroundOrigin='border-box';
+      bubs[i].style.backgroundClip='padding-box,border-box';
+      bubs[i].style.boxShadow='0 0 12px '+c.c1+'66,0 0 20px '+c.c2+'33';
+      var tk=bubs[i].querySelector('.ticks');
+      if(tk)tk.style.color=c.c2;
+    }
+  }catch(e){}
+}
+
+/* الرسايل الجديدة تترسم بلونك */
+var _apP3=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apP3(m);
+  try{
+    if(m&&m.from===me.name&&me.penColor){
+      var c=COLORS.find(function(x){return x.n===me.penColor;});
+      if(c)setTimeout(function(){
+        var el2=document.querySelector('[data-id="'+m._id+'"]');
+        if(el2&&!el2.classList.contains('in')&&!el2.classList.contains('sys')){
+          el2.style.border='2px solid transparent';
+          el2.style.backgroundImage='linear-gradient(rgba(10,10,25,.72),rgba(10,10,25,.72)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+          el2.style.backgroundOrigin='border-box';
+          el2.style.backgroundClip='padding-box,border-box';
+          el2.style.boxShadow='0 0 12px '+c.c1+'66,0 0 20px '+c.c2+'33';
+          var tk=el2.querySelector('.ticks');
+          if(tk)tk.style.color=c.c2;
+        }
+      },30);
+    }
+  }catch(e){}
+  return r;
+};
+var _smP3=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smP3();
+  try{setTimeout(paintAllPen,400);setTimeout(paintAllPen,1000);}catch(e){}
+  return r;
+};
+
+/* القلم يتبني أول ما الشات يفتح + مراقبة مستمرة */
+var _ouP3=window.openUser;
+window.openUser=function(n){var r=_ouP3(n);try{setTimeout(buildPen,300);setTimeout(buildPen,800);setTimeout(buildPen,1500);}catch(e){}return r;};
+var _jrP3=window.joinRoom;
+window.joinRoom=async function(rid){var r=await _jrP3(rid);try{setTimeout(buildPen,300);setTimeout(buildPen,800);}catch(e){}return r;};
+setInterval(function(){
+  try{
+    if(el('s-chat')&&el('s-chat').classList.contains('active'))buildPen();
+  }catch(e){}
+},1500);
+})();
+/* ===== قايمة الألوان المحسنة: 16 لون + معاينة "اكتب رسالتك" جوه كل مربع ===== */
+(function(){
+if(window._paletteV2)return;window._paletteV2=true;
+
+var COLORS=[
+ {n:'نيون وردي',c1:'#FF3EF5',c2:'#FF71CE'},
+ {n:'بنفسجي',c1:'#8B5CF6',c2:'#D946EF'},
+ {n:'أخضر',c1:'#00E676',c2:'#B2FF59'},
+ {n:'سماوي',c1:'#00E5FF',c2:'#7CFFCB'},
+ {n:'أحمر',c1:'#FF4E6A',c2:'#FF2E88'},
+ {n:'ذهبي',c1:'#FFD700',c2:'#FF9F43'},
+ {n:'برتقالي',c1:'#FFB300',c2:'#FF6A00'},
+ {n:'أزرق',c1:'#4A90FF',c2:'#00E0FF'},
+ {n:'وردي',c1:'#FF6EC7',c2:'#FF9AE0'},
+ {n:'مجرة',c1:'#9D6BFF',c2:'#7EE8FF'},
+ {n:'زمرد',c1:'#00C965',c2:'#5AE6A0'},
+ {n:'شفق',c1:'#00B8D9',c2:'#39FF9E'},
+ {n:'ناري',c1:'#FF512F',c2:'#DD2476'},
+ {n:'ماسي',c1:'#FFFFFF',c2:'#A8D8FF'},
+ {n:'ليلي',c1:'#6C5CE7',c2:'#A29BFE'},
+ {n:'غروب',c1:'#FF9966',c2:'#FF5E62'}
+];
+window._PEN_COLORS2=COLORS;
+
+/* نافذة القايمة الجديدة */
+window.openPenPalette=function(){
+  try{
+    var old=el('penPalette');if(old)old.remove();
+    var g=null;
+    try{g=COLORS.find(function(x){return x.n===(me&&me.penColor);})||null;}catch(e){}
+    var m=document.createElement('div');m.id='penPalette';m.className='modal';
+    var h='<div class="m-card2" style="width:320px;max-height:85vh;overflow-y:auto"><h3>✨ لون رسائلك</h3>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+    COLORS.forEach(function(c){
+      var sel=g&&g.n===c.n;
+      h+='<div onclick="pickPenColor(\''+c.n+'\')" style="cursor:pointer;border:2px solid '+(sel?'#fff':'transparent')+';border-radius:14px;padding:10px;text-align:center;background:var(--bg)">';
+      /* المعاينة: شكل فقاعة كامل مكتوب فيه "اكتب رسالتك" */
+      h+='<div style="border:2px solid transparent;border-radius:14px;padding:8px 6px;background-image:linear-gradient(rgba(10,10,25,.72),rgba(10,10,25,.72)),linear-gradient(135deg,'+c.c1+','+c.c2+');background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 0 10px '+c.c1+'55;margin-bottom:6px">';
+      h+='<div style="background:linear-gradient(135deg,'+c.c1+','+c.c2+');-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:bold;font-size:12px">اكتب رسالتك</div></div>';
+      h+='<div style="font-size:11.5px;font-weight:bold;color:var(--txt)">'+c.n+(sel?' ✅':'')+'</div></div>';
+    });
+    h+='</div>';
+    h+='<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="pickPenColor(null)">❌ من غير لون (عادي)</button></div>';
+    m.innerHTML=h;
+    m.onclick=function(e){if(e.target===m)closeModal('penPalette');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+  }catch(e){}
+};
+
+/* التلوين يقرأ من القايمة الجديدة (16 لون) */
+function paintAllTxt2(){
+  try{
+    if(!me||!me.penColor)return;
+    var c=COLORS.find(function(x){return x.n===me.penColor;});
+    if(!c)return;
+    var box=el('chatBox');if(!box)return;
+    var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+    for(var i=0;i<bubs.length;i++){
+      if(bubs[i].querySelector('img')||bubs[i].querySelector('audio'))continue;
+      bubs[i].style.border='2px solid transparent';
+      bubs[i].style.backgroundImage='linear-gradient(rgba(10,10,25,.72),rgba(10,10,25,.72)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+      bubs[i].style.backgroundOrigin='border-box';
+      bubs[i].style.backgroundClip='padding-box,border-box';
+      bubs[i].style.boxShadow='0 0 12px '+c.c1+'66,0 0 20px '+c.c2+'33';
+      var tk=bubs[i].querySelector('.ticks');
+      if(tk)tk.style.color=c.c2;
+      /* النص يتدرج */
+      var span=bubs[i].querySelector('.penTxt');
+      if(!span){
+        var nodes=bubs[i].childNodes;
+        var tp=[];
+        for(var j=0;j<nodes.length;j++){
+          if(nodes[j].nodeType===3&&nodes[j].textContent.trim())tp.push(nodes[j]);
+        }
+        if(tp.length){
+          tp.forEach(function(nd){
+            var s=document.createElement('span');
+            s.className='penTxt';
+            s.textContent=nd.textContent;
+            bubs[i].replaceChild(s,nd);
+          });
+          span=bubs[i].querySelector('.penTxt');
+        }
+      }
+      if(span){
+        span.style.background='linear-gradient(135deg,'+c.c1+','+c.c2+')';
+        span.style.webkitBackgroundClip='text';
+        span.style.backgroundClip='text';
+        span.style.color='transparent';
+        span.style.fontWeight='bold';
+        span.style.textShadow='none';
+      }
+    }
+  }catch(e){}
+}
+
+/* رسالة جديدة تتلون فوراً */
+var _apP4=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apP4(m);
+  try{setTimeout(paintAllTxt2,60);setTimeout(paintAllTxt2,350);}catch(e){}
+  return r;
+};
+var _smP4=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smP4();
+  try{setTimeout(paintAllTxt2,500);setTimeout(paintAllTxt2,1500);}catch(e){}
+  return r;
+};
+setInterval(paintAllTxt2,3000);
+var _pp2=window.pickPenColor;
+window.pickPenColor=function(n){
+  var r=_pp2?_pp2(n):undefined;
+  try{setTimeout(paintAllTxt2,300);}catch(e){}
+  return r;
+};
+})();
+/* ===== قايمة الألوان المحسنة: من غير ماسي + وضوح أعلى للكل ===== */
+(function(){
+if(window._paletteV3)return;window._paletteV3=true;
+
+var COLORS=[
+ {n:'نيون وردي',c1:'#FF3EF5',c2:'#FF71CE'},
+ {n:'بنفسجي',c1:'#A855F7',c2:'#E879F9'},
+ {n:'سماوي',c1:'#22D3EE',c2:'#67E8F9'},
+ {n:'أخضر',c1:'#22C55E',c2:'#86EFAC'},
+ {n:'ذهبي',c1:'#FBBF24',c2:'#FDE047'},
+ {n:'أحمر',c1:'#EF4444',c2:'#FB7185'},
+ {n:'أزرق',c1:'#3B82F6',c2:'#93C5FD'},
+ {n:'برتقالي',c1:'#F97316',c2:'#FDBA74'},
+ {n:'مجرة',c1:'#8B5CF6',c2:'#38BDF8'},
+ {n:'وردي',c1:'#EC4899',c2:'#F9A8D4'},
+ {n:'شفق',c1:'#06B6D4',c2:'#4ADE80'},
+ {n:'زمردي',c1:'#10B981',c2:'#6EE7B7'},
+ {n:'ناري',c1:'#F43F5E',c2:'#FB923C'},
+ {n:'غروب',c1:'#FB7185',c2:'#FDBA74'},
+ {n:'ليلي',c1:'#7C3AED',c2:'#C4B5FD'}
+];
+window._PEN_COLORS3=COLORS;
+
+/* نافذة القايمة بوضوح أعلى: حدود 3px + توهج قوي + نص أكبر */
+window.openPenPalette=function(){
+  try{
+    var old=el('penPalette');if(old)old.remove();
+    var g=null;
+    try{g=COLORS.find(function(x){return x.n===(me&&me.penColor);})||null;}catch(e){}
+    var m=document.createElement('div');m.id='penPalette';m.className='modal';
+    var h='<div class="m-card2" style="width:330px;max-height:85vh;overflow-y:auto"><h3>✨ لون رسائلك</h3>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+    COLORS.forEach(function(c){
+      var sel=g&&g.n===c.n;
+      h+='<div onclick="pickPenColor(\''+c.n+'\')" style="cursor:pointer;border:2px solid '+(sel?'#fff':'transparent')+';border-radius:14px;padding:12px 8px;text-align:center;background:var(--bg)">';
+      /* المعاينة: خلفية غامقة + حدود سميكة متوهجة قوي */
+      h+='<div style="border:3px solid transparent;border-radius:16px;padding:12px 6px;background-image:linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+');background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 0 16px '+c.c1+'99,0 0 30px '+c.c2+'44;margin-bottom:8px">';
+      h+='<div style="background:linear-gradient(135deg,'+c.c1+','+c.c2+');-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:900;font-size:14px;text-shadow:none">اكتب رسالتك</div></div>';
+      h+='<div style="font-size:12.5px;font-weight:bold;color:var(--txt)">'+c.n+(sel?' ✅':'')+'</div></div>';
+    });
+    h+='</div>';
+    h+='<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="pickPenColor(null)">❌ من غير لون (عادي)</button></div>';
+    m.innerHTML=h;
+    m.onclick=function(e){if(e.target===m)closeModal('penPalette');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+  }catch(e){}
+};
+
+/* الرسايل في الشات بنفس الوضوح العالي */
+function paintAllV3(){
+  try{
+    if(!me||!me.penColor)return;
+    var c=COLORS.find(function(x){return x.n===me.penColor;});
+    if(!c)return;
+    var box=el('chatBox');if(!box)return;
+    var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+    for(var i=0;i<bubs.length;i++){
+      if(bubs[i].querySelector('img')||bubs[i].querySelector('audio'))continue;
+      bubs[i].style.border='3px solid transparent';
+      bubs[i].style.borderRadius='16px';
+      bubs[i].style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+      bubs[i].style.backgroundOrigin='border-box';
+      bubs[i].style.backgroundClip='padding-box,border-box';
+      bubs[i].style.boxShadow='0 0 14px '+c.c1+'88,0 0 28px '+c.c2+'44';
+      var tk=bubs[i].querySelector('.ticks');
+      if(tk)tk.style.color=c.c2;
+      /* النص: أكبر وأوضح بالتدرج */
+      var span=bubs[i].querySelector('.penTxt');
+      if(!span){
+        var nodes=bubs[i].childNodes;
+        var tp=[];
+        for(var j=0;j<nodes.length;j++){
+          if(nodes[j].nodeType===3&&nodes[j].textContent.trim())tp.push(nodes[j]);
+        }
+        if(tp.length){
+          tp.forEach(function(nd){
+            var s=document.createElement('span');
+            s.className='penTxt';
+            s.textContent=nd.textContent;
+            bubs[i].replaceChild(s,nd);
+          });
+          span=bubs[i].querySelector('.penTxt');
+        }
+      }
+      if(span){
+        span.style.background='linear-gradient(135deg,'+c.c1+','+c.c2+')';
+        span.style.webkitBackgroundClip='text';
+        span.style.backgroundClip='text';
+        span.style.color='transparent';
+        span.style.fontWeight='900';
+        span.style.fontSize='17px';
+        span.style.textShadow='none';
+      }
+    }
+  }catch(e){}
+}
+
+var _apV3=window.appendMsg;
+window.appendMsg=function(m){var r=_apV3(m);try{setTimeout(paintAllV3,60);setTimeout(paintAllV3,350);}catch(e){}return r;};
+var _smV3=window.subMsgs;
+window.subMsgs=async function(){var r=await _smV3();try{setTimeout(paintAllV3,500);setTimeout(paintAllV3,1500);}catch(e){}return r;};
+setInterval(paintAllV3,3000);
+var _ppV3=window.pickPenColor;
+window.pickPenColor=function(n){var r=_ppV3?_ppV3(n):undefined;try{setTimeout(paintAllV3,300);}catch(e){}return r;};
+})();
+/* ===== الخط أبيض عادي: الحدود والتوهج فقط بالتدرج ===== */
+(function(){
+if(window._txtWhite)return;window._txtWhite=true;
+
+var COLORS=[
+ {n:'نيون وردي',c1:'#FF3EF5',c2:'#FF71CE'},
+ {n:'بنفسجي',c1:'#A855F7',c2:'#E879F9'},
+ {n:'سماوي',c1:'#22D3EE',c2:'#67E8F9'},
+ {n:'أخضر',c1:'#22C55E',c2:'#86EFAC'},
+ {n:'ذهبي',c1:'#FBBF24',c2:'#FDE047'},
+ {n:'أحمر',c1:'#EF4444',c2:'#FB7185'},
+ {n:'أزرق',c1:'#3B82F6',c2:'#93C5FD'},
+ {n:'برتقالي',c1:'#F97316',c2:'#FDBA74'},
+ {n:'مجرة',c1:'#8B5CF6',c2:'#38BDF8'},
+ {n:'وردي',c1:'#EC4899',c2:'#F9A8D4'},
+ {n:'شفق',c1:'#06B6D4',c2:'#4ADE80'},
+ {n:'زمردي',c1:'#10B981',c2:'#6EE7B7'},
+ {n:'ناري',c1:'#F43F5E',c2:'#FB923C'},
+ {n:'غروب',c1:'#FB7185',c2:'#FDBA74'},
+ {n:'ليلي',c1:'#7C3AED',c2:'#C4B5FD'}
+];
+
+function paintWhiteTxt(){
+  try{
+    if(!me||!me.penColor)return;
+    var c=COLORS.find(function(x){return x.n===me.penColor;});
+    if(!c)return;
+    var box=el('chatBox');if(!box)return;
+    var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+    for(var i=0;i<bubs.length;i++){
+      if(bubs[i].querySelector('img')||bubs[i].querySelector('audio'))continue;
+      /* الحدود والتوهج يفضلوا متلونين */
+      bubs[i].style.border='3px solid transparent';
+      bubs[i].style.borderRadius='16px';
+      bubs[i].style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+      bubs[i].style.backgroundOrigin='border-box';
+      bubs[i].style.backgroundClip='padding-box,border-box';
+      bubs[i].style.boxShadow='0 0 14px '+c.c1+'88,0 0 28px '+c.c2+'44';
+      /* الخط: أبيض عادي — نشيل أي تدرج قديم */
+      var span=bubs[i].querySelector('.penTxt');
+      if(span){
+        span.style.background='';
+        span.style.webkitBackgroundClip='';
+        span.style.backgroundClip='';
+        span.style.color='#fff';
+        span.style.fontWeight='';
+        span.style.fontSize='';
+        span.style.textShadow='';
+      }
+      var tk=bubs[i].querySelector('.ticks');
+      if(tk)tk.style.color=c.c2;
+    }
+  }catch(e){}
+}
+
+var _apW=window.appendMsg;
+window.appendMsg=function(m){var r=_apW(m);try{setTimeout(paintWhiteTxt,60);setTimeout(paintWhiteTxt,350);}catch(e){}return r;};
+var _smW=window.subMsgs;
+window.subMsgs=async function(){var r=await _smW();try{setTimeout(paintWhiteTxt,500);setTimeout(paintWhiteTxt,1500);}catch(e){}return r;};
+setInterval(paintWhiteTxt,3000);
+var _ppW=window.pickPenColor;
+window.pickPenColor=function(n){var r=_ppW?_ppW(n):undefined;try{setTimeout(paintWhiteTxt,300);}catch(e){}return r;};
+})();
+/* ===== قلم واضح + عنصر "لون رسايلك" في الإعدادات ===== */
+(function(){
+if(window._penVisFix)return;window._penVisFix=true;
+
+/* 1) القلم: أكبر وأوضح — أيقونة متوهجة دايماً */
+function buildPenV2(){
+  try{
+    if(el('penColorBtn')){
+      /* موجود؟ نخليه أوضح */
+      var b=el('penColorBtn');
+      b.style.cssText='cursor:pointer;flex-shrink:0;border-radius:50%;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-right:8px';
+      restylePen(b);
+      return;
+    }
+    var inp=el('msgInput');if(!inp)return;
+    var row=inp.closest('.chat-input');if(!row)return;
+    var btn=document.createElement('button');
+    btn.id='penColorBtn';
+    btn.className='ic-btn';
+    btn.title='لون رسائلك ✨';
+    btn.style.cssText='cursor:pointer;flex-shrink:0;border-radius:50%;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-right:8px';
+    btn.onclick=function(e){e.preventDefault();e.stopPropagation();openPenPalette();};
+    var cam=row.querySelector('label[for="imgInput"]');
+    if(cam)cam.parentElement.insertBefore(btn,cam);
+    else row.insertBefore(btn,row.firstChild);
+    restylePen(btn);
+  }catch(e){}
+}
+
+function restylePen(btn){
+  try{
+    var g=null;
+    var CL=[{n:'نيون وردي',c1:'#FF3EF5',c2:'#FF71CE'},{n:'بنفسجي',c1:'#A855F7',c2:'#E879F9'},{n:'سماوي',c1:'#22D3EE',c2:'#67E8F9'},{n:'أخضر',c1:'#22C55E',c2:'#86EFAC'},{n:'ذهبي',c1:'#FBBF24',c2:'#FDE047'},{n:'أحمر',c1:'#EF4444',c2:'#FB7185'},{n:'أزرق',c1:'#3B82F6',c2:'#93C5FD'},{n:'برتقالي',c1:'#F97316',c2:'#FDBA74'},{n:'مجرة',c1:'#8B5CF6',c2:'#38BDF8'},{n:'وردي',c1:'#EC4899',c2:'#F9A8D4'},{n:'شفق',c1:'#06B6D4',c2:'#4ADE80'},{n:'زمردي',c1:'#10B981',c2:'#6EE7B7'},{n:'ناري',c1:'#F43F5E',c2:'#FB923C'},{n:'غروب',c1:'#FB7185',c2:'#FDBA74'},{n:'ليلي',c1:'#7C3AED',c2:'#C4B5FD'}];
+    try{g=CL.find(function(x){return x.n===(me&&me.penColor);})||null;}catch(e){}
+    if(g){
+      btn.innerHTML='✨';
+      btn.style.background='linear-gradient(135deg,'+g.c1+','+g.c2+')';
+      btn.style.boxShadow='0 0 14px '+g.c1+',0 0 26px '+g.c2+'66';
+      btn.style.border='2px solid #fff';
+    }else{
+      /* بدون لون: بتظهر واضحة برضه — بنفسجي فاتح متوهج يدل إنها ميزة */
+      btn.innerHTML='✨';
+      btn.style.background='linear-gradient(135deg,#8B5CF6,#D946EF)';
+      btn.style.boxShadow='0 0 12px rgba(139,92,246,.7)';
+      btn.style.border='2px solid rgba(217,70,239,.5)';
+    }
+  }catch(e){}
+}
+
+/* 2) عنصر "لون رسايلك" في قايمة الإعدادات */
+function ensureSettingItem(){
+  try{
+    var scr=el('s-settings');if(!scr)return;
+    var lists=scr.querySelectorAll('.menu-list');
+    if(!lists.length)return;
+    var tgt=lists[0];
+    if(el('penColorMenuItem'))return;
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='penColorMenuItem';
+    mi.innerHTML='<span>🎨 لون رسايلك <span style="background:linear-gradient(135deg,#FF3EF5,#00E5FF);color:#fff;font-size:10px;font-weight:bold;padding:3px 10px;border-radius:12px;margin-right:6px">✨ جديد</span></span><span>👈</span>';
+    mi.onclick=function(){openPenPalette();};
+    tgt.insertBefore(mi,tgt.firstChild);
+  }catch(e){}
+}
+
+/* 3) شغّال دائم */
+setInterval(function(){
+  try{
+    if(el('s-chat')&&el('s-chat').classList.contains('active'))buildPenV2();
+    ensureSettingItem();
+  }catch(e){}
+},1500);
+var _saPV=window.startAll;
+window.startAll=async function(){
+  var r=await _saPV();
+  try{setTimeout(ensureSettingItem,800);}catch(e){}
+  return r;
+};
+})();
+/* ===== 🎨 لون رسايلك — النظام الكامل النظيف ===== */
+(function(){
+if(window._penSysV1)return;window._penSysV1=true;
+var COST=100,DAYS=30;
+
+var COLORS=[
+ {n:'بنفسجي',c1:'#A855F7',c2:'#E879F9'},
+ {n:'نيون وردي',c1:'#FF3EF5',c2:'#FF71CE'},
+ {n:'أخضر',c1:'#22C55E',c2:'#86EFAC'},
+ {n:'سماوي',c1:'#22D3EE',c2:'#67E8F9'},
+ {n:'أحمر',c1:'#EF4444',c2:'#FB7185'},
+ {n:'ذهبي',c1:'#FBBF24',c2:'#FDE047'},
+ {n:'برتقالي',c1:'#F97316',c2:'#FDBA74'},
+ {n:'أزرق',c1:'#3B82F6',c2:'#93C5FD'},
+ {n:'مجرة',c1:'#8B5CF6',c2:'#38BDF8'},
+ {n:'وردي',c1:'#EC4899',c2:'#F9A8D4'},
+ {n:'زمردي',c1:'#10B981',c2:'#6EE7B7'},
+ {n:'شفق',c1:'#06B6D4',c2:'#4ADE80'},
+ {n:'ناري',c1:'#F43F5E',c2:'#FB923C'},
+ {n:'غروب',c1:'#FB7185',c2:'#FDBA74'},
+ {n:'ليلي',c1:'#7C3AED',c2:'#C4B5FD'},
+ {n:'سماوي غامق',c1:'#0EA5E9',c2:'#38BDF8'}
+];
+window._PENC=COLORS;
+
+function penActive(){try{return me&&me.penColorExp&&me.penColorExp>Date.now();}catch(e){return false;}}
+function penAdmin(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+
+/* 1) القايمة المنبثقة (القلم) — زي الصورة بالظبط */
+window.openPenPalette=function(){
+  if(!me)return toast('سجل دخولك أولاً');
+  var old=el('penPalette');if(old)old.remove();
+  var g=null;try{g=COLORS.find(function(x){return x.n===me.penColor;})||null;}catch(e){}
+  var m=document.createElement('div');m.id='penPalette';m.className='modal';
+  var h='<div class="m-card2" style="width:320px;max-height:85vh;overflow-y:auto"><h3>✨ لون رسائلك</h3>'
+  +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  COLORS.forEach(function(c){
+    var sel=g&&g.n===c.n;
+    h+='<div onclick="pickPenApply(\''+c.n+'\')" style="cursor:pointer;border:2px solid '+(sel?'#fff':'transparent')+';border-radius:14px;padding:12px 8px;text-align:center;background:var(--bg)">';
+    h+='<div style="border:2.5px solid transparent;border-radius:14px;padding:10px 6px;background-image:linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+');background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 0 14px '+c.c1+'88;margin-bottom:7px">';
+    h+='<div style="background:linear-gradient(135deg,'+c.c1+','+c.c2+');-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:900;font-size:13.5px">اكتب رسالتك</div></div>';
+    h+='<div style="font-size:12px;font-weight:bold;color:var(--txt)">'+c.n+(sel?' ✅':'')+'</div></div>';
+  });
+  h+='</div>';
+  if(!penAdmin()&&!penActive())h+='<button style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900" onclick="closeModal(\'penPalette\');go(\'pencolor\',null)">🪙 اشترك بـ '+COST+' عملة — شهر كامل</button>';
+  h+='<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="pickPenColor(null)">❌ من غير لون (عادي)</button></div>';
+  m.innerHTML=h;
+  m.onclick=function(e){if(e.target===m)closeModal('penPalette');};
+  document.body.appendChild(m);
+  m.classList.add('open');
+};
+
+window.pickPenApply=function(n){
+  if(!me)return;
+  var c=COLORS.find(function(x){return x.n===n;});
+  if(!c)return;
+  if(!penAdmin()&&!penActive()){
+    if((me.coins||0)<COST){toast('🪙 العملات غير كافية — يرجي الشحن (ناقصك '+(COST-(me.coins||0))+' عملة)');return;}
+    if(!confirm('اشتراك لون الرسايل بـ '+COST+' عملة لمدة '+DAYS+' يوم؟'))return;
+    updateMe({coins:(me.coins||0)-COST,penColorExp:Date.now()+DAYS*86400000,penColor:n}).then(function(){
+      closeModal('penPalette');
+      toast('🎉 تم الاشتراك! شهر كامل');
+      updatePenLook();paintPenAll();renderShop();
+    });
+    return;
+  }
+  updateMe({penColor:n}).then(function(){
+    closeModal('penPalette');
+    toast('✨ رسايلك بقت بلون: '+n);
+    updatePenLook();paintPenAll();
+  });
+};
+window.pickPenColor=function(n){
+  if(n===null){updateMe({penColor:null}).then(function(){closeModal('penPalette');toast('رجعت الرسايل عادية');updatePenLook();});return;}
+  pickPenApply(n);
+};
+window.buyPenColor=function(){
+  if((me.coins||0)<COST)return toast('🪙 العملات غير كافية — يرجي الشحن');
+  if(!confirm('اشتراك لون الرسايل بـ '+COST+' عملة لمدة '+DAYS+' يوم؟'))return;
+  updateMe({coins:(me.coins||0)-COST,penColorExp:Date.now()+DAYS*86400000}).then(function(){
+    toast('🎉 تم الاشتراك! شهر كامل');
+    renderPenColorPage();renderShop();
+  });
+};
+
+/* 2) القلم في الشات */
+function buildPen(){
+  try{
+    if(el('penColorBtn'))return restylePen();
+    var inp=el('msgInput');if(!inp)return;
+    var row=inp.closest('.chat-input');if(!row)return;
+    var btn=document.createElement('button');
+    btn.id='penColorBtn';btn.className='ic-btn';btn.title='لون رسائلك ✨';
+    btn.style.cssText='cursor:pointer;flex-shrink:0;border-radius:50%;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-right:8px';
+    btn.onclick=function(e){e.preventDefault();e.stopPropagation();openPenPalette();};
+    var cam=row.querySelector('label[for="imgInput"]');
+    if(cam)cam.parentElement.insertBefore(btn,cam);else row.insertBefore(btn,row.firstChild);
+    restylePen();
+  }catch(e){}
+}
+function restylePen(){
+  try{
+    var btn=el('penColorBtn');if(!btn)return;
+    var g=null;try{g=COLORS.find(function(x){return x.n===(me&&me.penColor);})||null;}catch(e){}
+    btn.innerHTML='✨';
+    if(g){
+      btn.style.background='linear-gradient(135deg,'+g.c1+','+g.c2+')';
+      btn.style.boxShadow='0 0 14px '+g.c1+',0 0 26px '+g.c2+'66';
+      btn.style.border='2px solid #fff';
+    }else{
+      btn.style.background='linear-gradient(135deg,#8B5CF6,#D946EF)';
+      btn.style.boxShadow='0 0 12px rgba(139,92,246,.7)';
+      btn.style.border='2px solid rgba(217,70,239,.5)';
+    }
+    var inp=el('msgInput');
+    if(inp){
+      var row=inp.closest('.chat-input');
+      if(row){
+        if(g){
+          row.style.border='2px solid transparent';
+          row.style.backgroundImage='linear-gradient(var(--card),var(--card)),linear-gradient(135deg,'+g.c1+','+g.c2+')';
+          row.style.backgroundOrigin='border-box';row.style.backgroundClip='padding-box,border-box';
+          row.style.boxShadow='0 0 12px '+g.c1+'44';
+        }else{row.style.border='';row.style.backgroundImage='';row.style.boxShadow='';}
+      }
+    }
+  }catch(e){}
+}
+
+/* 3) صفحة كاملة في الإعدادات */
+try{
+  var mi=document.createElement('div');mi.id='penColorMenuItem';mi.className='m-item';
+  mi.innerHTML='<span>🎨 لون رسايلك <span style="background:linear-gradient(135deg,#FF3EF5,#00E5FF);color:#fff;font-size:10px;font-weight:bold;padding:3px 10px;border-radius:12px;margin-right:6px">✨ جديد</span></span><span>👈</span>';
+  mi.onclick=function(){go('pencolor',null);};
+  var lists=document.querySelectorAll('#s-settings .menu-list');
+  if(lists.length&&!el('penColorMenuItem'))lists[0].insertBefore(mi,lists[0].firstChild);
+}catch(e){}
+if(!el('s-pencolor')){
+  var scr=document.createElement('div');scr.className='screen';scr.id='s-pencolor';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ لون رسايلك</div><div id="penScreenBody" style="padding:4px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);else content.appendChild(scr);
+}
+window.renderPenColorPage=function(){
+  try{
+    var box=el('penScreenBody');if(!box||!me)return;
+    var coins=(me.coins)||0;
+    var g=null;try{g=COLORS.find(function(x){return x.n===me.penColor;})||null;}catch(e){}
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#2a1044,#141038);border-radius:18px;padding:22px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(139,92,246,.3)">';
+    h+='<div style="font-size:17px;font-weight:900;color:#fff">🎨 لون رسايلك</div>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:5px">رسايلك تطلع بإطار متوهج بلونك في كل الشاتات</div>';
+    h+='<div style="margin-top:14px;display:inline-block;padding:12px 24px;border-radius:18px;font-weight:900;font-size:15px;color:#fff;';
+    if(g){h+='border:3px solid transparent;background-image:linear-gradient(rgba(10,10,25,.85),rgba(10,10,25,.85)),linear-gradient(135deg,'+g.c1+','+g.c2+');background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 0 18px '+g.c1+'99';}
+    else{h+='background:var(--card2);border:2px dashed var(--line);';}
+    h+='">اكتب رسالتك</div></div>';
+    if(penAdmin()){h+='<div style="background:rgba(139,92,246,.12);border:1px solid #8B5CF6;border-radius:12px;padding:10px;margin-bottom:12px;text-align:center;font-size:12.5px;color:#c4b5fd;font-weight:bold">👑 إدارة — مجاني دائماً</div>';}
+    else if(penActive()){h+='<div style="background:rgba(34,211,238,.12);border:1px solid #22d3ee;border-radius:12px;padding:10px;margin-bottom:12px;text-align:center;font-size:13px;color:#22d3ee;font-weight:bold">✅ اشتراكك نشط — متبقي '+Math.ceil((me.penColorExp-Date.now())/86400000)+' يوم</div>';}
+    else{h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;display:flex;align-items:center;gap:12px"><div style="font-size:26px">🎨</div><div style="flex:1"><div style="font-weight:bold;font-size:14px">اشتراك شهري</div><div style="font-size:11px;color:var(--mut);margin-top:2px">فعّل اللون شهر كامل وغيّره براحتك</div></div><button class="adm-btn" style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900;border-radius:12px;padding:8px 14px;flex-shrink:0" onclick="buyPenColor()">🪙 '+COST+'</button></div>';}
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+    COLORS.forEach(function(c){
+      var sel=g&&g.n===c.n;
+      h+='<div onclick="pickPenApply(\''+c.n+'\')" style="cursor:pointer;border:2px solid '+(sel?'#fff':'var(--line)')+';border-radius:14px;padding:12px 8px;text-align:center;background:var(--card)">';
+      h+='<div style="border:2.5px solid transparent;border-radius:14px;padding:10px 6px;background-image:linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+');background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 0 14px '+c.c1+'77;margin-bottom:7px">';
+      h+='<div style="background:linear-gradient(135deg,'+c.c1+','+c.c2+');-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:900;font-size:13.5px">اكتب رسالتك</div></div>';
+      h+='<div style="font-size:12.5px;font-weight:bold;color:var(--txt)">'+c.n+(sel?' ✅':'')+'</div></div>';
+    });
+    h+='</div>';
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+/* 4) المتجر: منتج ثالث */
+var _rsP=window.renderShop;
+window.renderShop=function(){
+  var r=_rsP?_rsP():undefined;
+  try{
+    var box=el('shopBody');if(!box||!me)return r;
+    var divs=box.querySelectorAll('div');
+    for(var i=0;i<divs.length;i++){
+      var t=divs[i].innerText||'';
+      if(t.indexOf('تميّز الاسم')>-1&&t.indexOf('اسمك ملون')>-1&&divs[i].style.display&&divs[i].style.display.indexOf('flex')>-1){
+        var row=divs[i];
+        var coins=(me.coins)||0;
+        var penA=penActive();
+        var h='<div style="background:var(--card);border:1px solid '+(penA?'var(--grn)':'var(--line)')+';border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;margin-top:10px">';
+        h+='<div style="width:52px;height:52px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🎨</div>';
+        h+='<div style="flex:1;min-width:0"><div style="font-weight:bold;font-size:14px;color:var(--txt)">🎨 لون رسايلك</div>';
+        h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">رسايلك بإطار متوهج بلون تختاره — 30 يوم</div>';
+        if(penA)h+='<div style="font-size:11px;color:var(--grn);font-weight:bold;margin-top:4px">✅ مُفعّل — متبقي '+Math.ceil((me.penColorExp-Date.now())/86400000)+' يوم</div>';
+        h+='</div><div style="flex-shrink:0">';
+        if(penA)h+='<div style="font-size:11px;color:var(--grn);font-weight:bold">✅</div>';
+        else if(coins>=COST)h+='<button class="adm-btn" style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900;border-radius:12px;padding:8px 14px" onclick="go(\'pencolor\',null)">🪙 '+COST+'</button>';
+        else h+='<div style="font-size:11px;color:var(--red);text-align:center;font-weight:bold">'+COST+'<div style="font-size:9px">ناقص '+(COST-coins)+'</div></div>';
+        h+='</div></div>';
+        row.insertAdjacentHTML('afterend',h);
+        break;
+      }
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 5) تلوين الرسايل: حدود متوهجة + خط أبيض عادي */
+function paintPenAll(){
+  try{
+    if(!me||!me.penColor)return;
+    var c=COLORS.find(function(x){return x.n===me.penColor;});
+    if(!c)return;
+    var box=el('chatBox');if(!box)return;
+    var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+    for(var i=0;i<bubs.length;i++){
+      if(bubs[i].querySelector('img')||bubs[i].querySelector('audio'))continue;
+      bubs[i].style.border='3px solid transparent';
+      bubs[i].style.borderRadius='16px';
+      bubs[i].style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+      bubs[i].style.backgroundOrigin='border-box';
+      bubs[i].style.backgroundClip='padding-box,border-box';
+      bubs[i].style.boxShadow='0 0 14px '+c.c1+'88,0 0 28px '+c.c2+'44';
+      var tk=bubs[i].querySelector('.ticks');
+      if(tk)tk.style.color=c.c2;
+      var sp=bubs[i].querySelector('.penTxt');
+      if(sp){sp.style.background='';sp.style.color='';sp.style.webkitBackgroundClip='';}
+    }
+  }catch(e){}
+}
+var _apP5=window.appendMsg;
+window.appendMsg=function(m){var r=_apP5(m);try{setTimeout(paintPenAll,60);setTimeout(paintPenAll,350);}catch(e){}return r;};
+var _smP5=window.subMsgs;
+window.subMsgs=async function(){var r=await _smP5();try{setTimeout(paintPenAll,500);setTimeout(paintPenAll,1500);}catch(e){}return r;};
+setInterval(paintPenAll,3000);
+
+/* 6) انتهاء الاشتراك + الربط */
+setInterval(async function(){
+  try{
+    if(!me||!me.penColorExp)return;
+    if(Date.now()>me.penColorExp){
+      await updateMe({penColor:null,penColorExp:null});
+      toast('⏰ انتهى اشتراك لون الرسايل');
+    }
+  }catch(e){}
+},60000);
+var _goPC=window.go;
+window.go=function(s,nv,fb){
+  var r=_goPC(s,nv,fb);
+  try{
+    if(s==='pencolor')renderPenColorPage();
+    if(s==='chat'){setTimeout(buildPen,400);setTimeout(buildPen,1200);}
+  }catch(e){}
+  return r;
+};
+var _saPC=window.startAll;
+window.startAll=async function(){var r=await _saPC();try{setTimeout(buildPen,1500);}catch(e){}return r;};
+setInterval(function(){try{if(el('s-chat')&&el('s-chat').classList.contains('active'))buildPen();}catch(e){}},2000);
+})();
+/* ===== فتح الإطارات للمشتركين (اشتراك frameExp) ===== */
+(function(){
+if(window._framesForSubs)return;window._framesForSubs=true;
+
+/* هل العضو له حق استخدام الإطارات؟ */
+function canUseFrames(){
+  try{
+    if(!me)return false;
+    return penAdminLike()||(me.frameExp&&me.frameExp>Date.now());
+  }catch(e){return false;}
+}
+function penAdminLike(){try{return isOwnerName(me.name)||isAdmin();}catch(e){return false;}}
+
+/* 1) فتح دالة setFrame: المشترك مسموح له */
+var _sfO=window.setFrame;
+window.setFrame=async function(url){
+  if(!canUseFrames())return toast('🔒 ميزة الإطار تتطلب اشتراك — اشترِ من متجر سونيك');
+  await updateMe({frame:url||null});
+  try{
+    var fresh=await SDB.getUser(me.name);
+    if(fresh){me=Object.assign({},me,fresh);usersCache[me.name]=me;}
+  }catch(e){}
+  toast(url?'تم تعيين الإطار ✅':'تم إزالة الإطار');
+  try{updateProfile();}catch(e){}
+  try{renderOnline();}catch(e){}
+  try{initFrames();}catch(e){}
+};
+
+/* 2) شاشة الإطارات: المشترك يشوفها من غير زرار الحذف والرفع (دي للإدارة) */
+var _ifO=window.initFrames;
+window.initFrames=async function(){
+  try{
+    var grid=el('framesGrid');if(!grid)return;
+    grid.innerHTML='<div style="text-align:center;color:var(--mut);grid-column:1/-1">جاري التحميل...</div>';
+    var d=await sb.from('frames').select('*').order('id',{ascending:true});
+    if(d.error){grid.innerHTML='<div style="text-align:center;color:var(--red);grid-column:1/-1">خطأ: '+d.error.message+'</div>';return;}
+    window.allFrames=d.data||[];
+    if(!window.allFrames.length){
+      grid.innerHTML='<div style="text-align:center;color:var(--mut);grid-column:1/-1;padding:20px">لا توجد إطارات حالياً — تابعنا قريباً</div>';
+      return;
+    }
+    var isAdminU=penAdminLike();
+    var h='';
+    window.allFrames.forEach(function(fr){
+      var sel=(me&&me.frame===fr.url);
+      h+='<div style="position:relative;background:var(--card2);border:2px solid '+(sel?'var(--grn)':'var(--line)')+';border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer" onclick="setFrame(\''+fr.url.replace(/'/g,"\\'")+'\')">';
+      h+='<div style="width:70px;height:70px;margin:0 auto 6px;position:relative">';
+      h+='<div class="u-ava" style="width:42px;height:42px;position:absolute;top:14px;left:14px;z-index:1">👨</div>';
+      h+='<img src="'+fr.url+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2" onerror="this.style.display=\'none\'"></div>';
+      if(sel)h+='<div style="font-size:10px;color:var(--grn);font-weight:bold">✅ مُعيّن</div>';
+      if(isAdminU)h+='<button class="xbtn" style="position:absolute;top:4px;left:4px;padding:2px 6px;font-size:10px" onclick="event.stopPropagation();delFrame('+fr.id+')">✕</button>';
+      h+='</div>';
+    });
+    /* زرار الرفع للإدارة فقط */
+    if(isAdminU)h+='<div style="background:var(--card2);border:2px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:32px;min-height:110px;color:var(--acc)" onclick="document.getElementById(\'frameInput\').click()">➕</div>';
+    grid.innerHTML=h;
+  }catch(e){}
+};
+
+/* 3) عنصر "إطار الصورة" يظهر للمشتركين في الإعدادات */
+setInterval(function(){
+  try{
+    if(!me)return;
+    var fm=el('frameMenuItem');
+    if(fm)fm.style.display=canUseFrames()?'flex':'none';
+  }catch(e){}
+},2000);
+
+/* 4) عند انتهاء الاشتراك: الإطار يتعمل Reset (زي ما هو في باتش المتجر) */
+setInterval(async function(){
+  try{
+    if(!me||!me.frameExp)return;
+    if(Date.now()>me.frameExp){
+      await updateMe({frameExp:null,framesUnlocked:false,frame:null});
+      toast('⏰ انتهت مدة الإطار — جددها من متجر سونيك');
+      try{initFrames();}catch(e){}
+      try{updateProfile();renderOnline();}catch(e){}
+    }
+  }catch(e){}
+},60000);
+})();
+/* ===== إصلاح: الإطار المُعيّن يظهر فوراً حول الصورة ===== */
+(function(){
+if(window._frameShowFix)return;window._frameShowFix=true;
+
+/* 1) ترقية getAvatarHTML: الإطار يظهر لكل من عنده frameExp نشط (مش بس الإدارة) */
+window.getAvatarHTML=function(u,size){
+  size=size||46;
+  var ava=getAvatar(u);
+  var hasFrame=false;
+  try{
+    hasFrame=u&&u.frame&&(
+      isOwnerName(u.name)||isAdmin()||(u.role&&(u.role.indexOf('إدارة')>-1||u.role.indexOf('سوبر')>-1))||
+      (u.frameExp&&u.frameExp>Date.now())
+    );
+  }catch(e){}
+  if(hasFrame){
+    return '<div class="ava-frame-wrap" style="width:'+(size+14)+'px;height:'+(size+14)+'px"><div class="u-ava" style="width:'+size+'px;height:'+size+'px">'+ava+'</div><img class="frame-img" src="'+u.frame+'" style="position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);object-fit:contain;pointer-events:none;z-index:3"></div>';
+  }
+  return '<div class="u-ava" style="width:'+size+'px;height:'+size+'px">'+ava+'</div>';
+};
+
+/* 2) إعادة رسم فورية بعد تعيين الإطار */
+var _sfN=window.setFrame;
+window.setFrame=async function(url){
+  var r=await _sfN(url);
+  try{
+    /* نحدّث الكاش ونرسم كل حاجة فوراً */
+    var fresh=await SDB.getUser(me.name);
+    if(fresh){me=Object.assign({},me,fresh);usersCache[me.name]=me;}
+    try{updateProfile();}catch(e){}
+    try{renderOnline();}catch(e){}
+    try{renderMsgs();}catch(e){}
+    try{refreshChatHeader(usersCache[chat&&chat.id]||me);}catch(e){}
+    try{initFrames();}catch(e){}
+  }catch(e){}
+  return r;
+};
+
+/* 3) فحص دوري: أي مكان فيه أفاتار من غير إطار وهو مطلوب = يترسم */
+setInterval(function(){
+  try{
+    if(!me||!me.frame)return;
+    /* شاشة أونلاين */
+    var box=el('usersList');
+    if(box&&box.innerHTML&&box.innerHTML.indexOf('ava-frame-wrap')===-1&&box.innerHTML.indexOf('u-ava')>-1){
+      try{renderOnline();}catch(e){}
+    }
+    /* البروفايل الشخصي في الإعدادات */
+    try{updateProfile();}catch(e){}
+  }catch(e){}
+},5000);
+})();
+/* ===== إضافة 10 ألوان جديدة لنظام لون الرسايل ===== */
+(function(){
+if(window._penExtra)return;window._penExtra=true;
+var COST=100,DAYS=30;
+var EXTRA=[
+ {n:'توتي',c1:'#E040FB',c2:'#7C4DFF'},
+ {n:'فيروزي',c1:'#00BFA5',c2:'#00E5FF'},
+ {n:'ليموني',c1:'#C6FF00',c2:'#AEEA00'},
+ {n:'بنفسجي غامق',c1:'#6200EA',c2:'#B388FF'},
+ {n:'برتقالي ناري',c1:'#FF6D00',c2:'#FFAB40'},
+ {n:'سماوي غامق',c1:'#0288D1',c2:'#4FC3F7'},
+ {n:'وردي نيون',c1:'#F50057',c2:'#FF4081'},
+ {n:'لازوردي',c1:'#2962FF',c2:'#82B1FF'},
+ {n:'عسلي',c1:'#FFA726',c2:'#FFD180'},
+ {n:'أرجواني',c1:'#AA00FF',c2:'#EA80FC'}
+];
+/* الدمج: الألوان الـ16 القديمة + الـ10 الجديدة = 26 */
+window._PENC=(window._PENC||[]).concat(EXTRA);
+
+function penActive(){try{return me&&me.penColorExp&&me.penColorExp>Date.now();}catch(e){return false;}}
+function penAdmin(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+function findC(n){try{return window._PENC.find(function(x){return x.n===n;})||null;}catch(e){return null;}}
+
+/* 1) القايمة المنبثقة (القلم) — تقرأ من المصفوفة الكاملة 26 */
+window.openPenPalette=function(){
+  if(!me)return toast('سجل دخولك أولاً');
+  var old=el('penPalette');if(old)old.remove();
+  var g=findC(me.penColor);
+  var m=document.createElement('div');m.id='penPalette';m.className='modal';
+  var h='<div class="m-card2" style="width:320px;max-height:85vh;overflow-y:auto"><h3>✨ لون رسائلك</h3>'
+  +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  window._PENC.forEach(function(c){
+    var sel=g&&g.n===c.n;
+    h+='<div onclick="pickPenApply(\''+c.n+'\')" style="cursor:pointer;border:2px solid '+(sel?'#fff':'transparent')+';border-radius:14px;padding:12px 8px;text-align:center;background:var(--bg)">';
+    h+='<div style="border:2.5px solid transparent;border-radius:14px;padding:10px 6px;background-image:linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+');background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 0 14px '+c.c1+'88;margin-bottom:7px">';
+    h+='<div style="background:linear-gradient(135deg,'+c.c1+','+c.c2+');-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:900;font-size:13.5px">اكتب رسالتك</div></div>';
+    h+='<div style="font-size:12px;font-weight:bold;color:var(--txt)">'+c.n+(sel?' ✅':'')+'</div></div>';
+  });
+  h+='</div>';
+  if(!penAdmin()&&!penActive())h+='<button style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900" onclick="closeModal(\'penPalette\');go(\'pencolor\',null)">🪙 اشترك بـ '+COST+' عملة — شهر كامل</button>';
+  h+='<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="pickPenColor(null)">❌ من غير لون (عادي)</button></div>';
+  m.innerHTML=h;
+  m.onclick=function(e){if(e.target===m)closeModal('penPalette');};
+  document.body.appendChild(m);
+  m.classList.add('open');
+};
+
+/* 2) صفحة الإعدادات الكاملة — 26 لون */
+window.renderPenColorPage=function(){
+  try{
+    var box=el('penScreenBody');if(!box||!me)return;
+    var coins=(me.coins)||0;
+    var g=findC(me.penColor);
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#2a1044,#141038);border-radius:18px;padding:22px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(139,92,246,.3)">';
+    h+='<div style="font-size:17px;font-weight:900;color:#fff">🎨 لون رسايلك</div>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:5px">رسايلك تطلع بإطار متوهج بلونك في كل الشاتات</div>';
+    h+='<div style="margin-top:14px;display:inline-block;padding:12px 24px;border-radius:18px;font-weight:900;font-size:15px;color:#fff;';
+    if(g){h+='border:3px solid transparent;background-image:linear-gradient(rgba(10,10,25,.85),rgba(10,10,25,.85)),linear-gradient(135deg,'+g.c1+','+g.c2+');background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 0 18px '+g.c1+'99';}
+    else{h+='background:var(--card2);border:2px dashed var(--line);';}
+    h+='">اكتب رسالتك</div></div>';
+    if(penAdmin()){h+='<div style="background:rgba(139,92,246,.12);border:1px solid #8B5CF6;border-radius:12px;padding:10px;margin-bottom:12px;text-align:center;font-size:12.5px;color:#c4b5fd;font-weight:bold">👑 إدارة — مجاني دائماً</div>';}
+    else if(penActive()){h+='<div style="background:rgba(34,211,238,.12);border:1px solid #22d3ee;border-radius:12px;padding:10px;margin-bottom:12px;text-align:center;font-size:13px;color:#22d3ee;font-weight:bold">✅ اشتراكك نشط — متبقي '+Math.ceil((me.penColorExp-Date.now())/86400000)+' يوم</div>';}
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+    window._PENC.forEach(function(c){
+      var sel=g&&g.n===c.n;
+      h+='<div onclick="pickPenApply(\''+c.n+'\')" style="cursor:pointer;border:2px solid '+(sel?'#fff':'var(--line)')+';border-radius:14px;padding:12px 8px;text-align:center;background:var(--card)">';
+      h+='<div style="border:2.5px solid transparent;border-radius:14px;padding:10px 6px;background-image:linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+');background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 0 14px '+c.c1+'77;margin-bottom:7px">';
+      h+='<div style="background:linear-gradient(135deg,'+c.c1+','+c.c2+');-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:900;font-size:13.5px">اكتب رسالتك</div></div>';
+      h+='<div style="font-size:12.5px;font-weight:bold;color:var(--txt)">'+c.n+(sel?' ✅':'')+'</div></div>';
+    });
+    h+='</div>';
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+/* 3) منطق الاختيار (يشمل الاشتراك) — يقرأ من المصفوفة الكاملة */
+window.pickPenApply=function(n){
+  if(!me)return;
+  var c=findC(n);if(!c)return;
+  if(!penAdmin()&&!penActive()){
+    if((me.coins||0)<COST){toast('🪙 العملات غير كافية — يرجي الشحن (ناقصك '+(COST-(me.coins||0))+' عملة)');return;}
+    if(!confirm('اشتراك لون الرسايل بـ '+COST+' عملة لمدة '+DAYS+' يوم؟'))return;
+    updateMe({coins:(me.coins||0)-COST,penColorExp:Date.now()+DAYS*86400000,penColor:n}).then(function(){
+      closeModal('penPalette');
+      toast('🎉 تم الاشتراك! شهر كامل');
+      updatePenLook();paintPenAll();try{renderShop();}catch(e){}
+    });
+    return;
+  }
+  updateMe({penColor:n}).then(function(){
+    closeModal('penPalette');
+    toast('✨ رسايلك بقت بلون: '+n);
+    updatePenLook();paintPenAll();
+  });
+};
+
+/* 4) القلم يعرف الألوان الجديدة */
+window.restylePen=function(){
+  try{
+    var btn=el('penColorBtn');if(!btn)return;
+    var g=findC(me&&me.penColor);
+    btn.innerHTML='✨';
+    if(g){
+      btn.style.background='linear-gradient(135deg,'+g.c1+','+g.c2+')';
+      btn.style.boxShadow='0 0 14px '+g.c1+',0 0 26px '+g.c2+'66';
+      btn.style.border='2px solid #fff';
+    }else{
+      btn.style.background='linear-gradient(135deg,#8B5CF6,#D946EF)';
+      btn.style.boxShadow='0 0 12px rgba(139,92,246,.7)';
+      btn.style.border='2px solid rgba(217,70,239,.5)';
+    }
+  }catch(e){}
+};
+
+/* 5) تلوين الرسايل يقرأ من المصفوفة الكاملة */
+window.paintPenAll=function(){
+  try{
+    if(!me||!me.penColor)return;
+    var c=findC(me.penColor);
+    if(!c)return;
+    var box=el('chatBox');if(!box)return;
+    var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+    for(var i=0;i<bubs.length;i++){
+      if(bubs[i].querySelector('img')||bubs[i].querySelector('audio'))continue;
+      bubs[i].style.border='3px solid transparent';
+      bubs[i].style.borderRadius='16px';
+      bubs[i].style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+      bubs[i].style.backgroundOrigin='border-box';
+      bubs[i].style.backgroundClip='padding-box,border-box';
+      bubs[i].style.boxShadow='0 0 14px '+c.c1+'88,0 0 28px '+c.c2+'44';
+      var tk=bubs[i].querySelector('.ticks');
+      if(tk)tk.style.color=c.c2;
+      var sp=bubs[i].querySelector('.penTxt');
+      if(sp){sp.style.background='';sp.style.color='';sp.style.webkitBackgroundClip='';}
+    }
+  }catch(e){}
+};
+})();
+/* ===== توست مباشر: تم تغيير لون الخط ===== */
+(function(){
+if(window._toastFinal)return;window._toastFinal=true;
+
+/* دالة توست مضمونة 100% — مستقلة عن أي كود تاني */
+window.showLineToast=function(msg){
+  try{
+    var t=document.createElement('div');
+    t.innerText=msg;
+    t.style.cssText='position:fixed;top:15px;left:50%;transform:translateX(-50%);background:#22c55e;color:#fff;padding:12px 22px;border-radius:22px;z-index:99999;font-size:14px;font-weight:bold;box-shadow:0 4px 14px rgba(0,0,0,.5);text-align:center;max-width:85%';
+    document.body.appendChild(t);
+    setTimeout(function(){t.remove();},2500);
+  }catch(e){}
+};
+
+/* نعترض اختيار اللون في كل الطرق الممكنة */
+window._interceptPick=function(n){
+  try{
+    if(n)window.showLineToast('✅ تم تغيير لون الخط بنجاح');
+    else window.showLineToast('↩️ رجعت اللون العادي');
+  }catch(e){}
+};
+
+/* 1) في القايمة المنبثقة */
+var _ppa2=window.pickPenApply;
+window.pickPenApply=function(n){
+  var r=_ppa2?_ppa2(n):undefined;
+  setTimeout(function(){window._interceptPick(n);},80);
+  return r;
+};
+
+/* 2) في الصفحة الكاملة */
+var _ppsc=window.pickPenScreenColor;
+window.pickPenScreenColor=function(n){
+  var r=_ppsc?_ppsc(n):undefined;
+  setTimeout(function(){window._interceptPick(n);},80);
+  return r;
+};
+
+/* 3) من زرار "من غير لون" */
+var _ppc3=window.pickPenColor;
+window.pickPenColor=function(n){
+  var r=_ppc3?_ppc3(n):undefined;
+  setTimeout(function(){window._interceptPick(n);},80);
+  return r;
+};
+})();
+/* ===== تلوين الرسايل في كل الشاتات: خاص + الغرف ===== */
+(function(){
+if(window._allChatsFix)return;window._allChatsFix=true;
+
+var COLORS=[
+ {n:'نيون وردي',c1:'#FF3EF5',c2:'#FF71CE'},{n:'بنفسجي',c1:'#A855F7',c2:'#E879F9'},
+ {n:'سماوي',c1:'#22D3EE',c2:'#67E8F9'},{n:'أخضر',c1:'#22C55E',c2:'#86EFAC'},
+ {n:'ذهبي',c1:'#FBBF24',c2:'#FDE047'},{n:'أحمر',c1:'#EF4444',c2:'#FB7185'},
+ {n:'أزرق',c1:'#3B82F6',c2:'#93C5FD'},{n:'برتقالي',c1:'#F97316',c2:'#FDBA74'},
+ {n:'مجرة',c1:'#8B5CF6',c2:'#38BDF8'},{n:'وردي',c1:'#EC4899',c2:'#F9A8D4'},
+ {n:'شفق',c1:'#06B6D4',c2:'#4ADE80'},{n:'زمردي',c1:'#10B981',c2:'#6EE7B7'},
+ {n:'ناري',c1:'#F43F5E',c2:'#FB923C'},{n:'غروب',c1:'#FB7185',c2:'#FDBA74'},
+ {n:'ليلي',c1:'#7C3AED',c2:'#C4B5FD'},{n:'توتي',c1:'#E040FB',c2:'#7C4DFF'},
+ {n:'فيروزي',c1:'#00BFA5',c2:'#00E5FF'},{n:'ليموني',c1:'#C6FF00',c2:'#AEEA00'},
+ {n:'بنفسجي غامق',c1:'#6200EA',c2:'#B388FF'},{n:'برتقالي ناري',c1:'#FF6D00',c2:'#FFAB40'},
+ {n:'سماوي غامق',c1:'#0288D1',c2:'#4FC3F7'},{n:'وردي نيون',c1:'#F50057',c2:'#FF4081'},
+ {n:'لازوردي',c1:'#2962FF',c2:'#82B1FF'},{n:'عسلي',c1:'#FFA726',c2:'#FFD180'},
+ {n:'أرجواني',c1:'#AA00FF',c2:'#EA80FC'},{n:'سماوي غامق 2',c1:'#0288D1',c2:'#4FC3F7'}
+];
+
+function paintEverywhere(){
+  try{
+    if(!me||!me.penColor)return;
+    var c=COLORS.find(function(x){return x.n===me.penColor;});
+    if(!c)return;
+    /* كل الفقاعات بتاعة أنا — في الخاص والغرف على السواء */
+    var bubs=document.querySelectorAll('.bub:not(.in):not(.sys)');
+    for(var i=0;i<bubs.length;i++){
+      var b=bubs[i];
+      if(b.querySelector('img')||b.querySelector('audio'))continue;
+      b.style.border='3px solid transparent';
+      b.style.borderRadius='16px';
+      b.style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+      b.style.backgroundOrigin='border-box';
+      b.style.backgroundClip='padding-box,border-box';
+      b.style.boxShadow='0 0 14px '+c.c1+'88,0 0 28px '+c.c2+'44';
+      var tk=b.querySelector('.ticks');
+      if(tk)tk.style.color=c.c2;
+      /* الخط أبيض */
+      var sp=b.querySelector('.penTxt');
+      if(sp){sp.style.background='';sp.style.color='#fff';sp.style.webkitBackgroundClip='';}
+    }
+  }catch(e){}
+}
+
+/* بعد أي رسالة جديدة — في أي شات */
+var _apAC=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apAC(m);
+  try{setTimeout(paintEverywhere,60);setTimeout(paintEverywhere,350);}catch(e){}
+  return r;
+};
+/* بعد فتح أي شات */
+var _smAC=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smAC();
+  try{setTimeout(paintEverywhere,500);setTimeout(paintEverywhere,1500);setTimeout(paintEverywhere,3000);}catch(e){}
+  return r;
+};
+/* دوري مستمر */
+setInterval(paintEverywhere,2500);
+/* بعد اختيار لون جديد */
+var _ppAC=window.pickPenColor;
+window.pickPenColor=function(n){var r=_ppAC?_ppAC(n):undefined;try{setTimeout(paintEverywhere,300);}catch(e){}return r;};
+var _ppaAC=window.pickPenApply;
+window.pickPenApply=function(n){var r=_ppaAC?_ppaAC(n):undefined;try{setTimeout(paintEverywhere,300);}catch(e){}return r;};
+})();
