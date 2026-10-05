@@ -9757,3 +9757,155 @@ window.updateTransBadge=function(){
 /* نقل النقطة لو القايمة اترسمت من جديد */
 setInterval(function(){try{placeDot();}catch(e){}},3000);
 })();
+/* ===== 🔒 حاجز الاشتراك: غير المشترك ممنوع يختار لون أصلاً ===== */
+(function(){
+if(window._penLock)return;window._penLock=true;
+var COST=100,DAYS=30;
+
+function isSub(){try{return me&&(me.penColorExp&&me.penColorExp>Date.now());}catch(e){return false;}}
+function isAdminU(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+
+/* 1) قفل pickPenApply (القايمة المنبثقة) */
+var _ppaL=window.pickPenApply;
+window.pickPenApply=function(n){
+  try{
+    if(n&&n!==null&&!isAdminU()&&!isSub()){
+      toast('🪙 لون الرسايل يتطلب اشتراك شهري — '+COST+' عملة من "عملاتي"');
+      return;
+    }
+  }catch(e){}
+  return _ppaL?_ppaL(n):undefined;
+};
+
+/* 2) قفل pickPenScreenColor (الصفحة الكاملة) */
+var _ppsL=window.pickPenScreenColor;
+window.pickPenScreenColor=function(n){
+  try{
+    if(n&&n!==null&&!isAdminU()&&!isSub()){
+      var coins=(me&&me.coins)||0;
+      if(coins>=COST){
+        if(!confirm('تفعيل لون الرسايل بـ '+COST+' عملة لمدة '+DAYS+' يوم؟\nرصيدك: 🪙 '+coins))return;
+        updateMe({coins:coins-COST,penColorExp:Date.now()+DAYS*86400000}).then(function(){
+          toast('🎉 تم الاشتراك! شهر كامل — اختار اللون اللي يعجبك ✨');
+          try{renderPenColorPage();}catch(e){}
+        });
+        return;
+      }else{
+        toast('🪙 العملات غير كافية — يرجي الشحن (تحتاج '+COST+' عملة من "عملاتي")');
+        return;
+      }
+    }
+  }catch(e){}
+  return _ppsL?_ppsL(n):undefined;
+};
+
+/* 3) قفل pickPenColor (زرار من غير لون + أي طريقة تانية) */
+var _ppcL=window.pickPenColor;
+window.pickPenColor=function(n){
+  try{
+    /* لو اختار "بدون لون" وهو مش مشترك = مسموح (رجوع عادي) */
+    if(n&&n!==null&&!isAdminU()&&!isSub()){
+      toast('🪙 لون الرسايل يتطلب اشتراك شهري — '+COST+' عملة من "عملاتي"');
+      return;
+    }
+  }catch(e){}
+  return _ppcL?_ppcL(n):undefined;
+};
+
+/* 4) مزيل: لو عضو غير مشترك معاه لون من الطلات القديمة → يتشال */
+setInterval(async function(){
+  try{
+    if(!me)return;
+    if(!isAdminU()&&!isSub()&&me.penColor){
+      await updateMe({penColor:null});
+      toast('⚠️ لون الرسايل يحتاج اشتراك — انتهى أو غير مفعل');
+    }
+  }catch(e){}
+},15000);
+})();
+     /* ===== 🗑️ الزائر مؤقت: الخروج = حذف كل حاجة بتاعته نهائياً ===== */
+(function(){
+if(window._guestWipe)return;window._guestWipe=true;
+
+function isGuest(){try{return me&&me.role==='زائر';}catch(e){return false;}}
+
+/* 1) تأكيد الخروج للزائر */
+var _loG=window.logout;
+window.logout=function(){
+  if(isGuest()){
+    if(!confirm('أنت داخل كزائر 🚪\nعند الخروج سيتم حذف:\n• اسمك وقصصك ورسائلك نهائياً\n• كل ما يخص حسابك\n\nهل أنت متأكد؟'))return;
+    wipeGuest();
+  }
+  return _loG?_loG():undefined;
+};
+
+/* 2) الحذف الشامل */
+window.wipeGuest=async function(){
+  try{
+    var n=me.name;
+    toast('⏳ جاري حذف بيانات الزائر...');
+    /* رسايله ومحادثاته */
+    var cs=await sb.from('convs').select('id').or('user_a.eq.'+n+',user_b.eq.'+n);
+    for(var i=0;i<(cs.data||[]).length;i++){
+      try{await SDB.delConvMsgs(cs.data[i].id);}catch(e){}
+      try{await SDB.delConv(cs.data[i].id);}catch(e){}
+    }
+    /* حالاته وقصصه وإطاراته وأي صفوف تانية باسمه */
+    try{await sb.from('stories').delete().eq('author',n);}catch(e){}
+    try{await sb.from('reports').delete().eq('from_user',n);}catch(e){}
+    try{await sb.from('name_warnings').delete().eq('user',n);}catch(e){}
+    try{await sb.from('device_logins').delete().eq('name',n);}catch(e){}
+    try{await sb.from('passwords').delete().eq('name',n);}catch(e){}
+    /* حسابه نفسه من قايمة المستخدمين */
+    try{await SDB.delUserRow(n);}catch(e){}
+    /* تنظيف الكاش المحلي بتاعه على الجهاز */
+    try{LS.removeItem('trans_log_'+n);}catch(e){}
+    try{LS.removeItem('users_cache');LS.setItem('users_cache','{}');}catch(e){}
+    toast('🗑️ تم حذف بيانات الزائر نهائياً');
+    logActivity('guest_delete','حساب زائر تم حذفه: '+n);
+  }catch(e){}
+};
+
+/* 3) منع الزائر من مميزات العضوية (زي ما هو متفق) */
+try{
+  var _rgG=window.register;
+}catch(e){}
+try{
+  /* الزائر ميفتحش صفحات الاشتراك والمتجر */
+  var _goG=window.go;
+  window.go=function(s,nv,fb){
+    try{
+      if(me&&me.role==='زائر'&&(s==='wallet'||s==='shop'||s==='pencolor'||s==='namestyle'||s==='msgstyle')){
+        toast('👥 المميزات دي للأعضاء المسجلين — سجل عضوية مجانية!');
+        return _goG('settings',null);
+      }
+    }catch(e){}
+    return _goG(s,nv,fb);
+  };
+}catch(e){}
+
+/* 4) تحذير للزائر أول ما يدخل (مرة واحدة) */
+var _enG=window.enter;
+window.enter=async function(u){
+  var r=await _enG(u);
+  try{
+    if(u&&u.role==='زائر'&&!LS.getItem('guest_warned')){
+      LS.setItem('guest_warned','1');
+      setTimeout(function(){
+        var m=document.createElement('div');m.id='guestWarnModal';m.className='modal';
+        m.innerHTML='<div class="m-card2" style="width:320px"><h3>👥 دخول الزوار</h3>'
+        +'<p style="font-size:13px;color:var(--txt);text-align:center;line-height:2">أنت داخل كـ<b style="color:var(--yel)">زائر مؤقت</b>'
+        +'<br>عند خروجك سيتم حذف اسمك ورسائلك وكل ما يخص حسابك <b>نهائياً</b></p>'
+        +'<p style="font-size:12px;color:var(--mut);text-align:center">💡 سجل عضوية مجانية للحفاظ على حسابك دائماً</p>'
+        +'<button style="background:var(--acc);color:#fff" onclick="closeModal(\'guestWarnModal\')">فهمت</button>'
+        +'<button style="background:var(--grn);color:#fff" onclick="closeModal(\'guestWarnModal\');logout();authTab(\'register\',document.querySelectorAll(\'.auth-tab\')[2])" >👤 سجل عضوية مجانية</button></div>';
+        m.onclick=function(e){if(e.target===m)closeModal('guestWarnModal');};
+        document.body.appendChild(m);
+        m.classList.add('open');
+      },1200);
+    }
+  }catch(e){}
+  return r;
+};
+try{LS.removeItem('guest_warned');}catch(e){}
+})();
