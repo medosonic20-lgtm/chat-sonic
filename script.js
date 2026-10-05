@@ -9909,3 +9909,471 @@ window.enter=async function(u){
 };
 try{LS.removeItem('guest_warned');}catch(e){}
 })();
+/* ===== ✨ تأثير دخول فخم: اسم العضو يظهر للجميع عند دخوله ===== */
+(function(){
+if(window._entryFx)return;window._entryFx=true;
+
+/* مراقبة دخول الأعضاء: من تغيرات الحضور */
+var _knownUsers={};
+setInterval(function(){
+  try{
+    if(!me)return;
+    for(var k in usersCache){
+      var u=usersCache[k];
+      if(k===me.name)continue;
+      var wasIn=_knownUsers[k];
+      var nowIn=isOnline(u);
+      _knownUsers[k]=nowIn;
+      /* أول مرة يبقى أونلاين بعد ما كان أوفلاين = دخل الآن */
+      if(nowIn&&!wasIn&&!u._announced){
+        u._announced=true;
+        showEntryEffect(u);
+      }
+      if(!nowIn)u._announced=false;
+    }
+  }catch(e){}
+},3000);
+
+/* تأثير الدخول: بانر ينزل من فوق لكل الأعضاء */
+function showEntryEffect(u){
+  try{
+    var n=el('entryFx');
+    if(n)n.remove();
+    var isVip=false;
+    try{isVip=(u.welcome_pack_used===true)||(u.frameExp&&u.frameExp>Date.now());}catch(e){}
+    var fx=el('s-chat')&&el('s-chat').classList.contains('active')?el('s-chat'):document.body;
+    var banner=document.createElement('div');
+    banner.id='entryFx';
+    /* ستايل مختلف: عادي = أزرق، VIP (باقة ترحيب) = ذهبي فخم */
+    var bg=isVip?'linear-gradient(90deg,#78350f,#b45309,#78350f)':'linear-gradient(90deg,#1e3a8a,#3b82f6,#1e3a8a)';
+    var border=isVip?'2px solid #FFD700':'2px solid rgba(255,255,255,.3)';
+    banner.style.cssText='position:absolute;top:0;left:0;right:0;z-index:450;background:'+bg+';border-bottom:'+border+';padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,.5);animation:entrySlideDown .6s ease forwards;overflow:hidden';
+    banner.innerHTML='<div style="font-size:22px;animation:wpBounce 1.2s infinite">✨</div>'
+    +getAvatarHTML(u,38)
+    +'<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:900;color:#fff;text-shadow:0 1px 4px #000">✨ دخل الآن</div>'
+    +'<div style="font-size:12px;margin-top:2px">'+styleName(u)+'</div></div>'
+    +(isVip?'<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">👑 VIP</span>':'');
+    fx.appendChild(banner);
+    if(me.sndOther!==false&&me.sndNotif!==false)try{beep(800);}catch(e){}
+    setTimeout(function(){
+      try{banner.style.animation='entrySlideUp .5s ease forwards';}catch(e){}
+      setTimeout(function(){try{banner.remove();}catch(e){}},600);
+    },4000);
+  }catch(e){}
+}
+
+/* الأنيميشن: ينزل من فوق ويطلع تاني */
+try{
+  var st=document.createElement('style');
+  st.textContent='@keyframes entrySlideDown{0%{transform:translateY(-100%);opacity:0}100%{transform:translateY(0);opacity:1}}'
+  +'@keyframes entrySlideUp{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}'
+  +'.entryFxHost{position:relative}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* الشات لازم يستقبل البانر جواه */
+var _ouE=window.openUser;
+window.openUser=function(n){var r=_ouE(n);try{el('s-chat').classList.add('entryFxHost');}catch(e){}return r;};
+var _jrE=window.joinRoom;
+window.joinRoom=async function(rid){var r=await _jrE(rid);try{el('s-chat').classList.add('entryFxHost');}catch(e){}return r;};
+
+/* دخولك أنت: برضه بيظهر للآخرين بآخر ما يدخل حد (يظهر ليك انت برضه عند دخولك شخص بعدك) */
+var _enE=window.enter;
+window.enter=async function(u){
+  var r=await _enE(u);
+  try{
+    if(u){_knownUsers[u.name]=true;u._announced=true;}
+  }catch(e){}
+  return r;
+};
+})();
+/* ===== ✨ تأثير دخول فخم: الكل يشوف نفسه + VIP لصاحب الموقع والإدارة ===== */
+(function(){
+if(window._entryFx2)return;window._entryFx2=true;
+
+/* أنيميشن مرة واحدة */
+try{
+  var st=document.createElement('style');
+  st.textContent='@keyframes entrySlideDown{0%{transform:translateY(-100%);opacity:0}100%{transform:translateY(0);opacity:1}}'
+  +'@keyframes entrySlideUp{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}'
+  +'@keyframes entryGlow{0%,100%{box-shadow:0 4px 20px rgba(0,0,0,.5)}50%{box-shadow:0 4px 34px rgba(255,215,0,.7)}}'
+  +'.entryFxHost{position:relative}';
+  document.head.appendChild(st);
+}catch(e){}
+
+function fxHost(){
+  try{
+    var c=el('s-chat');
+    if(c&&c.classList.contains('active')&&!c.classList.contains('entryFxHost'))c.classList.add('entryFxHost');
+    return el('s-chat')&&el('s-chat').classList.contains('active')?el('s-chat'):document.body;
+  }catch(e){return document.body;}
+}
+
+/* بانر الدخول — يتأقلم حسب مكانة العضو */
+window.showEntryEffect=function(u){
+  try{
+    var old=el('entryFx');
+    if(old)old.remove();
+    var host=fxHost();
+    var isOwnerU=isOwnerName(u.name);
+    var isAdminU=false;
+    try{isAdminU=(u.role&&(u.role.indexOf('إدارة')>-1||u.role.indexOf('سوبر')>-1));}catch(e){}
+    var isVip=false;
+    try{isVip=(u.welcome_pack_used===true)||(u.frameExp&&u.frameExp>Date.now());}catch(e){}
+
+    var bg,border,title,badge;
+    if(isOwnerU){
+      /* 👑 صاحب الموقع: دخول ملكي فخم — ذهبي متوهج */
+      bg='linear-gradient(90deg,#78350f,#d97706,#fbbf24,#d97706,#78350f)';
+      border='2px solid #FFD700';
+      title='👑 دخل الملك 👑';
+      badge='<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 12px;border-radius:12px;flex-shrink:0;animation:entryGlow 1.5s infinite">👑 VIP صاحب الموقع</span>';
+    }else if(isAdminU){
+      bg='linear-gradient(90deg,#4c1d95,#7c3aed,#4c1d95)';
+      border='2px solid #A78BFA';
+      title='🛡️ دخلت الإدارة';
+      badge='<span style="background:#7C3AED;color:#fff;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">🛡️ إدارة</span>';
+    }else if(isVip){
+      bg='linear-gradient(90deg,#78350f,#b45309,#78350f)';
+      border='2px solid #FFD700';
+      title='✨ دخل الآن';
+      badge='<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">👑 VIP</span>';
+    }else{
+      bg='linear-gradient(90deg,#1e3a8a,#3b82f6,#1e3a8a)';
+      border='2px solid rgba(255,255,255,.3)';
+      title='✨ دخل الآن';
+      badge='';
+    }
+
+    var banner=document.createElement('div');
+    banner.id='entryFx';
+    banner.style.cssText='position:absolute;top:0;left:0;right:0;z-index:450;background:'+bg+';border-bottom:'+border+';padding:12px 14px;display:flex;align-items:center;gap:10px;animation:entrySlideDown .6s ease forwards'+(isOwnerU?',entryGlow 1.5s infinite 0.6s':'')+';overflow:hidden';
+    banner.innerHTML='<div style="font-size:22px;animation:wpBounce 1.2s infinite">'+(isOwnerU?'👑':'✨')+'</div>'
+    +getAvatarHTML(u,38)
+    +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 1px 4px #000">'+title+'</div>'
+    +'<div style="font-size:12.5px;margin-top:2px">'+styleName(u)+'</div></div>'
+    +badge;
+    host.appendChild(banner);
+    if(me&&me.sndNotif!==false)try{beep(isOwnerU?1200:800);}catch(e){}
+    setTimeout(function(){
+      try{banner.style.animation='entrySlideUp .5s ease forwards';}catch(e){}
+      setTimeout(function(){try{banner.remove();}catch(e){}},600);
+    },isOwnerU?5000:4000);
+  }catch(e){}
+};
+
+/* 1) لما أنا أدخل: أشوف دخولي بنفسي ✨ */
+var _enE=window.enter;
+window.enter=async function(u){
+  var r=await _enE(u);
+  try{
+    if(u){
+      u._announced=true;
+      setTimeout(function(){
+        try{
+          /* لو الشات مفتوح يظهر جواه، وإلا فوق الصفحة كلها */
+          el('s-chat').classList.add('entryFxHost');
+          showEntryEffect(u);
+        }catch(e){}
+      },1500);
+    }
+  }catch(e){}
+  return r;
+};
+/* وعند استرجاع الجلسة كمان */
+try{
+  var _smE=window.subMsgs;
+  window.subMsgs=async function(){
+    var r=await _smE();
+    try{
+      if(me&&!window._myEntryShown){
+        window._myEntryShown=true;
+        setTimeout(function(){try{showEntryEffect(me);}catch(e){}},800);
+      }
+    }catch(e){}
+    return r;
+  };
+}catch(e){}
+
+/* 2) لما أعضاء تانية تدخل: الجميع يشوف (زي السابق) */
+var _knownUsers2={};
+setInterval(function(){
+  try{
+    if(!me)return;
+    for(var k in usersCache){
+      if(k===me.name)continue;
+      var u=usersCache[k];
+      var wasIn=_knownUsers2[k];
+      var nowIn=isOnline(u);
+      _knownUsers2[k]=nowIn;
+      if(nowIn&&!wasIn&&!u._announced){
+        u._announced=true;
+        showEntryEffect(u);
+      }
+      if(!nowIn)u._announced=false;
+    }
+  }catch(e){}
+},3000);
+})();
+/* ===== ✨ تأثير دخول: للمشتركين والإدارة وصاحب الموقع فقط ===== */
+(function(){
+if(window._entryFx3)return;window._entryFx3=true;
+
+try{
+  var st=document.createElement('style');
+  st.textContent='@keyframes entrySlideDown{0%{transform:translateY(-100%);opacity:0}100%{transform:translateY(0);opacity:1}}'
+  +'@keyframes entrySlideUp{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}'
+  +'@keyframes entryGlow{0%,100%{box-shadow:0 4px 20px rgba(0,0,0,.5)}50%{box-shadow:0 4px 34px rgba(255,215,0,.7)}}'
+  +'.entryFxHost{position:relative}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* مين له حق تأثير الدخول؟ */
+function hasEntryFx(u){
+  try{
+    if(!u)return false;
+    if(isOwnerName(u.name))return true;
+    if(u.role&&(u.role.indexOf('إدارة')>-1||u.role.indexOf('سوبر')>-1))return true;
+    if(u.welcome_pack_used===true)return true;
+    if(u.frameExp&&u.frameExp>Date.now())return true;
+    if(u.nameStyleExp&&u.nameStyleExp>Date.now())return true;
+    if(u.penColorExp&&u.penColorExp>Date.now())return true;
+    if(u.vipExp&&u.vipExp>Date.now())return true;
+    return false;
+  }catch(e){return false;}
+}
+
+function fxHost(){
+  try{
+    var c=el('s-chat');
+    if(c&&c.classList.contains('active')&&!c.classList.contains('entryFxHost'))c.classList.add('entryFxHost');
+    return (el('s-chat')&&el('s-chat').classList.contains('active'))?el('s-chat'):document.body;
+  }catch(e){return document.body;}
+}
+
+window.showEntryEffect=function(u){
+  try{
+    /* 🔒 الفلتر: العضو العادي ملهوش تأثير */
+    if(!hasEntryFx(u))return;
+    var old=el('entryFx');
+    if(old)old.remove();
+    var host=fxHost();
+    var isOwnerU=isOwnerName(u.name);
+    var isAdminU=false;
+    try{isAdminU=(u.role&&(u.role.indexOf('إدارة')>-1||u.role.indexOf('سوبر')>-1));}catch(e){}
+
+    var bg,border,title,badge;
+    if(isOwnerU){
+      bg='linear-gradient(90deg,#78350f,#d97706,#fbbf24,#d97706,#78350f)';
+      border='2px solid #FFD700';
+      title='👑 دخل الملك 👑';
+      badge='<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 12px;border-radius:12px;flex-shrink:0;animation:entryGlow 1.5s infinite">👑 VIP صاحب الموقع</span>';
+    }else if(isAdminU){
+      bg='linear-gradient(90deg,#4c1d95,#7c3aed,#4c1d95)';
+      border='2px solid #A78BFA';
+      title='🛡️ دخلت الإدارة';
+      badge='<span style="background:#7C3AED;color:#fff;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">🛡️ إدارة</span>';
+    }else{
+      bg='linear-gradient(90deg,#78350f,#b45309,#78350f)';
+      border='2px solid #FFD700';
+      title='✨ دخل الآن';
+      badge='<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">👑 VIP</span>';
+    }
+
+    var banner=document.createElement('div');
+    banner.id='entryFx';
+    banner.style.cssText='position:absolute;top:0;left:0;right:0;z-index:450;background:'+bg+';border-bottom:'+border+';padding:12px 14px;display:flex;align-items:center;gap:10px;animation:entrySlideDown .6s ease forwards'+(isOwnerU?',entryGlow 1.5s infinite 0.6s':'')+';overflow:hidden';
+    banner.innerHTML='<div style="font-size:22px;animation:wpBounce 1.2s infinite">'+(isOwnerU?'👑':'✨')+'</div>'
+    +getAvatarHTML(u,38)
+    +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 1px 4px #000">'+title+'</div>'
+    +'<div style="font-size:12.5px;margin-top:2px">'+styleName(u)+'</div></div>'
+    +badge;
+    host.appendChild(banner);
+    if(me&&me.sndNotif!==false)try{beep(isOwnerU?1200:800);}catch(e){}
+    setTimeout(function(){
+      try{banner.style.animation='entrySlideUp .5s ease forwards';}catch(e){}
+      setTimeout(function(){try{banner.remove();}catch(e){}},600);
+    },isOwnerU?5000:4000);
+  }catch(e){}
+};
+
+/* دخولي أنا: يظهر بس لو عندي حق (مشترك/إدارة/مالك) */
+var _enE3=window.enter;
+window.enter=async function(u){
+  var r=await _enE3(u);
+  try{
+    if(u&&hasEntryFx(u)){
+      u._announced=true;
+      setTimeout(function(){
+        try{
+          el('s-chat').classList.add('entryFxHost');
+          showEntryEffect(u);
+        }catch(e){}
+      },1500);
+    }
+  }catch(e){}
+  return r;
+};
+var _smE3=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smE3();
+  try{
+    if(me&&!window._myEntryShown&&hasEntryFx(me)){
+      window._myEntryShown=true;
+      setTimeout(function(){try{showEntryEffect(me);}catch(e){}},800);
+    }
+  }catch(e){}
+  return r;
+};
+
+/* الأعضاء التانيين: بس اللي عندهم حق */
+var _known3={};
+setInterval(function(){
+  try{
+    if(!me)return;
+    for(var k in usersCache){
+      if(k===me.name)continue;
+      var u=usersCache[k];
+      var wasIn=_known3[k];
+      var nowIn=isOnline(u);
+      _known3[k]=nowIn;
+      if(nowIn&&!wasIn&&!u._announced){
+        u._announced=true;
+        if(hasEntryFx(u))showEntryEffect(u);
+      }
+      if(!nowIn)u._announced=false;
+    }
+  }catch(e){}
+},3000);
+})();
+/* ===== ✨ تأثير دخول عالمي: الجميع يشوف الجميع — المشتركين والإدارة والمالك فقط ===== */
+(function(){
+if(window._entryFx4)return;window._entryFx4=true;
+
+/* الأنيميشن */
+try{
+  var st=document.createElement('style');
+  st.textContent='@keyframes entrySlideDown{0%{transform:translateY(-100%);opacity:0}100%{transform:translateY(0);opacity:1}}'
+  +'@keyframes entrySlideUp{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}'
+  +'@keyframes entryGlow{0%,100%{box-shadow:0 4px 20px rgba(0,0,0,.5)}50%{box-shadow:0 4px 34px rgba(255,215,0,.7)}}'
+  +'.entryFxHost{position:relative}';
+  document.head.appendChild(st);
+}catch(e){}
+
+function hasEntryFx(u){
+  try{
+    if(!u)return false;
+    if(isOwnerName(u.name))return true;
+    if(u.role&&(u.role.indexOf('إدارة')>-1||u.role.indexOf('سوبر')>-1))return true;
+    if(u.welcome_pack_used===true)return true;
+    if(u.frameExp&&u.frameExp>Date.now())return true;
+    if(u.nameStyleExp&&u.nameStyleExp>Date.now())return true;
+    if(u.penColorExp&&u.penColorExp>Date.now())return true;
+    if(u.vipExp&&u.vipExp>Date.now())return true;
+    return false;
+  }catch(e){return false;}
+}
+
+/* المضيف: يعرض البانر على أي شاشة مفتوحة حالياً */
+function fxHost(){
+  try{
+    var c=el('s-chat');
+    if(c&&c.classList.contains('active')&&!c.classList.contains('entryFxHost'))c.classList.add('entryFxHost');
+    return (el('s-chat')&&el('s-chat').classList.contains('active'))?el('s-chat'):document.body;
+  }catch(e){return document.body;}
+}
+
+window.showEntryEffect=function(u){
+  try{
+    if(!hasEntryFx(u))return;
+    var old=el('entryFx');
+    if(old)old.remove();
+    var host=fxHost();
+    var isOwnerU=isOwnerName(u.name);
+    var isAdminU=false;
+    try{isAdminU=(u.role&&(u.role.indexOf('إدارة')>-1||u.role.indexOf('سوبر')>-1));}catch(e){}
+
+    var bg,border,title,badge;
+    if(isOwnerU){
+      bg='linear-gradient(90deg,#78350f,#d97706,#fbbf24,#d97706,#78350f)';
+      border='2px solid #FFD700';
+      title='👑 دخل الملك 👑';
+      badge='<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 12px;border-radius:12px;flex-shrink:0;animation:entryGlow 1.5s infinite">👑 VIP صاحب الموقع</span>';
+    }else if(isAdminU){
+      bg='linear-gradient(90deg,#4c1d95,#7c3aed,#4c1d95)';
+      border='2px solid #A78BFA';
+      title='🛡️ دخلت الإدارة';
+      badge='<span style="background:#7C3AED;color:#fff;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">🛡️ إدارة</span>';
+    }else{
+      bg='linear-gradient(90deg,#78350f,#b45309,#78350f)';
+      border='2px solid #FFD700';
+      title='✨ دخل الآن';
+      badge='<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">👑 VIP</span>';
+    }
+
+    var banner=document.createElement('div');
+    banner.id='entryFx';
+    banner.style.cssText='position:absolute;top:0;left:0;right:0;z-index:450;background:'+bg+';border-bottom:'+border+';padding:12px 14px;display:flex;align-items:center;gap:10px;animation:entrySlideDown .6s ease forwards'+(isOwnerU?',entryGlow 1.5s infinite 0.6s':'')+';overflow:hidden';
+    banner.innerHTML='<div style="font-size:22px;animation:wpBounce 1.2s infinite">'+(isOwnerU?'👑':'✨')+'</div>'
+    +getAvatarHTML(u,38)
+    +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 1px 4px #000">'+title+'</div>'
+    +'<div style="font-size:12.5px;margin-top:2px">'+styleName(u)+'</div></div>'
+    +badge;
+    host.appendChild(banner);
+    if(me&&me.sndNotif!==false)try{beep(isOwnerU?1200:800);}catch(e){}
+    setTimeout(function(){
+      try{banner.style.animation='entrySlideUp .5s ease forwards';}catch(e){}
+      setTimeout(function(){try{banner.remove();}catch(e){}},600);
+    },isOwnerU?5000:4000);
+  }catch(e){}
+};
+
+/* 1) دخولي أنا: يظهرلي + (الآخرون هيشوفوه من مراقبة الحضور) */
+var _enE4=window.enter;
+window.enter=async function(u){
+  var r=await _enE4(u);
+  try{
+    if(u&&hasEntryFx(u)){
+      u._announced=true;
+      setTimeout(function(){
+        try{showEntryEffect(u);}catch(e){}
+      },1500);
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 2) عند استرجاع الجلسة: دخولي يظهر برضه */
+var _smE4=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smE4();
+  try{
+    if(me&&!window._myEntryShown2&&hasEntryFx(me)){
+      window._myEntryShown2=true;
+      setTimeout(function(){try{showEntryEffect(me);}catch(e){}},900);
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 3) الأعضاء التانيين: الجميع يشوف دخولهم (بما إنهم مشتركين) */
+var _known4={};
+setInterval(function(){
+  try{
+    if(!me)return;
+    for(var k in usersCache){
+      if(k===me.name)continue;
+      var u=usersCache[k];
+      var wasIn=_known4[k];
+      var nowIn=isOnline(u);
+      _known4[k]=nowIn;
+      if(nowIn&&!wasIn&&!u._announced){
+        u._announced=true;
+        showEntryEffect(u);
+      }
+      if(!nowIn)u._announced=false;
+    }
+  }catch(e){}
+},3000);
+})();
+     
