@@ -10376,4 +10376,129 @@ setInterval(function(){
   }catch(e){}
 },3000);
 })();
-     
+   /* ===== 🗑️ إزالة كارت إكس أو القديم نهائياً ===== */
+(function(){
+if(window._oxKill)return;window._oxKill=true;
+
+function killOX(){
+  try{
+    var scr=el('s-games');
+    if(!scr)return;
+    /* نلف على كل الكروت ونشيل اللي نصه فيه إكس أو */
+    var cards=scr.querySelectorAll('.r-card');
+    for(var i=0;i<cards.length;i++){
+      var t=cards[i].innerText||'';
+      if(t.indexOf('إكس أو')>-1||t.indexOf('(OX)')>-1||t.indexOf('اللعبة الكلاسيكية')>-1){
+        cards[i].remove();
+      }
+    }
+  }catch(e){}
+}
+
+/* نشيله فوراً + بعد كل فتح للألعاب + مراقبة مستمرة */
+killOX();
+var _goK=window.go;
+window.go=function(s,nv,fb){
+  var r=_goK(s,nv,fb);
+  try{if(s==='games')setTimeout(killOX,100);}catch(e){}
+  return r;
+};
+setInterval(killOX,2000);
+})();
+/* ===== 🔒 استقبال الوسائط: مقفول افتراضياً للجميع ===== */
+(function(){
+if(window._mediaOffDefault)return;window._mediaOffDefault=true;
+
+/* 1) عند الدخول أو استرجاع الجلسة: لو العضو عمّر ما فتحها بنفسه → نقفلها له */
+var _enM=window.enter;
+window.enter=async function(u){
+  var r=await _enM(u);
+  try{
+    if(u&&u.media_opt_in!==true&&u.allowMedia!==true){
+      u.allowMedia=false;
+      await updateMe({allowMedia:false});
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 2) واجهة الخصوصية: السويتش يظهر الوضع الصح */
+var _apM=window.applyPrefsUI;
+window.applyPrefsUI=function(){
+  var r=_apM?_apM():undefined;
+  try{
+    if(me&&el('pMedia'))el('pMedia').checked=(me.allowMedia===true||me.media_opt_in===true);
+  }catch(e){}
+  return r;
+};
+
+/* 3) حماية إضافية: العضو اللي مقفولة عنه ميقدرش يستقبل فعلياً — فحص عند الوصول */
+var _rmcM=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  try{
+    /* لو الرسالة صورة/صوت ووصلت لعضو الوسائط مقفولة عنه → رسالة بدلها */
+    if(me&&m&&m.from!==me.name&&!m.deleted&&(m.type==='image'||m.type==='audio')){
+      var canReceive=(me.allowMedia===true||me.media_opt_in===true);
+      if(!canReceive){
+        var html='<div style="background:var(--card2);border:1px dashed var(--line);border-radius:14px;padding:12px;text-align:center;min-width:150px">';
+        html+='<div style="font-size:26px;margin-bottom:4px">🔒</div>';
+        html+='<div style="font-size:12px;font-weight:bold;color:var(--mut)">وسائط مقفلة</div>';
+        html+='<div style="font-size:10px;color:var(--mut);margin-top:2px">فعّل استقبال الوسائط من الخصوصية لعرضها</div></div>';
+        return html;
+      }
+    }
+  }catch(e){}
+  return _rmcM?_rmcM(m):'';
+};
+
+/* 4) لما يفتحها من الخصوصية: نجدد الحالة */
+try{
+  var pM=el('pMedia');
+  if(pM){
+    pM.addEventListener('change',async function(){
+      try{
+        await updateMe({allowMedia:this.checked,media_opt_in:this.checked});
+        toast(this.checked?'✅ تم فتح استقبال الوسائط':'🔒 تم قفل استقبال الوسائط');
+      }catch(e){}
+    });
+  }
+}catch(e){}
+})();
+/* ===== 🗑️ إزالة إكس أو نهائياً: عبر onclick (مضمون 100%) ===== */
+(function(){
+if(window._oxKill2)return;window._oxKill2=true;
+
+function killOX2(){
+  try{
+    /* البحث بالـ onclick — أدق من النص */
+    var all=document.querySelectorAll('.r-card');
+    for(var i=0;i<all.length;i++){
+      var oc=all[i].getAttribute('onclick')||'';
+      if(oc.indexOf('openOX')>-1){
+        all[i].remove();
+      }
+    }
+    /* نسخة إضافية: أي عنصر في شاشة الألعاب مرتبط بالأوكس */
+    var scr=el('s-games');
+    if(scr){
+      var all2=scr.querySelectorAll('[onclick*="openOX"]');
+      for(var j=0;j<all2.length;j++){
+        var card=all2[j].closest('.r-card')||all2[j];
+        card.remove();
+      }
+    }
+  }catch(e){}
+}
+
+killOX2();
+var _goK2=window.go;
+window.go=function(s,nv,fb){
+  var r=_goK2(s,nv,fb);
+  try{if(s==='games')setTimeout(killOX2,80);}catch(e){}
+  return r;
+};
+setInterval(killOX2,1500);
+
+/* زرار openOX نفسه معطل */
+window.openOX=function(){toast('🎮 اللعبة اتشالت — الألعاب الجديدة متاحة في القايمة');};
+})();
