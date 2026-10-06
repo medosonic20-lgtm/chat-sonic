@@ -10502,3 +10502,1045 @@ setInterval(killOX2,1500);
 /* زرار openOX نفسه معطل */
 window.openOX=function(){toast('🎮 اللعبة اتشالت — الألعاب الجديدة متاحة في القايمة');};
 })();
+/* ================================================================
+   🏅 نظام الشارات النهائي — يلغي كل النسخ القديمة + شريط تقدم
+   ================================================================ */
+(function(){
+if(window._badgeSysFinal)return;window._badgeFinalCancel=true;
+
+/* ---------- 1) تعطيل كل دوال الشارات القديمة نهائياً ---------- */
+window._badgesSys=function(){return null};
+window._badgeSeed=function(){return null};
+window._badgeSeedBtn=function(){return null};
+window._bdDrawFix=function(){return null};
+window._bdV3=function(){return null};
+window._badgeFinal=function(){return null};
+window.renderBadges=function(){try{if(el('badgesBody'))el('badgesBody').innerHTML='';}catch(e){}};
+window.renderBadgesV3=function(){};
+window.uploadBadge=function(){toast('استخدم زرار الإضافة الجديد 👇');};
+window.buyBadge=function(){toast('استخدم زرار الشراء الجديد 👇');};
+window.equipBadge=function(){toast('استخدم زرار التفعيل الجديد 👇');};
+window.delBadge=function(){toast('استخدم زرار الحذف الجديد 👇');};
+window.removeMyBadge=function(){window.removeBadgeNew();};
+
+/* ---------- 2) قايمة الشارات الجاهزة ---------- */
+var BADGES=[
+ {url:'https://cdn.phototourl.com/member/2026-10-06-26f9a1ae-1457-4c9b-9bea-03567f26c789.webp',name:'شارة التاج',rarity:'أسطوري',price:3000},
+ {url:'https://cdn.phototourl.com/member/2026-10-06-24861af8-abb4-4ef1-b0bf-41e07fe04505.gif',name:'شارة الذهب المتحركة',rarity:'ملكي',price:5000},
+ {url:'https://cdn.phototourl.com/member/2026-10-06-9997f140-f8f2-491b-9bf2-244a717ab531.webp',name:'شارة الفيصل',rarity:'أسطوري',price:3000},
+ {url:'https://cdn.phototourl.com/member/2026-10-06-9665b5e0-9b56-41fc-9916-72f86bbf2c9b.gif',name:'شارة الملكة المتحركة',rarity:'ملكي',price:5000}
+];
+
+/* ---------- 3) شريط التقدم ---------- */
+function showBdProgress(show){
+  try{
+    var old=el('bdProgressNew');
+    if(show&&!old){
+      var p=document.createElement('div');
+      p.id='bdProgressNew';
+      p.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:var(--card);border:2px solid #FFD700;border-radius:16px;padding:20px;width:280px;text-align:center';
+      p.innerHTML='<div style="font-size:15px;font-weight:bold;color:var(--txt);margin-bottom:10px">🏅 جاري إضافة الشارات...</div>'
+      +'<div style="background:var(--bg);border-radius:10px;overflow:hidden;height:14px"><div id="bdProgressFillN" style="height:100%;width:0;background:linear-gradient(90deg,#FFD700,#FF9800);transition:width .3s"></div></div>'
+      +'<div id="bdProgressTxtN" style="font-size:11px;color:var(--mut);margin-top:8px">0%</div>';
+      document.body.appendChild(p);
+    }else if(!show&&old){
+      old.remove();
+    }
+  }catch(e){}
+}
+function setBdProgress(pct,txt){
+  try{
+    var f=el('bdProgressFillN'),t=el('bdProgressTxtN');
+    if(f)f.style.width=pct+'%';
+    if(t)t.innerText=txt;
+  }catch(e){}
+}
+
+/* ---------- 4) إضافة الشارات الجاهزة ---------- */
+window.addReadyBadgesNew=function(){
+  if(!isAdmin())return toast('للإدارة فقط');
+  showBdProgress(true);
+  setBdProgress(0,'بدء الإضافة...');
+  var added=0,skipped=0,idx=0;
+  function next(){
+    if(idx>=BADGES.length){
+      setBdProgress(100,'تم! ✅');
+      setTimeout(function(){
+        showBdProgress(false);
+        toast('🏅 تمت إضافة '+added+' شارة'+(skipped?' (و'+skipped+' موجودة)':''));
+        renderBadgesNew();
+      },700);
+      return;
+    }
+    var b=BADGES[idx];
+    sb.from('badges').select('id').eq('url',b.url).limit(1).then(function(chk){
+      if(chk.data&&chk.data.length){
+        skipped++;idx++;setBdProgress(Math.round(idx/BADGES.length*100),'فحص '+idx+'/'+BADGES.length);next();
+      }else{
+        sb.from('badges').insert({url:b.url,name:b.name,rarity:b.rarity,price:b.price,created:Date.now()}).then(function(){
+          added++;idx++;setBdProgress(Math.round(idx/BADGES.length*100),'إضافة '+idx+'/'+BADGES.length);next();
+        });
+      }
+    });
+  }
+  next();
+};
+
+/* ---------- 5) إضافة شارة من الجهاز (بدون ضغط — GIF سليمة) ---------- */
+window.addManualBadgeNew=function(e){
+  var f=e.target.files[0];if(!f)return;
+  if(!isAdmin())return;
+  var name=prompt('اسم الشارة:','شارة جديدة');if(name===null){e.target.value='';return;}
+  var rarity=prompt('الندرة (عادي / أسطوري / ملكي / ملكي VIP):','أسطوري');if(rarity===null){e.target.value='';return;}
+  var price=parseInt(prompt('السعر بالعملات:','3000'));if(isNaN(price)||price<=0)price=3000;
+  showBdProgress(true);setBdProgress(15,'جاري الرفع...');
+  var ext=(f.type==='image/gif')?'.gif':(f.type==='image/webp')?'.webp':'.png';
+  var fname='badge_'+Date.now()+ext;
+  sb.storage.from('stories').upload(fname,f,{cacheControl:'31536000',upsert:false}).then(function(r){
+    if(r.error){showBdProgress(false);return toast('فشل الرفع');}
+    setBdProgress(70,'جاري الحفظ...');
+    var url=sb.storage.from('stories').getPublicUrl(fname).data.publicUrl;
+    sb.from('badges').insert({url:url,name:name,rarity:rarity,price:price,created:Date.now()}).then(function(r2){
+      showBdProgress(false);
+      if(r2.error)return toast('خطأ: '+r2.error.message);
+      toast('🏅 تمت إضافة الشارة!');
+      renderBadgesNew();
+    });
+  });
+  e.target.value='';
+};
+
+/* ---------- 6) الشراء والتفعيل والحذف ---------- */
+window.buyBadgeNew=async function(id){
+  if(!me)return;
+  var d=await sb.from('badges').select('*').eq('id',id).limit(1);
+  var bd=d.data&&d.data[0];if(!bd)return;
+  var coins=(me.coins)||0;
+  if(coins<(bd.price||0))return toast('🪙 العملات غير كافية — ناقصك '+((bd.price||0)-coins)+' عملة');
+  if(!confirm('شراء شارة «'+(bd.name||'')+'» بـ '+(bd.price||0)+' عملة؟'))return;
+  await updateMe({coins:coins-(bd.price||0)});
+  var owned=(me.my_badges||[]);owned.push(id);
+  await updateMe({my_badges:owned,active_badge:id,active_badge_url:bd.url});
+  try{logTrans('buy',bd.price||0,'شراء شارة: '+(bd.name||''),'');}catch(e){}
+  toast('🏅 تم شراء الشارة وتفعيلها!');
+  renderBadgesNew();
+};
+window.equipBadgeNew=async function(id){
+  var d=await sb.from('badges').select('*').eq('id',id).limit(1);
+  var bd=d.data&&d.data[0];if(!bd)return;
+  await updateMe({active_badge:id,active_badge_url:bd.url});
+  toast('🏅 تم تفعيل الشارة');
+  renderBadgesNew();
+};
+window.removeBadgeNew=async function(){
+  await updateMe({active_badge:null,active_badge_url:null});
+  renderBadgesNew();
+};
+window.delBadgeNew=async function(id){
+  if(!isAdmin())return;
+  if(!confirm('حذف هذه الشارة نهائياً؟'))return;
+  await sb.from('badges').delete().eq('id',id);
+  renderBadgesNew();
+};
+
+/* ---------- 7) الشاشة ---------- */
+if(!el('s-badgesNew')){
+  var scr=document.createElement('div');
+  scr.className='screen';scr.id='s-badgesNew';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ متجر الشارات</div><div id="badgesBodyNew" style="padding:4px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+  else content.appendChild(scr);
+}
+
+/* ---------- 8) رسم المتجر ---------- */
+window.renderBadgesNew=async function(){
+  try{
+    var box=el('badgesBodyNew');if(!box||!me)return;
+    var coins=(me.coins)||0;
+    var admin=isOwnerName(me.name)||isAdmin();
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#1a1a4e,#0a0a20);border-radius:18px;padding:20px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(255,215,0,.3)">';
+    h+='<div style="font-size:17px;font-weight:900;color:#FFD700">🏅 متجر الشارات</div>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:5px">اشترِ شارتك لتظهر جنب اسمك في كل الموقع ✨</div>';
+    if(me.active_badge_url){
+      h+='<div style="margin-top:10px;display:inline-flex;align-items:center;gap:8px;background:var(--card2);border:1px solid #FFD700;border-radius:20px;padding:6px 14px">';
+      h+='<img src="'+me.active_badge_url+'" style="width:26px;height:26px;object-fit:contain">';
+      h+='<button onclick="removeBadgeNew()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px">✕ إزالة</button></div>';
+    }
+    h+='<div style="margin-top:10px"><span style="background:rgba(255,215,0,.12);border:1px solid #FFD700;border-radius:14px;padding:8px 18px;display:inline-block;cursor:pointer" onclick="go(\'wallet\',null)"><span style="font-size:17px;font-weight:900;color:#FFD700">🪙 '+coins+'</span></span></div></div>';
+    if(admin){
+      h+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">'
+      +'<button class="lbtn" style="margin:0;background:linear-gradient(135deg,#8B5CF6,#6D28D9)" onclick="addReadyBadgesNew()">🏅 إضافة الشارات الأربعة الجاهزة</button>'
+      +'<button class="lbtn" style="margin:0;background:linear-gradient(135deg,#3B82F6,#1D4ED8)" onclick="document.getElementById(\'badgeManualNew\').click()">➕ إضافة شارة من جهازك</button>'
+      +'<input type="file" id="badgeManualNew" accept="image/*,.gif,.webp" style="display:none" onchange="addManualBadgeNew(event)">'
+      +'</div>';
+    }
+    h+='<div id="badgesGridNew" style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div style="text-align:center;color:var(--mut);grid-column:1/-1">جاري التحميل...</div></div>';
+    box.innerHTML=h;
+
+    var d=await sb.from('badges').select('*').order('id',{ascending:true});
+    if(d.error){
+      var g=el('badgesGridNew');
+      if(g)g.innerHTML='<div style="color:var(--red);grid-column:1/-1;text-align:center;font-size:12px">⚠️ '+d.error.message+'<br><span style="font-size:10px">نفّذ في Supabase SQL: alter table badges disable row level security;</span></div>';
+      return;
+    }
+    var list=(d.data||[]);
+    var grid=el('badgesGridNew');if(!grid)return;
+    var g='';
+    if(!list.length)g+='<div style="text-align:center;color:var(--mut);grid-column:1/-1;padding:20px">لا توجد شارات — الإدارة تضيفها من الزرار فوق</div>';
+    list.forEach(function(bd){
+      var owned=(me.my_badges||[]).indexOf(bd.id)>-1;
+      var eq=(me.active_badge===bd.id);
+      var rar=bd.rarity||'عادي';
+      var rc={'عادي':'#94a3b8','أسطوري':'#FFD700','ملكي':'#EC4899','ملكي VIP':'#FF2E88','ملكي VIP فخم':'#D946EF'}[rar]||'#94a3b8';
+      g+='<div style="background:var(--card);border:2px solid '+(eq?'#FFD700':'var(--line)')+';border-radius:16px;padding:12px;text-align:center;position:relative">';
+      g+='<span style="position:absolute;top:-8px;right:8px;background:'+rc+';color:'+(rar==='عادي'?'#fff':'#111')+';font-size:9px;font-weight:bold;padding:2px 10px;border-radius:10px">'+rar+'</span>';
+      if(admin)g+='<button class="xbtn" style="position:absolute;top:4px;left:4px" onclick="delBadgeNew('+bd.id+')">✕</button>';
+      g+='<div style="width:80px;height:80px;margin:8px auto;background:radial-gradient(circle,'+rc+'22,transparent 70%);border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden">';
+      g+='<img src="'+bd.url+'" style="max-width:100%;max-height:100%;object-fit:contain"></div>';
+      g+='<div style="font-weight:bold;font-size:13px;color:var(--txt)">'+escapeHtml(bd.name||'')+'</div>';
+      if(eq){g+='<div style="margin-top:8px;padding:9px;background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;border-radius:10px;font-size:12px;font-weight:900">✅ مُفعّلة</div>';}
+      else if(owned){g+='<div style="margin-top:8px;padding:9px;background:var(--grn);color:#fff;border-radius:10px;font-size:12px;font-weight:bold;cursor:pointer" onclick="equipBadgeNew('+bd.id+')">✅ استخدمها</div>';}
+      else{g+='<div style="margin-top:8px;padding:9px;background:linear-gradient(90deg,#00A8FF,#0071D4);color:#fff;border-radius:10px;font-size:12px;font-weight:bold;cursor:pointer" onclick="buyBadgeNew('+bd.id+')">🛒 اشترِ الآن</div>';}
+      g+='</div>';
+    });
+    grid.innerHTML=g;
+  }catch(e){console.error('badgesNew',e);}
+};
+
+/* ---------- 9) عنصر الإعدادات ---------- */
+try{
+  var lists=document.querySelectorAll('#s-settings .menu-list');
+  var tgt=lists[0];
+  if(tgt&&!el('badgesMenuItemNew')){
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='badgesMenuItemNew';
+    mi.innerHTML='<span>🏅 متجر الشارات</span><span>👈</span>';
+    mi.onclick=function(){go('badgesNew',null);};
+    tgt.insertBefore(mi,tgt.firstChild);
+  }
+}catch(e){}
+
+/* ---------- 10) الشارة جنب الاسم ---------- */
+var _snBN=window.styleName;
+window.styleName=function(u){
+  var base=_snBN(u);
+  try{
+    if(u&&u.active_badge_url){
+      return base+' <img src="'+u.active_badge_url+'" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:3px;filter:drop-shadow(0 0 4px rgba(255,215,0,.5))">';
+    }
+  }catch(e){}
+  return base;
+};
+
+/* ---------- 11) الربط ---------- */
+var _goBN=window.go;
+window.go=function(s,nv,fb){
+  var r=_goBN(s,nv,fb);
+  try{if(s==='badgesNew')renderBadgesNew();}catch(e){}
+  return r;
+};
+})();
+/* ===== ✅ التوثيق: شارة التوثيق + الظهور دائماً في الأوائل ===== */
+(function(){
+if(window._verifySys)return;window._verifySys=true;
+
+/* 1) زرار التوثيق في قائمة العضو (للإدارة) */
+try{
+  var um=document.getElementById('userModal');
+  if(um&&!el('verifyUserBtn')){
+    var btn=document.createElement('button');
+    btn.id='verifyUserBtn';
+    btn.style.cssText='background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff';
+    btn.innerHTML='✅ توثيق العضو / إلغاء التوثيق';
+    btn.onclick=async function(){
+      if(!isAdmin())return toast('ممنوع');
+      var n=umTarget;
+      if(isOwnerName(n))return toast('👑 صاحب الموقع موثق دائماً');
+      var u=await SDB.getUser(n);
+      if(!u)return toast('العضو غير موجود');
+      if(u.verified===true){
+        await SDB.patchUser(n,{verified:false,verified_badge:null});
+        toast('❌ تم إلغاء التوثيق لـ '+n);
+      }else{
+        var url=prompt('رابط صورة التوثيق (اتركه فاضي للصورة الافتراضية ✅):');
+        var badgeUrl=url||'https://cdn.phototourl.com/member/2026-10-06-26f9a1ae-1457-4c9b-9bea-03567f26c789.webp';
+        await SDB.patchUser(n,{verified:true,verified_badge:badgeUrl});
+        toast('✅ تم توثيق '+n);
+      }
+      try{logActivity('verify','توثيق/إلغاء توثيق: '+n);}catch(e){}
+      closeModal('userModal');
+      refreshUsers();
+    };
+    var closeBtn=um.querySelector('button[onclick="closeModal(\'userModal\')"]');
+    um.insertBefore(btn,closeBtn);
+  }
+}catch(e){}
+
+/* 2) التوثيق جنب الاسم في كل الموقع (شارة ✅ صغيرة) */
+var _snV=window.styleName;
+window.styleName=function(u){
+  var base=_snV(u);
+  try{
+    if(u&&u.verified===true){
+      var badge=u.verified_badge||'';
+      if(badge){
+        return base+' <img src="'+badge+'" style="width:15px;height:15px;object-fit:contain;vertical-align:middle;margin-right:2px;filter:drop-shadow(0 0 3px rgba(59,130,246,.6))">';
+      }
+      return base+' <span style="display:inline-flex;width:13px;height:13px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);border-radius:50%;color:#fff;font-size:9px;font-weight:900;align-items:center;justify-content:center;vertical-align:middle;margin-right:2px">✓</span>';
+    }
+  }catch(e){}
+  return base;
+};
+
+/* 3) الموثقين دايماً في الأوائل — ترتيب قايمة المتصلين */
+var _roV=window.renderOnline;
+window.renderOnline=function(){
+  var r=_roV();
+  try{
+    /* بعد الرسم: نعيد ترتيب الكروت — الموثق فوق */
+    var box=el('usersList');
+    if(!box)return r;
+    var cards=[];
+    var kids=[];
+    for(var i=0;i<box.children.length;i++)kids.push(box.children[i]);
+    /* نفصل: الموثقين أولاً ثم الباقي بنفس ترتيبهم */
+    var verified=[],others=[],promos=[];
+    kids.forEach(function(child){
+      var oc=child.getAttribute&&child.getAttribute('onclick')||'';
+      var nm='';
+      try{
+        var m2=oc.match(/openUser\('([^']+)'\)/);
+        if(m2)nm=m2[1];
+      }catch(e){}
+      var u=nm?usersCache[nm]:null;
+      if(child.id==='emptyPromo'||child.id==='richListBox'){promos.push(child);return;}
+      if(u&&u.verified===true)verified.push(child);
+      else others.push(child);
+    });
+    if(verified.length&&others.length){
+      box.innerHTML='';
+      verified.forEach(function(c){box.appendChild(c);});
+      others.forEach(function(c){box.appendChild(c);});
+      promos.forEach(function(c){box.insertBefore(c,box.firstChild);});
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 4) التوثيق يظهر في البروفايل كمان (بجانب الاسم) */
+var _oupV=window.openUserProfile;
+window.openUserProfile=function(name){
+  var r=_oupV(name);
+  try{
+    setTimeout(function(){
+      var u=usersCache[name]||{};
+      var nm=el('upName');
+      if(nm&&u.verified===true&&!nm.querySelector('.verifyBadge')){
+        var b=document.createElement('span');
+        b.className='verifyBadge';
+        if(u.verified_badge){
+          b.innerHTML=' <img src="'+u.verified_badge+'" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(59,130,246,.6))">';
+        }else{
+          b.innerHTML=' <span style="display:inline-flex;width:16px;height:16px;background:linear-gradient(135deg,#3B82F6,#1D4ED8);border-radius:50%;color:#fff;font-size:10px;font-weight:900;align-items:center;justify-content:center;vertical-align:middle">✓</span>';
+        }
+        nm.appendChild(b);
+      }
+    },400);
+  }catch(e){}
+  return r;
+};
+})();
+/* ===== 🧹 إزالة زرار "الشارات الأربعة الجاهزة" ===== */
+(function(){
+if(window._seedBtnOff)return;window._seedBtnOff=true;
+
+/* تعطيل دالة التسجيل التلقائي */
+window.seedBadgesFinal=function(){toast('✅ الشارات الأربعة تم إضافتها من قبل');};
+window.seedBadgesNow=function(){toast('✅ الشارات الأربعة تم إضافتها من قبل');};
+window.addReadyBadgesNew=function(){toast('✅ الشارات الأربعة تم إضافتها من قبل');};
+window.addReadyBadges=function(){toast('✅ الشارات الأربعة تم إضافتها من قبل');};
+
+/* إزالة أي زرار تسجيل ظاهر في متجر الشارات */
+setInterval(function(){
+  try{
+    var box=el('badgesBodyNew')||el('badgesBody2')||el('badgesBody');
+    if(!box)return;
+    var btns=box.querySelectorAll('button.lbtn');
+    for(var i=0;i<btns.length;i++){
+      var t=btns[i].innerText||'';
+      if(t.indexOf('الشارات الأربعة')>-1||t.indexOf('الشارات الأربع')>-1){
+        btns[i].remove();
+      }
+    }
+  }catch(e){}
+},1500);
+})();
+/* ===== 🏅 متجر سونيك: إضافة الشارات + توسيع باقات الشحن ===== */
+(function(){
+if(window._shopBadge)return;window._shopBadge=true;
+var BADGE_COST=500;
+
+/* 1) منتج الشارات في متجر سونيك (تحت لون رسايلك) */
+var _rsB=window.renderShop;
+window.renderShop=function(){
+  var r=_rsB?_rsB():undefined;
+  try{
+    var box=el('shopBody');if(!box||!me)return r;
+    setTimeout(function(){
+      try{
+        var box2=el('shopBody');if(!box2||box2.querySelector('.shopBadgeRow'))return;
+        /* نحدد آخر صف (لون رسايلك) ونحط بعده */
+        var divs=box2.querySelectorAll('div');
+        var lastProd=null;
+        for(var i=0;i<divs.length;i++){
+          var t=divs[i].innerText||'';
+          if(t.indexOf('لون رسايلك')>-1&&t.indexOf('رسايلك بإطار')>-1){
+            lastProd=divs[i];break;
+          }
+        }
+        if(!lastProd)return;
+        var coins=(me.coins)||0;
+        var badgeActive=(me.badgeExp&&me.badgeExp>Date.now())||(me.active_badge_url&&me.active_badge_url.length>0);
+        var h='<div class="shopBadgeRow" style="background:var(--card);border:1px solid '+(badgeActive?'var(--grn)':'var(--line)')+';border-radius:14px;padding:14px;display:flex;align-items:center;gap:12px;margin-top:10px">';
+        h+='<div style="width:52px;height:52px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">🏅</div>';
+        h+='<div style="flex:1;min-width:0"><div style="font-weight:bold;font-size:14px;color:var(--txt)">🏅 شارة حصرية</div>';
+        h+='<div style="font-size:11px;color:var(--mut);margin-top:3px">شارات فخمة تظهر في البروفايل — 30 يوم</div>';
+        if(badgeActive)h+='<div style="font-size:11px;color:var(--grn);font-weight:bold;margin-top:4px">✅ مُفعّل — اخترها من متجر الشارات</div>';
+        h+='</div><div style="flex-shrink:0">';
+        if(badgeActive)h+='<div style="font-size:11px;color:var(--grn);font-weight:bold">✅</div>';
+        else if(coins>=BADGE_COST)h+='<button class="adm-btn" style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900;border-radius:12px;padding:8px 14px" onclick="buyShopBadge()">🪙 '+BADGE_COST+'</button>';
+        else h+='<div style="font-size:11px;color:var(--red);text-align:center;font-weight:bold">'+BADGE_COST+'<div style="font-size:9px">ناقص '+(BADGE_COST-coins)+'</div></div>';
+        h+='</div></div>';
+        lastProd.insertAdjacentHTML('afterend',h);
+      }catch(e){}
+    },120);
+  }catch(e){}
+  return r;
+};
+
+/* شراء شارة من المتجر = فتح حق الشارات 30 يوم */
+window.buyShopBadge=function(){
+  if((me.coins||0)<BADGE_COST)return toast('🪙 العملات غير كافية — يرجي الشحن');
+  if(!confirm('فتح ميزة الشارات بـ '+BADGE_COST+' عملة لمدة 30 يوم؟'))return;
+  updateMe({coins:(me.coins||0)-BADGE_COST,badgeExp:Date.now()+30*86400000}).then(function(){
+    toast('🎉 تم فتح ميزة الشارات! اخترها من متجر الشارات');
+    try{renderShop();}catch(e){}
+  });
+};
+
+/* حصار الشارات: اللي مشتركش مينفعش يشتري منها */
+var _bb2=window.buyBadge2b;
+window.buyBadge2b=async function(id){
+  try{
+    if(!isAdmin()&&!(me&&me.badgeExp&&me.badgeExp>Date.now())){
+      return toast('🔒 الشارات تتطلب اشتراك — فعّلها من متجر سونيك (500 عملة)');
+    }
+  }catch(e){}
+  return _bb2?_bb2(id):undefined;
+};
+var _bb3=window.buyBadgeNew;
+window.buyBadgeNew=async function(id){
+  try{
+    if(!isAdmin()&&!(me&&me.badgeExp&&me.badgeExp>Date.now())){
+      return toast('🔒 الشارات تتطلب اشتراك — فعّلها من متجر سونيك (500 عملة)');
+    }
+  }catch(e){}
+  return _bb3?_bb3(id):undefined;
+};
+
+/* 2) توسيع باقات الشحن (مسافات أوسع) */
+var _rwW2=window.renderWallet;
+window.renderWallet=function(){
+  var r=_rwW2?_rwW2():undefined;
+  try{
+    setTimeout(function(){
+      try{
+        var box=el('walletBody');if(!box)return;
+        var grid=box.querySelector('div[style*="grid-template-columns:1fr 1fr"]');
+        if(grid){
+          grid.style.gap='12px';
+          var cards=grid.children;
+          for(var i=0;i<cards.length;i++){
+            cards[i].style.padding='14px 10px';
+            cards[i].style.minHeight='110px';
+          }
+        }
+      }catch(e){}
+    },100);
+  }catch(e){}
+  return r;
+};
+})();
+/* ===== 💰 باقات شحن إضافية: من 600 لـ 1500 عملة ===== */
+(function(){
+if(window._packsExtra)return;window._packsExtra=true;
+var EXTRA=[
+ {coins:600,price:240,bonus:120},
+ {coins:700,price:280,bonus:150},
+ {coins:800,price:320,bonus:190},
+ {coins:900,price:360,bonus:240},
+ {coins:1000,price:400,bonus:300},
+ {coins:1250,price:500,bonus:400},
+ {coins:1500,price:600,bonus:525}
+];
+
+/* ندمجها مع الباقات الحالية (اللي من الباتش القديم ممكن تكون بأسماء مختلفة — نتعامل مع الكل) */
+function getAllPacks(){
+  try{
+    var out=[];
+    /* الباقات الأساسية الموجودة في شاشة عملاتي */
+    var basic=[
+      [100,40,0],[150,60,5],[200,80,10],[250,100,20],[300,120,30],[350,140,45],
+      [400,160,60],[450,180,80],[500,200,100]
+    ];
+    basic.forEach(function(p){out.push({coins:p[0],price:p[1],bonus:p[2]});});
+    EXTRA.forEach(function(p){out.push(p);});
+    /* نحذف المكرر */
+    var seen={},final=[];
+    out.forEach(function(p){
+      var k=p.coins+'_'+p.price;
+      if(!seen[k]){seen[k]=1;final.push(p);}
+    });
+    return final;
+  }catch(e){return EXTRA;}
+}
+
+/* إعادة رسم شبكة الباقات في عملاتي: كل الباقات مع بعض */
+var _rwX=window.renderWallet;
+window.renderWallet=function(){
+  var r=_rwX?_rwX():undefined;
+  try{
+    setTimeout(function(){
+      try{
+        var box=el('walletBody');if(!box)return;
+        var grid=box.querySelector('div[style*="grid-template-columns:1fr 1fr"]');
+        if(!grid)return;
+        var packs=getAllPacks();
+        var h='';
+        packs.forEach(function(p,idx){
+          var total=p.coins+p.bonus;
+          var isBig=p.coins>=800;
+          var isMax=(idx===packs.length-1);
+          h+='<div onclick="openPackPayExtra('+p.coins+','+p.price+','+p.bonus+')" style="background:var(--card);border:2px solid '+(isMax?'#FFD700':'var(--line)')+';border-radius:14px;padding:12px;text-align:center;cursor:pointer;position:relative'+(isMax?';box-shadow:0 0 16px rgba(255,215,0,.35)':'')+'">';
+          if(p.bonus>0)h+='<span style="position:absolute;top:-8px;right:10px;background:var(--grn);color:#fff;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:8px">🎁 +'+p.bonus+' مجاناً</span>';
+          if(isMax)h+='<span style="position:absolute;top:-8px;left:10px;background:#FFD700;color:#111;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:8px">👑 الأضخم</span>';
+          h+='<div style="font-size:20px;font-weight:900;color:#FFD700;margin-top:'+(p.bonus>0?'6px':'2px')+'">🪙 '+total+'</div>';
+          if(p.bonus>0)h+='<div style="font-size:10px;color:var(--mut)">'+p.coins+' + '+p.bonus+' هدية</div>';
+          else h+='<div style="font-size:10px;color:var(--mut)">'+p.coins+' عملة</div>';
+          h+='<div style="font-size:15px;font-weight:900;color:var(--txt);margin-top:6px">'+p.price+' جنيه</div></div>';
+        });
+        grid.innerHTML=h;
+      }catch(e){}
+    },100);
+  }catch(e){}
+  return r;
+};
+
+/* نافذة الدفع للباقات الجديدة */
+window.openPackPayExtra=function(coins,price,bonus){
+  if(!me)return toast('سجل دخولك أولاً');
+  var total=coins+bonus;
+  var old=el('buyCoinsModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='buyCoinsModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:330px;max-height:88vh;overflow-y:auto">'
+  +'<h3 style="color:#FFD700">🪙 شراء '+total+' عملة</h3>'
+  +'<div style="background:var(--bg);border-radius:12px;padding:10px;text-align:center;margin-bottom:8px">'
+  +'<div style="font-size:13px;color:var(--mut)">'+coins+' عملة'+(bonus>0?' <b style="color:var(--grn)">+ '+bonus+' هدية 🎁</b>':'')+'</div>'
+  +'<div style="font-size:26px;font-weight:900;color:var(--txt);margin-top:4px">'+price+' جنيه</div></div>'
+  +'<p style="font-size:13px;text-align:center;color:var(--txt)">حوّل <b style="color:#FFD700">'+price+' جنيه</b> على فودافون كاش:</p>'
+  +'<div onclick="copyVoda()" style="background:var(--bg);border:2px dashed #FFD700;border-radius:12px;padding:12px;text-align:center;cursor:pointer">'
+  +'<div style="font-size:22px;font-weight:900;color:#FFD700;direction:ltr">01013255816</div>'
+  +'<div style="font-size:11px;color:var(--mut);margin-top:4px">📊 اضغط للنسخ 📋</div></div>'
+  +'<div style="font-size:12px;color:var(--txt);text-align:center;margin:10px 0 6px">بعد التحويل، ارفع صورة الإيصال:</div>'
+  +'<input type="file" id="topupImg" accept="image/*" style="display:none" onchange="previewTopup(event)">'
+  +'<label for="topupImg" id="topupImgLabel" style="width:100%;min-height:70px;background:var(--bg);border:2px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:24px;margin-bottom:6px">📷 ارفع صورة التحويل</label>'
+  +'<textarea id="topupNote" placeholder="ملاحظة (اختياري)..." style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px;font-size:12px;min-height:40px;resize:none;margin-bottom:6px"></textarea>'
+  +'<button style="background:var(--grn);color:#fff" onclick="submitPackExtra('+coins+','+price+','+bonus+')">✅ إرسال الطلب للإدارة</button>'
+  +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'buyCoinsModal\')">إغلاق</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('buyCoinsModal');};
+  document.body.appendChild(m);
+  m.classList.add('open');
+};
+
+window.submitPackExtra=async function(coins,price,bonus){
+  if(!window._topupImg)return toast('📷 ارفع صورة التحويل الأول');
+  var note=(el('topupNote')?el('topupNote').value.trim():'');
+  toast('⏳ جاري الإرسال...');
+  var url=await uploadMedia(window._topupImg,'.jpg');
+  if(!url)return toast('فشل رفع الصورة');
+  var total=coins+bonus;
+  var r=await sb.from('topup_requests').insert({
+    user:me.name,amount:total,price:price,img:url,
+    note:(note?note+' | ':'')+'باقة '+coins+'+'+bonus,
+    status:'pending',time:Date.now()
+  });
+  if(r&&r.error)return toast('❌ خطأ: '+r.error.message);
+  window._topupImg=null;
+  closeModal('buyCoinsModal');
+  toast('✅ وصل طلبك — تستلم '+total+' عملة بعد التأكيد');
+  try{renderWallet();}catch(e){}
+};
+
+/* توست ذهبي للباقة الأضخم */
+var _lastBig=0;
+})();
+/* ===== ✨ نظام الدخول النهائي: للمشتركين والإدارة والمالك فقط ===== */
+(function(){
+if(window._entryFinal)return;window._entryFinal=true;
+
+/* 1) تعطيل كل الأنظمة القديمة: نتأكد إن كل عضو "أُعلن عنه" عشان حلقات المراقبة القديمة ما تشتغلش */
+setInterval(function(){
+  try{
+    for(var k in usersCache){
+      var u=usersCache[k];
+      /* العلم القديم _announced = true دائماً → الأنظمة القديمة صامتة */
+      if(u._announced!==true)u._announced=true;
+    }
+  }catch(e){}
+},1000);
+
+/* 2) تعطيل بانرات الأنظمة القديمة لو ظهرت */
+setInterval(function(){
+  try{
+    /* بانرات الأنظمة القديمة بتتعرّف بـ id entryFx — بنتحقق: لو العضو العادي مملوكها نشيلها */
+    var b=el('entryFx');
+    if(b&&b.getAttribute('data-final')!=='1'){
+      /* بنشوف مين صاحب البانر من اسمه جواه */
+      var txt=b.innerText||'';
+      /* البانرات القديمة لعضو عادي = بنشيلها */
+      var isVipBanner=(txt.indexOf('VIP')>-1||txt.indexOf('الملك')>-1||txt.indexOf('الإدارة')>-1);
+      if(!isVipBanner){b.remove();}
+      else{b.setAttribute('data-final','1');}
+    }
+  }catch(e){}
+},500);
+
+/* 3) الأنيميشن */
+try{
+  var st=document.createElement('style');
+  st.textContent='@keyframes entrySlideDownF{0%{transform:translateY(-100%);opacity:0}100%{transform:translateY(0);opacity:1}}'
+  +'@keyframes entrySlideUpF{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}'
+  +'@keyframes entryGlowF{0%,100%{box-shadow:0 4px 20px rgba(0,0,0,.5)}50%{box-shadow:0 4px 34px rgba(255,215,0,.7)}}'
+  +'.entryFxHost{position:relative}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* 4) فلتر صارم: مين له تأثير دخول؟ */
+function canHaveEntryFx(u){
+  try{
+    if(!u)return false;
+    if(isOwnerName(u.name))return true;                    /* 👑 المالك */
+    if(isAdmin())return true;                               /* 🛡️ الإدارة */
+    if(u.role&&u.role.indexOf('سوبر')>-1)return true;       /* ⭐ سوبر */
+    /* أي اشتراك نشط */
+    if(u.penColorExp&&u.penColorExp>Date.now())return true; /* 🎨 لون الرسايل */
+    if(u.nameStyleExp&&u.nameStyleExp>Date.now())return true;/* 👑 تميّز الاسم */
+    if(u.frameExp&&u.frameExp>Date.now())return true;       /* 🖼️ الإطار */
+    if(u.badgeExp&&u.badgeExp>Date.now())return true;       /* 🏅 الشارات */
+    if(u.vipExp&&u.vipExp>Date.now())return true;           /* 💎 VIP */
+    if(u.welcome_pack_used===true)return true;              /* 🎁 باقة الترحيب */
+    return false;                                           /* ❌ عضو عادي: لا شيء */
+  }catch(e){return false;}
+}
+
+function fxHost(){
+  try{
+    var c=el('s-chat');
+    if(c&&c.classList.contains('active')&&!c.classList.contains('entryFxHost'))c.classList.add('entryFxHost');
+    return (el('s-chat')&&el('s-chat').classList.contains('active'))?el('s-chat'):document.body;
+  }catch(e){return document.body;}
+}
+
+/* 5) التأثير النهائي */
+window.showEntryEffectFinal=function(u){
+  try{
+    /* الفلتر الصارم أولاً */
+    if(!canHaveEntryFx(u))return;
+    var old=el('entryFxFinal');
+    if(old)old.remove();
+    var host=fxHost();
+    var isOwnerU=isOwnerName(u.name);
+    var isAdminU=false;
+    try{isAdminU=(u.role&&(u.role.indexOf('إدارة')>-1||u.role.indexOf('سوبر')>-1));}catch(e){}
+
+    var bg,border,title,badge,dur;
+    if(isOwnerU){
+      bg='linear-gradient(90deg,#78350f,#d97706,#fbbf24,#d97706,#78350f)';
+      border='2px solid #FFD700';
+      title='👑 دخل الملك 👑';
+      badge='<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 12px;border-radius:12px;flex-shrink:0;animation:entryGlowF 1.5s infinite">👑 VIP صاحب الموقع</span>';
+      dur=5000;
+    }else if(isAdminU){
+      bg='linear-gradient(90deg,#4c1d95,#7c3aed,#4c1d95)';
+      border='2px solid #A78BFA';
+      title='🛡️ دخلت الإدارة';
+      badge='<span style="background:#7C3AED;color:#fff;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">🛡️ إدارة</span>';
+      dur=4500;
+    }else{
+      bg='linear-gradient(90deg,#78350f,#b45309,#78350f)';
+      border='2px solid #FFD700';
+      title='✨ دخل الآن';
+      badge='<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">👑 VIP</span>';
+      dur=4000;
+    }
+
+    var banner=document.createElement('div');
+    banner.id='entryFxFinal';
+    banner.setAttribute('data-final','1');
+    banner.style.cssText='position:absolute;top:0;left:0;right:0;z-index:450;background:'+bg+';border-bottom:'+border+';padding:12px 14px;display:flex;align-items:center;gap:10px;animation:entrySlideDownF .6s ease forwards'+(isOwnerU?',entryGlowF 1.5s infinite 0.6s':'')+';overflow:hidden';
+    banner.innerHTML='<div style="font-size:22px;animation:wpBounce 1.2s infinite">'+(isOwnerU?'👑':'✨')+'</div>'
+    +getAvatarHTML(u,38)
+    +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 1px 4px #000">'+title+'</div>'
+    +'<div style="font-size:12.5px;margin-top:2px">'+styleName(u)+'</div></div>'
+    +badge;
+    host.appendChild(banner);
+    if(me&&me.sndNotif!==false)try{beep(isOwnerU?1200:800);}catch(e){}
+    setTimeout(function(){
+      try{banner.style.animation='entrySlideUpF .5s ease forwards';}catch(e){}
+      setTimeout(function(){try{banner.remove();}catch(e){}},600);
+    },dur);
+  }catch(e){}
+};
+
+/* 6) المراقبة الجديدة: بعلم منفصل _announced2 */
+var _track2={};
+setInterval(function(){
+  try{
+    if(!me)return;
+    for(var k in usersCache){
+      var u=usersCache[k];
+      var wasIn=_track2[k];
+      var nowIn=isOnline(u);
+      _track2[k]=nowIn;
+      if(nowIn&&!wasIn&&!u._announced2){
+        u._announced2=true;
+        showEntryEffectFinal(u);
+      }
+      if(!nowIn)u._announced2=false;
+    }
+  }catch(e){}
+},3000);
+
+/* 7) دخولي أنا: يظهر لو معايا الحق فقط */
+var _enF=window.enter;
+window.enter=async function(u){
+  var r=await _enF(u);
+  try{
+    if(u&&canHaveEntryFx(u)){
+      u._announced2=true;
+      setTimeout(function(){
+        try{el('s-chat').classList.add('entryFxHost');}catch(e){}
+        setTimeout(function(){showEntryEffectFinal(u);},200);
+      },1500);
+    }
+  }catch(e){}
+  return r;
+};
+/* استرجاع الجلسة */
+var _smF=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smF();
+  try{
+    if(me&&!window._myEntryFinal&&canHaveEntryFx(me)){
+      window._myEntryFinal=true;
+      setTimeout(function(){showEntryEffectFinal(me);},900);
+    }
+  }catch(e){}
+  return r;
+};
+})();
+/* ===== ✨ تأثير الدخول النهائي: مرة واحدة فقط عند فتح الموقع ===== */
+(function(){
+if(window._entryOnce)return;window._entryOnce=true;
+
+/* الأنيميشن */
+try{
+  var st=document.createElement('style');
+  st.textContent='@keyframes entrySlideDown2{0%{transform:translateY(-100%);opacity:0}100%{transform:translateY(0);opacity:1}}'
+  +'@keyframes entrySlideUp2{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-100%);opacity:0}}'
+  +'@keyframes entryGlow2{0%,100%{box-shadow:0 4px 20px rgba(0,0,0,.5)}50%{box-shadow:0 4px 34px rgba(255,215,0,.7)}}'
+  +'.entryFxHost{position:relative}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* مين له تأثير؟ */
+function canEntryFx(u){
+  try{
+    if(!u)return false;
+    if(isOwnerName(u.name))return true;
+    if(isAdmin())return true;
+    if(u.role&&u.role.indexOf('سوبر')>-1)return true;
+    if(u.penColorExp&&u.penColorExp>Date.now())return true;
+    if(u.nameStyleExp&&u.nameStyleExp>Date.now())return true;
+    if(u.frameExp&&u.frameExp>Date.now())return true;
+    if(u.badgeExp&&u.badgeExp>Date.now())return true;
+    if(u.vipExp&&u.vipExp>Date.now())return true;
+    if(u.welcome_pack_used===true)return true;
+    return false;
+  }catch(e){return false;}
+}
+
+function fxHost(){
+  try{
+    var c=el('s-chat');
+    if(c&&c.classList.contains('active')&&!c.classList.contains('entryFxHost'))c.classList.add('entryFxHost');
+    return (el('s-chat')&&el('s-chat').classList.contains('active'))?el('s-chat'):document.body;
+  }catch(e){return document.body;}
+}
+
+/* التأثير */
+window.showEntryOnce=function(u){
+  try{
+    if(!canEntryFx(u))return;
+    /* حماية من التكرار: مفيش بانر تاني في نفس الدقيقة */
+    var now=Date.now();
+    if(window._lastEntryFx&&now-window._lastEntryFx<60000)return;
+    window._lastEntryFx=now;
+    var old=el('entryFxOnce');
+    if(old)old.remove();
+
+    var host=fxHost();
+    var isOwnerU=isOwnerName(u.name);
+    var isAdminU=false;
+    try{isAdminU=(u.role&&(u.role.indexOf('إدارة')>-1||u.role.indexOf('سوبر')>-1));}catch(e){}
+
+    var bg,border,title,badge,dur;
+    if(isOwnerU){
+      bg='linear-gradient(90deg,#78350f,#d97706,#fbbf24,#d97706,#78350f)';
+      border='2px solid #FFD700';
+      title='👑 دخل الملك 👑';
+      badge='<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 12px;border-radius:12px;flex-shrink:0;animation:entryGlow2 1.5s infinite">👑 VIP صاحب الموقع</span>';
+      dur=5000;
+    }else if(isAdminU){
+      bg='linear-gradient(90deg,#4c1d95,#7c3aed,#4c1d95)';
+      border='2px solid #A78BFA';
+      title='🛡️ دخلت الإدارة';
+      badge='<span style="background:#7C3AED;color:#fff;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">🛡️ إدارة</span>';
+      dur=4500;
+    }else{
+      bg='linear-gradient(90deg,#78350f,#b45309,#78350f)';
+      border='2px solid #FFD700';
+      title='✨ دخل الآن';
+      badge='<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">👑 VIP</span>';
+      dur=4000;
+    }
+
+    var banner=document.createElement('div');
+    banner.id='entryFxOnce';
+    banner.setAttribute('data-final','1');
+    banner.style.cssText='position:absolute;top:0;left:0;right:0;z-index:450;background:'+bg+';border-bottom:'+border+';padding:12px 14px;display:flex;align-items:center;gap:10px;animation:entrySlideDown2 .6s ease forwards'+(isOwnerU?',entryGlow2 1.5s infinite 0.6s':'')+';overflow:hidden';
+    banner.innerHTML='<div style="font-size:22px;animation:wpBounce 1.2s infinite">'+(isOwnerU?'👑':'✨')+'</div>'
+    +getAvatarHTML(u,38)
+    +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 1px 4px #000">'+title+'</div>'
+    +'<div style="font-size:12.5px;margin-top:2px">'+styleName(u)+'</div></div>'
+    +badge;
+    host.appendChild(banner);
+    if(me&&me.sndNotif!==false)try{beep(isOwnerU?1200:800);}catch(e){}
+    setTimeout(function(){
+      try{banner.style.animation='entrySlideUp2 .5s ease forwards';}catch(e){}
+      setTimeout(function(){try{banner.remove();}catch(e){}},600);
+    },dur);
+  }catch(e){}
+};
+
+/* ⭐ النظام: مرة واحدة بس عند فتح الموقع */
+var _saE=window.startAll;
+window.startAll=async function(){
+  var r=await _saE();
+  try{
+    /* بعد ثانية ونص من فتح الموقع — للتأثير الخاص بيك أنت */
+    setTimeout(function(){
+      if(me&&canEntryFx(me))showEntryOnce(me);
+    },1500);
+    /* ولو عضو مشترك تاني دخل في نفس اللحظة — يظهر ليك برضه (مرة واحدة) */
+    setTimeout(function(){
+      try{
+        for(var k in usersCache){
+          if(k===me.name)continue;
+          var u=usersCache[k];
+          if(canEntryFx(u)&&isOnline(u)){
+            showEntryOnce(u);
+            break; /* واحد بس */
+          }
+        }
+      }catch(e){}
+    },2500);
+  }catch(e){}
+  return r;
+};
+
+/* ⛔ تعطيل التكرار: بطلنا مراقبة الأونلاين خالص — ده كان سبب التكرار */
+window.showEntryEffect=function(){};
+window.showEntryEffectFinal=function(){};
+})();
+/* ===== 🎁 ترحيب يودي للعروض + تبديل المتاجر + تثبيت سونيك فوق ===== */
+(function(){
+if(window._navFixFinal)return;window._navFixFinal=true;
+
+/* 1) نافذة الترحيب: زرارها يودي لصفحة عملاتي (العروض) بدل ما يفتح دفع */
+var _wpE=window.openWPPack;
+window.openWPPack=function(){
+  var r=_wpE?_wpE():undefined;
+  try{
+    setTimeout(function(){
+      var m=el('wpModal');
+      if(!m)return;
+      var btns=m.querySelectorAll('button');
+      for(var i=0;i<btns.length;i++){
+        var t=btns[i].innerText||'';
+        if(t.indexOf('ادفع')>-1||t.indexOf('اشحن')>-1){
+          /* نستبدل الزرار: يودي لصفحة العروض (عملاتي) */
+          btns[i].innerHTML='🛒 اذهب إلى العروض والدفع';
+          btns[i].onclick=function(){
+            closeModal('wpModal');
+            try{go('wallet',null);}catch(e){}
+          };
+          break;
+        }
+      }
+    },60);
+  }catch(e){}
+  return r;
+};
+
+/* لو نافذة الترحيب مقفولة والباقة شغالة: زرار يظهر في عملاتي فوق الباقات */
+try{
+  var _rwW3=window.renderWallet;
+  window.renderWallet=function(){
+    var r=_rwW3?_rwW3():undefined;
+    try{
+      setTimeout(function(){
+        try{
+          var box=el('walletBody');
+          if(!box||!me)return;
+          if(me.welcome_pack_used===true)return;
+          if(Date.now()>Date.now()+6.5*86400000)return;
+          if(el('wpOfferRow'))return;
+          /* نلاقي عنوان الباقات ونحط العرض قبلته */
+          var divs=box.querySelectorAll('div');
+          for(var i=0;i<divs.length;i++){
+            var t=divs[i].innerText||'';
+            if(t.indexOf('باقات الشحن')>-1&&t.indexOf('مكافآت')>-1){
+              var offer=document.createElement('div');
+              offer.id='wpOfferRow';
+              offer.style.cssText='background:linear-gradient(135deg,#1d4ed8,#7c3aed);border:2px solid #FFD700;border-radius:14px;padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;cursor:pointer';
+              offer.onclick=function(){openWPPack();};
+              offer.innerHTML='<div style="font-size:26px">🎁</div>'
+              +'<div style="flex:1"><div style="color:#fff;font-weight:900;font-size:13.5px">🎉 باقة هدربا — أول شحنة</div>'
+              +'<div style="color:#fde047;font-size:11px;margin-top:2px">150ج = 375 عملة + 🖼️ إطار 7 أيام</div></div>'
+              +'<span style="background:#FFD700;color:#111;font-size:11px;font-weight:900;padding:5px 12px;border-radius:10px">اذهب</span>';
+              divs[i].parentElement.insertBefore(offer,divs[i]);
+              break;
+            }
+          }
+        }catch(e){}
+      },150);
+    }catch(e){}
+    return r;
+  };
+}catch(e){}
+
+/* 2) تبديل المتاجر في قايمة الإعدادات: شارات مكان سونيك + سونيك فوق الكل */
+var _reorderDone=false;
+function reorderMenus(){
+  try{
+    var scr=el('s-settings');
+    if(!scr)return;
+    var shopItem=el('shopMenuItem');
+    var badgeItem=el('badgesMenuItemNew');
+    if(!shopItem||!badgeItem)return;
+    /* نضمن إنهم في نفس القايمة */
+    var list=shopItem.parentElement;
+    if(list!==badgeItem.parentElement){
+      list.insertBefore(badgeItem,shopItem);
+    }
+    /* نبدل المكانين: الشارات في مكان سونيك الأصلي */
+    var shopParent=shopItem.parentElement;
+    var badgeParent=badgeItem.parentElement;
+    /* نضمن إن متجر سونيك أول عنصر في أول قايمة */
+    var firstList=document.querySelectorAll('#s-settings .menu-list')[0];
+    if(firstList&&firstList.firstChild!==shopItem){
+      firstList.insertBefore(shopItem,firstList.firstChild);
+    }
+    _reorderDone=true;
+  }catch(e){}
+}
+setInterval(reorderMenus,2000);
+setTimeout(reorderMenus,1000);
+
+/* 3) تأمين: متجر سونيك مينزلش — إجبار النظام على رجوعه فوق */
+var _goSF=window.go;
+window.go=function(s,nv,fb){
+  var r=_goSF(s,nv,fb);
+  try{
+    if(s==='settings')setTimeout(reorderMenus,150);
+  }catch(e){}
+  return r;
+};
+})();
+/* ===== نافذة شراء مخصصة: حسناً + إلغاء (بدل confirm) ===== */
+(function(){
+  /* نافذة مخصصة بنفس شكل الموقع */
+  window.sConfirm=function(msg,onOk){
+    var m=document.createElement('div');
+    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1400;display:flex;align-items:center;justify-content:center;padding:16px';
+    m.innerHTML='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;width:310px;max-width:92%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.6)">'
+    +'<div style="font-size:30px;margin-bottom:8px">💎</div>'
+    +'<div style="font-size:14px;color:var(--txt);line-height:2;margin-bottom:16px">'+msg+'</div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button class="scOk" style="flex:1;padding:12px;background:var(--grn);color:#fff;border:none;border-radius:10px;font-weight:bold;font-size:14px;cursor:pointer">حسناً</button>'
+    +'<button class="scNo" style="flex:1;padding:12px;background:var(--card2);color:var(--red);border:1px solid var(--line);border-radius:10px;font-weight:bold;font-size:14px;cursor:pointer">إلغاء</button>'
+    +'</div></div>';
+    document.body.appendChild(m);
+    m.querySelector('.scOk').onclick=function(){m.remove();if(onOk)onOk();};
+    m.querySelector('.scNo').onclick=function(){m.remove();};
+    m.onclick=function(e){if(e.target===m)m.remove();};
+  };
+
+  /* استبدال سلوك الشراء في المتجر بس — بالتقاط الضغطة على زرا اشترِ */
+  document.addEventListener('click',function(e){
+    try{
+      var b=e.target&&e.target.closest?e.target.closest('#shopModal button[onclick*="buyFeature"]:not([disabled])'):null;
+      if(!b)return;
+      e.preventDefault();e.stopPropagation();
+      /* نجيب اسم الميزة من الـ onclick */
+      var oc=b.getAttribute('onclick')||'';
+      var mm=oc.match(/buyFeature\('([^']+)'\)/);
+      if(!mm)return;
+      var k=mm[1];
+      var NAMES={frame:{t:'🖼️ إطار متوهج',p:100,d:30},voice:{t:'🎙️ مكالمات صوتية',p:150,d:30},video:{t:'📹 مكالمات فيديو',p:300,d:30}};
+      var s=NAMES[k];
+      if(!s)return buyFeature(k);
+      sConfirm('شراء <b style="color:#f59e0b">'+s.t+'</b> بـ <b style="color:#f59e0b">'+s.p+' عمَلة</b> لمدة '+s.d+' يوم؟',function(){
+        buyFeature(k,true);
+      });
+    }catch(err){}
+  },true);
+
+  /* تجاوز رسالة confirm الداخلية لما الإتمام يجي من النافذة الجديدة */
+  var _bfO=window.buyFeature;
+  window.buyFeature=function(k,skipConfirm){
+    try{
+      if(!skipConfirm){
+        var NAMES={frame:'🖼️ إطار متوهج',voice:'🎙️ مكالمات صوتية',video:'📹 مكالمات فيديو'};
+        var PRICES={frame:100,voice:150,video:300};
+        if(NAMES[k]){sConfirm('شراء <b style="color:#f59e0b">'+NAMES[k]+'</b> بـ <b style="color:#f59e0b">'+PRICES[k]+' عمَلة</b>؟',function(){_bfO(k,true);});return;}
+      }
+    }catch(e){}
+    return _bfO(k,skipConfirm);
+  };
+
+  /* تعطيل confirm الأصلي جوه buyFeature لما يوصل ليه من المسار الجديد */
+  window._nativeConfirm=window.confirm;
+  window.confirm=function(msg){
+    try{
+      if(String(msg||'').indexOf('شراء')===0||String(msg||'').indexOf('عمَلة')>-1&&String(msg||'').indexOf('؟')>-1&&String(msg||'').indexOf('شراء')>-1){
+        return true; /* التأكيد حصل من نافذتنا */
+      }
+    }catch(e){}
+    return window._nativeConfirm(msg);
+  };
+})();
