@@ -12254,3 +12254,267 @@ window.appendMsg=function(m){
 /* 7) رسالة تأكيد */
 setTimeout(function(){try{console.log('✅ تثبيت الرسايل: تم');}catch(e){}},1000);
 })();
+/* ===== 🚫 إزالة ميزة "لون رسايلك" نهائياً — القلم + الاشتراك + التلوين ===== */
+(function(){
+if(window._penGone)return;window._penGone=true;
+
+/* 1) CSS صارم: أي عنصر من القلم يترسم تاني = مخفي فوراً */
+try{
+  var st=document.createElement('style');
+  st.id='penGoneCSS';
+  st.textContent='#penColorBtn{display:none!important}#penColorMenuItem{display:none!important}#s-pencolor{display:none!important}#penPalette{display:none!important}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* 2) تعطيل كل دوال القلم */
+function _penOff(){toast('🎨 ميزة لون الرسايل اتشالت من الموقع');}
+window.openPenPalette=_penOff;
+window.pickPenApply=_penOff;
+window.pickPenColor=_penOff;
+window.buyPenColor=_penOff;
+window.pickPenScreenColor=function(){};
+window.buildPen=function(){};
+window.buildPenV2=function(){};
+window.restylePen=function(){};
+window.updatePenLook=function(){};
+window.paintPenAll=function(){};
+window.paintEverywhere=function(){};
+window.paintAllTxt2=function(){};
+window.paintAllV3=function(){};
+window.paintWhiteTxt=function(){};
+window.renderPenColorPage=function(){};
+
+/* 3) مسح اللون من الحساب نهائياً (عشان مفيش حاجة قديمة ترجع تلوّن) */
+window._clearPenData=async function(){
+  try{
+    if(!me)return;
+    if(me.penColor||me.penColorExp){
+      await updateMe({penColor:null,penColorExp:null});
+    }
+  }catch(e){}
+};
+
+/* 4) تنظيف الشكل: شيل التدرجات والتوهج من الرسايل الملوّنة والشريط وزرار الإرسال */
+function stripPen(){
+  try{
+    var box=el('chatBox');
+    if(box){
+      var bubs=box.querySelectorAll('.bub');
+      for(var i=0;i<bubs.length;i++){
+        var b=bubs[i];
+        if(b.style.backgroundImage){
+          b.style.backgroundImage='';b.style.border='';b.style.boxShadow='';b.style.borderRadius='';
+        }
+      }
+    }
+    var inp=el('msgInput');
+    if(inp){
+      var row=inp.closest('.chat-input');
+      if(row){row.style.border='';row.style.backgroundImage='';row.style.boxShadow='';row.style.borderRadius='';}
+      inp.style.background='';inp.style.color='';
+    }
+    var send=document.querySelector('#s-chat .ic-btn[onclick="sendMsg()"]');
+    if(send){send.style.background='';send.style.boxShadow='';send.style.border='';}
+  }catch(e){}
+}
+
+/* 5) نزع عناصر القلم من الصفحة (احتياط مع الـ CSS) */
+function killPenUI(){
+  try{
+    var q=['penColorBtn','penColorMenuItem','penPalette'];
+    for(var i=0;i<q.length;i++){
+      var els=document.querySelectorAll('#'+q[i]);
+      for(var j=0;j<els.length;j++)els[j].remove();
+    }
+    var scr=el('s-pencolor');
+    if(scr)scr.remove();
+  }catch(e){}
+}
+
+/* 6) محاولة فتح صفحة القلم = رجوع للإعدادات */
+var _goPK=window.go;
+window.go=function(s,nv,fb){
+  if(s==='pencolor'){_penOff();s='settings';}
+  return _goPK(s,nv,fb);
+};
+
+/* 7) حجب أي حلقات قلم جديدة (احتياط) */
+var _siO=window.setInterval;
+window.setInterval=function(fn,delay){
+  try{
+    var src=String(fn);
+    if(delay>=1500&&delay<=5000&&(src.indexOf('penColorBtn')>-1||src.indexOf('buildPen')>-1||src.indexOf('paintPenAll')>-1||src.indexOf('paintEverywhere')>-1||src.indexOf('penPalette')>-1)){
+      return 999999;
+    }
+  }catch(e){}
+  return _siO.apply(this,arguments);
+};
+
+/* 8) التشغيل: مسح البيانات + التنظيف على مراحل */
+var _saPG=window.startAll;
+window.startAll=async function(){
+  var r=await _saPG();
+  try{_clearPenData();stripPen();killPenUI();}catch(e){}
+  return r;
+};
+[200,800,2000,4000].forEach(function(t){
+  setTimeout(function(){try{_clearPenData();stripPen();killPenUI();}catch(e){}},t);
+});
+var _smPG=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smPG();
+  try{setTimeout(stripPen,500);setTimeout(stripPen,1500);}catch(e){}
+  return r;
+};
+})();
+/* ===== 📋 ترتيب الرسايل بالوقت فقط — إصلاح رسايل Lana ===== */
+(function(){
+if(window._timeSortFix)return;window._timeSortFix=true;
+
+/* 1) إلغاء الترتيب بـ seq: أي رسالة جاية من قاعدة البيانات من غير _seq
+   (الترتيب هيبقى بالوقت بس — نفس اللي مكتوب في الفقاعة) */
+var _r2mT=window.rowToMsg;
+window.rowToMsg=function(r){
+  var m=_r2mT(r);
+  try{if(m&&('_seq' in m))delete m._seq;}catch(e){}
+  return m;
+};
+
+/* 2) بعد تحميل الرسايل: ترتيب نهائي بالوقت + إزالة التكرار */
+var _lmT=SDB.loadMsgs;
+SDB.loadMsgs=async function(convId,limit){
+  var rows=await _lmT(convId,limit);
+  try{
+    var seen={},clean=[];
+    (rows||[]).forEach(function(m){
+      if(m&&m._id&&!seen[m._id]){seen[m._id]=1;clean.push(m);}
+    });
+    clean.sort(function(a,b){
+      var d=(Number(a.time||0)-Number(b.time||0));
+      return d!==0?d:String(a._id).localeCompare(String(b._id));
+    });
+    rows=clean;
+  }catch(e){}
+  return rows;
+};
+
+/* 3) إعادة بناء الشات بالترتيب الصحيح (بدون أي تغيير شكل = بدون نبض) */
+function reorderNow(){
+  try{
+    if(!chat)return;
+    var b=el('chatBox');if(!b)return;
+    var seen={},clean=[];
+    (msgsCache||[]).forEach(function(m){
+      if(m&&m._id&&!seen[m._id]){seen[m._id]=1;clean.push(m);}
+    });
+    clean.sort(function(a,c){
+      var d=(Number(a.time||0)-Number(c.time||0));
+      return d!==0?d:String(a._id).localeCompare(String(c._id));
+    });
+    msgsCache=clean;
+    var near=(b.scrollHeight-b.scrollTop-b.clientHeight)<160;
+    b.innerHTML='';
+    for(var i=0;i<clean.length;i++){try{_apTS(clean[i]);}catch(e){}}
+    if(near||!userScrolledUp){userScrolledUp=false;b.scrollTop=b.scrollHeight;}
+  }catch(e){}
+}
+
+/* 4) أي رسالة جديدة تتحط مكانها الصح: لو ظهروا فوق رسالة أقدم منها → إعادة ترتيب فورية */
+var _apTS=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apTS(m);
+  try{
+    var b=el('chatBox');
+    if(b&&m&&m._id){
+      var node=b.querySelector('[data-id="'+m._id+'"]');
+      if(node&&node.previousElementSibling){
+        var pid=node.previousElementSibling.getAttribute('data-id');
+        var pm=null;
+        if(pid)for(var j=msgsCache.length-1;j>=0;j--){
+          if(msgsCache[j]._id===pid){pm=msgsCache[j];break;}
+        }
+        if(pm&&Number(pm.time||0)>Number(m.time||0)){reorderNow();return r;}
+      }
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 5) عند فتح أي محادثة: ترتيب صحيح من أول لحظة */
+var _smTS=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smTS();
+  try{setTimeout(reorderNow,400);}catch(e){}
+  return r;
+};
+})();
+/* تنظيف شامل للنسخ المحلية — مؤقت */
+(function(){
+if(window._deepClean)return;window._deepClean=true;
+try{
+  Object.keys(localStorage).forEach(function(k){
+    if(k.indexOf('own_msgs_')===0||k.indexOf('own_convs')===0)localStorage.removeItem(k);
+  });
+  console.log('✅ تم تنظيف النسخ المحلية');
+}catch(e){}
+setInterval(function(){
+  try{
+    Object.keys(localStorage).forEach(function(k){
+      if(k.indexOf('own_msgs_')===0)localStorage.removeItem(k);
+    });
+  }catch(e){}
+},3000);
+})();
+/* ===== 🚫 إزالة لون الرسايل — نسخة آمنة (تقف الأنظمة القديمة من جذورها) ===== */
+(function(){
+if(window._penCleanFinal)return;window._penCleanFinal=true;
+
+/* 1) CSS: زرار القلم وعناصره مخفية نهائياً (حتى لو الكود القديم رسمها) */
+try{
+  var st=document.createElement('style');
+  st.textContent='#penColorBtn,#sonicPenBtn,#penColorMenuItem,#s-pencolor,#penPalette,#sonicPenModal{display:none!important}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* 2) تعطيل فتح القايمة */
+try{window.openPenPalette=function(){toast('🎨 ميزة لون الرسايل اتشالت');};}catch(e){}
+
+/* 3) مسح بيانات اللون من الحساب = كل دوال التلوين القديمة بتبقى no-op لوحدها */
+setTimeout(async function(){
+  try{
+    if(me&&(me.penColor||me.penColorExp||me.sonicPen||me.sonicPenExp)){
+      await updateMe({penColor:null,penColorExp:null,sonicPen:null,sonicPenExp:null});
+      me.penColor=null;me.penColorExp=null;me.sonicPen=null;me.sonicPenExp=null;
+    }
+  }catch(e){}
+},2500);
+
+/* 4) تنظيف شكل الرسايل والشريط (idempotent: مبيكتبش حاجة لو مفيش تدرج = مفيش نبض) */
+function clean(){
+  try{
+    var box=el('chatBox');
+    if(box){
+      var bubs=box.querySelectorAll('.bub');
+      for(var i=0;i<bubs.length;i++){
+        var b=bubs[i];
+        if(b.style.backgroundImage){b.style.backgroundImage='';b.style.border='';b.style.boxShadow='';b.style.borderRadius='';}
+      }
+    }
+    var send=document.querySelector('#s-chat .ic-btn[onclick="sendMsg()"]');
+    if(send){send.style.background='';send.style.boxShadow='';}
+    var inp=el('msgInput');
+    if(inp){var row=inp.closest('.chat-input');if(row){row.style.border='';row.style.backgroundImage='';row.style.boxShadow='';row.style.borderRadius='';}}
+  }catch(e){}
+}
+[800,2500,6000].forEach(function(t){setTimeout(clean,t);});
+
+/* 5) بعد فتح أي شات: تنظيف مرة واحدة (مع حماية لو الدالة مش موجودة) */
+var _smPC=window.subMsgs;
+if(typeof _smPC==='function'){
+  window.subMsgs=async function(){
+    var r=await _smPC();
+    try{setTimeout(clean,700);setTimeout(clean,2000);}catch(e){}
+    return r;
+  };
+}
+})();
