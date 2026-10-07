@@ -11833,3 +11833,62 @@ var _ciBI=window.confirmImage;
 window.confirmImage=async function(){var r=await _ciBI();try{setTimeout(paintPenImages,300);setTimeout(paintPenImages,900);}catch(e){}return r;};
 setInterval(function(){try{stylePenBar();paintPenImages();}catch(e){}},2500);
 })();
+/* ===== 🔒 الوسائط: منع الصور وقت الإرسال + إلغاء فقاعات "وسائط مقفلة" نهائياً ===== */
+(function(){
+if(window._mediaSendBlock2)return;window._mediaSendBlock2=true;
+
+/* 1) هل المستهدف صوره مقفولة؟ (في الخاص فقط) */
+function _imgLocked(){
+  try{
+    if(!me||!chat||chat.type!=='user')return false;
+    var tu=usersCache[chat.id];
+    if(!tu)return false;
+    return !(tu.allowMedia===true||tu.media_opt_in===true);
+  }catch(e){return false;}
+}
+
+/* 2) منع إرسال الصور: المرسل هو اللي يوصله الإشعار والصورة متتبعتش */
+var _siB=window.sendImage;
+window.sendImage=function(e){
+  try{
+    if(_imgLocked()){
+      toast('⛔ هذا المستخدم لا يسمح باستقبال الصور');
+      if(e&&e.target)e.target.value='';
+      return;
+    }
+  }catch(e){}
+  return _siB?_siB(e):undefined;
+};
+
+/* 3) تأمين إضافي: لو نافذة الصورة كانت مفتوحة قبل التغيير — الإرسال نفسه ممنوع */
+var _ciB=window.confirmImage;
+window.confirmImage=async function(){
+  try{
+    if(_imgLocked()){
+      pendingImg=null;
+      if(el('imgCaption'))el('imgCaption').value='';
+      closeModal('imgModal');
+      toast('⛔ هذا المستخدم لا يسمح باستقبال الصور');
+      return;
+    }
+  }catch(e){}
+  return _ciB?await _ciB():undefined;
+};
+
+/* 4) الصوت: متاح دايماً للجميع — مش متمنع خالص */
+/* 5) إلغاء فقاعات "وسائط مقفلة": الصور والصوت بتظهر عادي دايماً */
+var _rmcB=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  try{
+    if(me&&m&&m.from!==me.name&&!m.deleted&&(m.type==='image'||m.type==='audio')
+       &&!(me.allowMedia===true||me.media_opt_in===true)){
+      var oA=me.allowMedia,oO=me.media_opt_in;
+      me.allowMedia=true;me.media_opt_in=true;
+      var out=_rmcB(m);
+      me.allowMedia=oA;me.media_opt_in=oO;
+      return out;
+    }
+  }catch(e){}
+  return _rmcB?_rmcB(m):'';
+};
+})();
