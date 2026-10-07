@@ -11892,3 +11892,79 @@ window.renderMsgContent=function(m){
   return _rmcB?_rmcB(m):'';
 };
 })();
+/* ===== 🗑️ حذف عضوية بالاسم (حتى لو أوفلاين) — في لوحة الأعضاء ===== */
+(function(){
+if(window._delUserField)return;window._delUserField=true;
+
+/* 1) إضافة الحقل جنب حقل إضافة العملات */
+function ensureField(){
+  try{
+    var memPanel=el('ap-members');
+    if(!memPanel||el('delUserBySearch'))return;
+    /* نلاقي صف إضافة العملات ونحط تحته */
+    var rows=memPanel.querySelectorAll('.adm-row');
+    var coinsRow=null;
+    for(var i=0;i<rows.length;i++){
+      var t=rows[i].innerText||'';
+      if(t.indexOf('إضافة عملات')>-1||rows[i].querySelector('#addCoinsName')){coinsRow=rows[i];break;}
+    }
+    var row=document.createElement('div');
+    row.className='adm-row';row.id='delUserBySearch';
+    row.style.marginTop='8px';
+    row.innerHTML='<input id="delUserName" placeholder="اسم العضوية المراد حذفها (حتى لو أوفلاين)" style="flex:1"><button class="adm-btn" style="background:#dc2626;color:#fff" onclick="deleteUserByName()">🗑️ حذف</button>';
+    if(coinsRow)coinsRow.parentElement.insertBefore(row,coinsRow.nextSibling);
+    else{
+      var searchRow=memPanel.querySelector('.adm-row');
+      if(searchRow)searchRow.parentElement.insertBefore(row,searchRow.nextSibling);
+      else memPanel.appendChild(row);
+    }
+  }catch(e){}
+}
+
+/* 2) تنفيذ الحذف الشامل */
+window.deleteUserByName=async function(){
+  if(!isAdmin())return toast('ممنوع — للإدارة فقط');
+  var n=el('delUserName')?el('delUserName').value.trim():'';
+  if(!n)return toast('اكتب اسم العضوية');
+  if(isOwnerName(n))return toast('⛔ لا يمكن حذف صاحب الموقع');
+  var u=await SDB.getUser(n);
+  if(!u)return toast('❌ العضوية غير موجودة: '+n);
+  if(!confirm('حذف عضوية «'+n+'» نهائياً؟\n\nسيتم حذف:\n• الحساب وكلمة المرور\n• كل محادثاته ورسائله\n• حالاته وقصصه\n• سجل دخوله\n\n⚠️ لا يمكن التراجع!'))return;
+  toast('⏳ جاري الحذف...');
+  /* حذف كل محادثاته ورسايله */
+  try{
+    var cs=await sb.from('convs').select('id').or('user_a.eq.'+n+',user_b.eq.'+n);
+    for(var i=0;i<(cs.data||[]).length;i++){
+      try{await SDB.delConvMsgs(cs.data[i].id);}catch(e){}
+      try{await SDB.delConv(cs.data[i].id);}catch(e){}
+    }
+  }catch(e){}
+  /* حالاته */
+  try{await sb.from('stories').delete().eq('author',n);}catch(e){}
+  /* سجل دخوله */
+  try{await sb.from('device_logins').delete().eq('name',n);}catch(e){}
+  /* كلمة مروره */
+  try{await sb.from('passwords').delete().eq('name',n);}catch(e){}
+  /* البلاغات اللي عنده */
+  try{await sb.from('reports').delete().eq('target',n);}catch(e){}
+  /* الحساب نفسه */
+  try{await SDB.delUserRow(n);}catch(e){}
+  /* من الكاش المحلي */
+  try{delete usersCache[n];}catch(e){}
+  try{LS.removeItem('trans_log_'+n);}catch(e){}
+  try{logActivity('delete_account','حذف عضوية: '+n);}catch(e){}
+  el('delUserName').value='';
+  toast('🗑️ تم حذف عضوية «'+n+'» نهائياً');
+  try{refreshUsers();}catch(e){}
+  try{renderMembers();}catch(e){}
+};
+
+/* 3) تشغيل مستمر عشان الحقل ميفقدش مكانه */
+setInterval(function(){try{ensureField();}catch(e){}},2500);
+var _atD=window.adminTab;
+window.adminTab=function(tab,e){
+  var r=_atD?_atD(tab,e):undefined;
+  try{if(tab==='members')setTimeout(ensureField,200);}catch(e){}
+  return r;
+};
+})();
