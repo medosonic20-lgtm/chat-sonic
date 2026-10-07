@@ -4047,7 +4047,7 @@ setInterval(function(){
       sb.from('stories').select('id').eq('author',me.name).gt('stime',Date.now()-86400000).then(function(d){
         c.innerText='لديك '+((d.data||[]).length)+' قصة نشطة الآن — تنتهي تلقائياً بعد 24 ساعة.';
       });
-    }
+                    }
     go('stories',null);
   };
 
@@ -6723,9 +6723,7 @@ window.go=function(s,nv,fb){
       var ph=el('pHide');
       if(ph&&!me.hidden){ph.checked=true;setPref('hidden',true);toast('🕶️ الوضع المخفي مُفعّل من المتجر — باقي '+Math.ceil((me.hideExp-Date.now())/86400000)+' يوم');}
     }
-    if(s==='games'&&!isOwned('framesFree')&&!isAdmin()){
-      setTimeout(function(){toast('🔒 قسم الجيمنج VIP — فعّله من متجر سونيك');go('shop',null);},300);
-    }
+    
   }catch(e){}
   return r;
 };
@@ -8138,7 +8136,6 @@ function updatePenLook(){
     }
   }catch(e){}
 }
-
 window.openPenPalette=function(){
   try{
     var old=el('penPalette');if(old)old.remove();
@@ -9333,7 +9330,6 @@ window.applyPageBg=function(){
 
   /* 3) أي رسالة جديدة تتعمل بعدين بياخد نفس الخط أوتوماتيك من الـ CSS فوق */
 })();
-         
 /* ===== 🎁 إرسال هدية عملات داخل الشات ===== */
 (function(){
 if(window._giftSys)return;window._giftSys=true;
@@ -9823,7 +9819,7 @@ setInterval(async function(){
   }catch(e){}
 },15000);
 })();
-     /* ===== 🗑️ الزائر مؤقت: الخروج = حذف كل حاجة بتاعته نهائياً ===== */
+/* ===== 🗑️ الزائر مؤقت: الخروج = حذف كل حاجة بتاعته نهائياً ===== */
 (function(){
 if(window._guestWipe)return;window._guestWipe=true;
 
@@ -10376,7 +10372,48 @@ setInterval(function(){
   }catch(e){}
 },3000);
 })();
-   /* ===== 🗑️ إزالة كارت إكس أو القديم نهائياً ===== */
+/* ===== 📊 توسيع جدول الأعضاء: ظهور عمود التحكم كامل ===== */
+(function(){
+if(window._tableFix)return;window._tableFix=true;
+
+var _cssAdded=false;
+function fixTable(){
+  try{
+    var panel=el('ap-members');
+    if(!panel)return;
+    /* إضافة الستايل مرة واحدة */
+    if(!_cssAdded){
+      _cssAdded=true;
+      var st=document.createElement('style');
+      st.textContent='#ap-members .adm-sec{overflow-x:auto!important;-webkit-overflow-scrolling:touch}'
+      +'#ap-members table{min-width:520px!important;font-size:10.5px!important}'
+      +'#ap-members th,#ap-members td{padding:5px 4px!important;white-space:nowrap!important}'
+      /* تصغير الأعمدة غير المهمة */
+      +'#ap-members th:nth-child(4),#ap-members td:nth-child(4){font-size:9px!important;padding:5px 2px!important}'
+      +'#ap-members th:nth-child(5),#ap-members td:nth-child(5){font-size:9px!important;padding:5px 2px!important}'
+      +'#ap-members th:nth-child(6),#ap-members td:nth-child(6){font-size:9px!important;padding:5px 2px!important}'
+      /* عمود التحكم: أزرار مضغوطة */
+      +'#ap-members td:last-child button{padding:3px 6px!important;font-size:10px!important;margin:1px!important}';
+      document.head.appendChild(st);
+    }
+  }catch(e){}
+}
+
+var _rmF=window.renderMembers;
+window.renderMembers=function(){
+  var r=_rmF?_rmF():undefined;
+  try{setTimeout(fixTable,50);}catch(e){}
+  return r;
+};
+var _atF=window.adminTab;
+window.adminTab=function(tab,e){
+  var r=_atF?_atF(tab,e):undefined;
+  try{if(tab==='members')setTimeout(fixTable,100);}catch(e){}
+  return r;
+};
+setInterval(function(){try{if(el('ap-members')&&el('ap-members').classList.contains('open'))fixTable();}catch(e){}},3000);
+})();
+/* ===== 🗑️ إزالة كارت إكس أو القديم نهائياً ===== */
 (function(){
 if(window._oxKill)return;window._oxKill=true;
 
@@ -11481,66 +11518,226 @@ window.go=function(s,nv,fb){
   return r;
 };
 })();
-/* ===== نافذة شراء مخصصة: حسناً + إلغاء (بدل confirm) ===== */
 (function(){
-  /* نافذة مخصصة بنفس شكل الموقع */
-  window.sConfirm=function(msg,onOk){
-    var m=document.createElement('div');
-    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1400;display:flex;align-items:center;justify-content:center;padding:16px';
-    m.innerHTML='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;width:310px;max-width:92%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.6)">'
-    +'<div style="font-size:30px;margin-bottom:8px">💎</div>'
-    +'<div style="font-size:14px;color:var(--txt);line-height:2;margin-bottom:16px">'+msg+'</div>'
-    +'<div style="display:flex;gap:10px">'
-    +'<button class="scOk" style="flex:1;padding:12px;background:var(--grn);color:#fff;border:none;border-radius:10px;font-weight:bold;font-size:14px;cursor:pointer">حسناً</button>'
-    +'<button class="scNo" style="flex:1;padding:12px;background:var(--card2);color:var(--red);border:1px solid var(--line);border-radius:10px;font-weight:bold;font-size:14px;cursor:pointer">إلغاء</button>'
-    +'</div></div>';
-    document.body.appendChild(m);
-    m.querySelector('.scOk').onclick=function(){m.remove();if(onOk)onOk();};
-    m.querySelector('.scNo').onclick=function(){m.remove();};
-    m.onclick=function(e){if(e.target===m)m.remove();};
+  /* ===== إزالة متجر سونيك + الويب + عملاتي نهائياً ===== */
+
+  /* 1) شيل عنصر المتجر من قايمة الإعدادات */
+  try{
+    var sm=el('shopMenuItem');
+    if(sm)sm.remove();
+  }catch(e){}
+
+  /* 2) شيل عنصر أثرياء الموقع */
+  try{
+    var ri=el('richMenuItem');
+    if(ri)ri.remove();
+  }catch(e){}
+
+  /* 3) شيل شاشة المتجر نفسها */
+  try{
+    var ss=el('s-shop');
+    if(ss)ss.remove();
+  }catch(e){}
+
+  /* 4) شيل شاشة الأثرياء */
+  try{
+    var rs=el('s-richlist');
+    if(rs)rs.remove();
+  }catch(e){}
+
+  /* 5) شيل شاشة عملاتي لو موجودة */
+  try{
+    var ws=el('s-wallet');
+    if(ws)ws.remove();
+  }catch(e){}
+
+  /* 6) اقفل أي دالة متجر عشان متشتغلش غلط لو اتنده */
+  window.renderShop=function(){};
+  window.renderWallet=function(){};
+  window.renderRichList=function(){};
+  window.buyProduct=function(){toast('🛒 المتجر مقفل حالياً');};
+  window.buyShopFrame=function(){toast('🛒 المتجر مقفل حالياً');};
+  window.openPackPay=function(){};
+  window.getRichCoins=function(){return Promise.resolve([]);};
+
+  /* 7) افتح قسم الألعاب للكل (كان مقفول VIP) */
+  try{
+    delete window.go;
+  }catch(e){}
+
+  /* 8) لو بفتح صفحة قديمة فيها shop أو wallet أو richlist → رجعه للإعدادات */
+  try{
+    var scr=document.querySelector('.screen.active');
+    if(scr&&(scr.id==='s-shop'||scr.id==='s-richlist'||scr.id==='s-wallet')){
+      go('settings',null,true);
+    }
+  }catch(e){}
+
+  /* 9) راقب لو أي كود قديم حاول يفتح المتجر → ارجعه للإعدادات */
+  var _goFix=window.go;
+  window.go=function(s,nv,fb){
+    if(s==='shop'||s==='richlist'||s==='wallet'){
+      toast('🛒 المتجر مقفل حالياً');
+      s='settings';
+    }
+    return _goFix(s,nv,fb);
   };
 
-  /* استبدال سلوك الشراء في المتجر بس — بالتقاط الضغطة على زرا اشترِ */
-  document.addEventListener('click',function(e){
+  /* 10) إعادة الفحص كل شوية (لو أي كود قديم رجّع العناصر) */
+  setInterval(function(){
     try{
-      var b=e.target&&e.target.closest?e.target.closest('#shopModal button[onclick*="buyFeature"]:not([disabled])'):null;
-      if(!b)return;
-      e.preventDefault();e.stopPropagation();
-      /* نجيب اسم الميزة من الـ onclick */
-      var oc=b.getAttribute('onclick')||'';
-      var mm=oc.match(/buyFeature\('([^']+)'\)/);
-      if(!mm)return;
-      var k=mm[1];
-      var NAMES={frame:{t:'🖼️ إطار متوهج',p:100,d:30},voice:{t:'🎙️ مكالمات صوتية',p:150,d:30},video:{t:'📹 مكالمات فيديو',p:300,d:30}};
-      var s=NAMES[k];
-      if(!s)return buyFeature(k);
-      sConfirm('شراء <b style="color:#f59e0b">'+s.t+'</b> بـ <b style="color:#f59e0b">'+s.p+' عمَلة</b> لمدة '+s.d+' يوم؟',function(){
-        buyFeature(k,true);
-      });
-    }catch(err){}
-  },true);
-
-  /* تجاوز رسالة confirm الداخلية لما الإتمام يجي من النافذة الجديدة */
-  var _bfO=window.buyFeature;
-  window.buyFeature=function(k,skipConfirm){
-    try{
-      if(!skipConfirm){
-        var NAMES={frame:'🖼️ إطار متوهج',voice:'🎙️ مكالمات صوتية',video:'📹 مكالمات فيديو'};
-        var PRICES={frame:100,voice:150,video:300};
-        if(NAMES[k]){sConfirm('شراء <b style="color:#f59e0b">'+NAMES[k]+'</b> بـ <b style="color:#f59e0b">'+PRICES[k]+' عمَلة</b>؟',function(){_bfO(k,true);});return;}
-      }
+      var a=el('shopMenuItem');
+      if(a)a.remove();
+      var b=el('richMenuItem');
+      if(b)b.remove();
     }catch(e){}
-    return _bfO(k,skipConfirm);
+  },3000);
+
+  toast('🛒 تم إزالة متجر سونيك');
+})();
+(function(){
+  /* ===== 🏅 إصلاح شامل لنظام الشارات ===== */
+  if(window._badgeConfirmFix)return;window._badgeConfirmFix=true;
+
+  /* ---------- نافذة تأكيد الشراء الجميلة ---------- */
+  window.buyBadgeNew=async function(id){
+    if(!me)return;
+    try{
+      var d=await sb.from('badges').select('*').eq('id',id).limit(1);
+      var bd=d.data&&d.data[0];if(!bd)return;
+      var coins=(me.coins)||0;
+      var price=(bd.price||0);
+      var miss=price-coins;
+      var old=el('buyBadgeConfirm');if(old)old.remove();
+      var m=document.createElement('div');m.id='buyBadgeConfirm';m.className='modal';
+      m.innerHTML='<div class="m-card2" style="width:320px">'
+      +'<h3 style="color:#FFD700">🛒 تأكيد الشراء</h3>'
+      +'<div style="background:var(--bg);border-radius:12px;padding:14px;text-align:center">'
+      +'<img src="'+bd.url+'" style="width:70px;height:70px;object-fit:contain">'
+      +'<div style="font-weight:bold;font-size:15px;color:var(--txt);margin-top:6px">'+escapeHtml(bd.name||'شارة')+'</div>'
+      +'<div style="font-size:11px;color:var(--mut)">'+escapeHtml(bd.rarity||'')+'</div>'
+      +'<div style="font-size:20px;font-weight:900;color:#FFD700;margin-top:8px">🪙 '+price+'</div></div>'
+      +'<div style="font-size:12px;color:var(--txt);text-align:center">رصيدك الحالي: <b style="color:#FFD700">🪙 '+coins+'</b></div>'
+      +(miss>0
+        ?'<div style="background:rgba(230,69,83,.15);border:1px solid var(--red);border-radius:10px;padding:10px;text-align:center;color:var(--red);font-weight:bold;font-size:13px;margin-top:6px">❌ العملات غير كافية — ناقصك '+miss+' عملة<br><span style="font-size:11px">اشحن من "عملاتي" 💜</span></div>'
+        :'<div style="font-size:14px;color:var(--txt);text-align:center;font-weight:bold;margin-top:6px">هل أنت راغب في الشراء؟</div>')
+      +'<button style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111" onclick="confirmBuyBadgeNew('+id+','+price+')">✅ حسناً — اشترِ</button>'
+      +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'buyBadgeConfirm\')">❌ إلغاء</button></div>';
+      m.onclick=function(e){if(e.target===m)closeModal('buyBadgeConfirm');};
+      document.body.appendChild(m);
+      m.classList.add('open');
+    }catch(e){toast('خطأ: '+e.message);}
   };
 
-  /* تعطيل confirm الأصلي جوه buyFeature لما يوصل ليه من المسار الجديد */
-  window._nativeConfirm=window.confirm;
-  window.confirm=function(msg){
+  /* ---------- تنفيذ الشراء بعد "حسناً" ---------- */
+  window.confirmBuyBadgeNew=async function(id,price){
     try{
-      if(String(msg||'').indexOf('شراء')===0||String(msg||'').indexOf('عمَلة')>-1&&String(msg||'').indexOf('؟')>-1&&String(msg||'').indexOf('شراء')>-1){
-        return true; /* التأكيد حصل من نافذتنا */
+      var d=await sb.from('badges').select('*').eq('id',id).limit(1);
+      var bd=d.data&&d.data[0];if(!bd)return;
+      var coins=(me.coins)||0;
+      if(coins<price){
+        closeModal('buyBadgeConfirm');
+        return toast('❌ ناقصك '+(price-coins)+' عملة — اشحن من عملاتي 💜');
       }
-    }catch(e){}
-    return window._nativeConfirm(msg);
+      closeModal('buyBadgeConfirm');
+      toast('⏳ جاري الشراء...');
+      await updateMe({coins:coins-price});
+      var owned=(me.my_badges||[]);owned.push(id);
+      await updateMe({my_badges:owned,active_badge:id,active_badge_url:bd.url});
+      try{logTrans('buy',price,'شراء شارة: '+(bd.name||''),'');}catch(e){}
+      toast('🏅 تم شراء الشارة وتفعيلها! 🎉');
+      renderBadgesNew();
+    }catch(e){toast('خطأ: '+e.message);}
   };
+
+  /* ---------- قفل رسايل "الشارات تتطلب اشتراك" القديمة ---------- */
+  var _tst=window.toast;
+  window.toast=function(msg){
+    var t=String(msg||'');
+    if(t.indexOf('تتطلب اشتراك')>-1||t.indexOf('فعّلها من متجر')>-1||t.indexOf('مقفل')>-1)return;
+    return _tst(msg);
+  };
+
+  /* ---------- منع فتح شاشة الشارات القديمة (s-badges القديمة) ---------- */
+  var _goB=window.go;
+  window.go=function(s,nv,fb){
+    if(s==='badges'){s='badgesNew';}
+    return _goB(s,nv,fb);
+  };
+})();
+(function(){
+  /* ===== تعديل زرار حسناً + تلوين حسب الرصيد ===== */
+  if(window._badgeBtnColor)return;window._badgeBtnColor=true;
+
+  /* 1) النافذة: زرار "حسناً" رمادي لو ناقص — ملون لو كفاية */
+  var _bbnPrev=window.buyBadgeNew;
+  window.buyBadgeNew=async function(id){
+    if(!me)return;
+    try{
+      var d=await sb.from('badges').select('*').eq('id',id).limit(1);
+      var bd=d.data&&d.data[0];if(!bd)return;
+      var coins=(me.coins)||0;
+      var price=(bd.price||0);
+      var miss=price-coins;
+      var canAfford=(coins>=price);
+      var old=el('buyBadgeConfirm');if(old)old.remove();
+      var m=document.createElement('div');m.id='buyBadgeConfirm';m.className='modal';
+      m.innerHTML='<div class="m-card2" style="width:320px">'
+      +'<h3 style="color:#FFD700">🛒 تأكيد الشراء</h3>'
+      +'<div style="background:var(--bg);border-radius:12px;padding:14px;text-align:center">'
+      +'<img src="'+bd.url+'" style="width:70px;height:70px;object-fit:contain">'
+      +'<div style="font-weight:bold;font-size:15px;color:var(--txt);margin-top:6px">'+escapeHtml(bd.name||'شارة')+'</div>'
+      +'<div style="font-size:11px;color:var(--mut)">'+escapeHtml(bd.rarity||'')+'</div>'
+      +'<div style="font-size:20px;font-weight:900;color:#FFD700;margin-top:8px">🪙 '+price+'</div></div>'
+      +'<div style="font-size:12px;color:var(--txt);text-align:center">رصيدك الحالي: <b style="color:#FFD700">🪙 '+coins+'</b></div>'
+      +(miss>0
+        ?'<div style="background:rgba(230,69,83,.15);border:1px solid var(--red);border-radius:10px;padding:10px;text-align:center;color:var(--red);font-weight:bold;font-size:13px;margin-top:6px">❌ العملات غير كافية — ناقصك '+miss+' عملة<br><span style="font-size:11px">اشحن من "عملاتي" 💜</span></div>'
+        :'<div style="font-size:14px;color:var(--txt);text-align:center;font-weight:bold;margin-top:6px">هل أنت راغب في الشراء؟</div>')
+      +'<button id="bdOkBtn" '+(canAfford
+        ?'style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:bold" onclick="confirmBuyBadgeNew('+id+','+price+')"'
+        :'style="background:var(--card2);color:#8b99a7;cursor:not-allowed;opacity:.55;border:1px solid var(--line)" disabled')
+      +'>حسناً</button>'
+      +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'buyBadgeConfirm\')">إلغاء</button></div>';
+      m.onclick=function(e){if(e.target===m)closeModal('buyBadgeConfirm');};
+      document.body.appendChild(m);
+      m.classList.add('open');
+    }catch(e){toast('خطأ: '+e.message);}
+  };
+
+  /* 2) العضو واقف على النافذة وجمع عملات → الزرار يحيا تلقائياً */
+  setInterval(function(){
+    try{
+      var m=el('buyBadgeConfirm');
+      if(!m||!m.classList.contains('open'))return;
+      var btn=el('bdOkBtn');
+      if(!btn||!btn.disabled)return;
+      /* نجيب أحدث رصيد من السيرفر */
+      SDB.getUser(me.name).then(function(u){
+        if(!u)return;
+        var cur=(u.coins)||0;
+        if(usersCache[me.name])usersCache[me.name].coins=cur;
+        /* نقرأ السعر من نص العنوان في النافذة */
+        var prcEl=m.querySelector('[style*="#FFD700"][style*="20px"]');
+        var price=prcEl?parseInt(prcEl.innerText.replace(/[^0-9]/g,'')):0;
+        if(price&&cur>=price){
+          /* بقى معاه فلوس! نفعّل الزرار ونلونه */
+          btn.disabled=false;
+          btn.style.background='linear-gradient(135deg,#FFD700,#FF9800)';
+          btn.style.color='#111';
+          btn.style.cursor='pointer';
+          btn.style.opacity='1';
+          btn.style.border='none';
+          btn.removeAttribute('disabled');
+          btn.onclick=function(){confirmBuyBadgeNew((btn._bid||0),price);};
+          btn._bid=window._lastBadgeId||0;
+          /* تحديث رسالة الرصيع */
+          var err=m.querySelector('[style*="rgba(230,69,83"]');
+          if(err)err.outerHTML='<div style="font-size:14px;color:var(--txt);text-align:center;font-weight:bold;margin-top:6px">هل أنت راغب في الشراء؟</div>';
+          var bal=m.querySelector('[style*="رصيدك"]');
+          if(bal)bal.innerHTML='رصيدك الحالي: <b style="color:#FFD700">🪙 '+cur+'</b>';
+          toast('🎉 وصلتك العملات — تقدر تشتري دلوقتي!');
+        }
+      }).catch(function(){});
+    }catch(e){}
+  },4000);
 })();
