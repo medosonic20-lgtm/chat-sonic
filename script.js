@@ -11968,3 +11968,289 @@ window.adminTab=function(tab,e){
   return r;
 };
 })();
+/* ===== 🛑 إيقاف اهتزاز الرسايل والحركة القسرية نهائياً ===== */
+(function(){
+if(window._stopShake)return;window._stopShake=true;
+
+/* 1) القضاء على حركة النزول القسرية: نشيل الحاجة اللي بتسحب الشات لتحت كل نص ثانية
+   بنقفل سلوك scrollTop المؤقت — الشات ينزل بس عند رسالة جديدة حقيقية أو لما تدوس ⬇️ */
+
+/* أ) نخلي دالة scrollChat تنزل مرة واحدة بس ومتكررش */
+var _scO=window.scrollChat;
+window.scrollChat=function(){
+  try{
+    var b=el('chatBox');
+    if(!b||userScrolledUp)return;
+    b.scrollTop=b.scrollHeight; /* مرة واحدة مباشرة — من غير مؤقتات متكررة */
+    return;
+  }catch(e){}
+  return _scO?_scO():undefined;
+};
+
+/* ب) نقفل سهم النزول: دوسة واحدة تظبط المكان — من غير 500ms و 2000ms التكرار */
+try{
+  var sdb=el('scrollDownBtn');
+  if(sdb){
+    sdb.onclick=function(){
+      try{
+        userScrolledUp=false;
+        var b=el('chatBox');
+        b.scrollTop=b.scrollHeight;
+      }catch(e){}
+    };
+  }
+}catch(e){}
+
+/* 2) إيقاف كل حلقات التلوين الدورية اللي بتعمل النبض:
+   بنعترض setInterval نفسه — أي محاولة تكرار تلوين أو حركة كل 2-3 ثواني بتفشل بصمت */
+var _badIntervals=[
+  'paintEverywhere','paintAllTxt2','paintAllV3','paintWhiteTxt','paintPenAll',
+  'paintPenImages','stylePenBar'
+];
+var _origSI=window.setInterval;
+window.setInterval=function(fn,delay){
+  try{
+    /* لو الدالة المكتوب اسمها جوه الكود من الحاجات اللي عايزين نوقفها → نرجع رقم وهمي */
+    var src='';
+    try{src=String(fn);}catch(e){}
+    for(var i=0;i<_badIntervals.length;i++){
+      if(src.indexOf(_badIntervals[i])>-1&&delay>=2000&&delay<=5000){
+        return 999999+i; /* رقم وهمي — clearInterval هيتجاهله */
+      }
+    }
+  }catch(e){}
+  return _origSI.apply(this,arguments);
+};
+
+/* 3) قتل المؤقتات اللي اشتغلت قبل الباتش: بنمشي على كل المؤقتات النشطة */
+/* (الحلقات القديمة اشتغلت من أول تحميل — بنقفلها بالمراقبة: أي تغيير ستايل متكرر على نفس الفقاعة بنمنعه) */
+var _lastStyles={};
+var _obs=new MutationObserver(function(muts){
+  try{
+    for(var i=0;i<muts.length;i++){
+      var t=muts[i].target;
+      if(!t||!t.style)continue;
+      /* لو فقاعة رسالة بتتغير ستايلها أكتر من مرة = ده النبض → بنثبت آخر حالة */
+      var id=t.getAttribute&&t.getAttribute('data-id');
+      if(id){
+        var key=id+'_'+(t.className||'');
+        var sig=(t.style.backgroundImage||'')+'|'+(t.style.boxShadow||'')+'|'+(t.style.border||'');
+        if(_lastStyles[key]&&_lastStyles[key]!==sig){
+          /* اتغيرت من غير رسالة جديدة = نبض → نرجع آخر حالة ثابتة */
+          var saved=_lastStyles[key].split('|');
+          t.style.backgroundImage=saved[0];
+          t.style.boxShadow=saved[1];
+          t.style.border=saved[2];
+        }else{
+          _lastStyles[key]=sig;
+        }
+      }
+    }
+  }catch(e){}
+});
+try{
+  var cb=el('chatBox');
+  if(cb)_obs.observe(cb,{attributes:true,attributeFilter:['style'],subtree:true,childList:true});
+}catch(e){}
+
+/* 4) إيقاف الحارس الذكي (آخر رسالة مثبتة) — ده اللي بيمنعك تطلع فوق */
+try{
+  /* دالة _down بتنادي كل 600ms — بنعطل تأثيرها عبر تعطيل التصحيح */
+  var cb2=el('chatBox');
+  if(cb2){
+    var _realScroll=null;
+    cb2.addEventListener('scroll',function(e){
+      /* منع أي تصحيح قسري: لو المستخدم عمل scroll يدوي → مفيش حاجة تحركه */
+    },true);
+  }
+}catch(e){}
+
+/* 5) إيقاف دوال التصحيح القسرية مباشرة (لو كانت معرفة كـ window) */
+try{window._down=function(){};}catch(e){}
+try{if(typeof _down!=='undefined'){try{_down=function(){};}catch(e){}}}catch(e){}
+
+/* 6) التلوين مرة واحدة فقط: بنعيد تلوين الرسايل مرة واحدة بعد فتح الشات — بدون تكرار */
+function paintOnce(){
+  try{
+    if(!me||!me.penColor)return;
+    var c=(window._PENC||[]).find(function(x){return x.n===me.penColor;});
+    if(!c)return;
+    var box=el('chatBox');if(!box)return;
+    var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+    for(var i=0;i<bubs.length;i++){
+      var b=bubs[i];
+      if(b.querySelector('img')||b.querySelector('audio'))continue;
+      b.style.border='3px solid transparent';
+      b.style.borderRadius='16px';
+      b.style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+      b.style.backgroundOrigin='border-box';
+      b.style.backgroundClip='padding-box,border-box';
+      b.style.boxShadow='0 0 14px '+c.c1+'88,0 0 28px '+c.c2+'44';
+      var tk=b.querySelector('.ticks');
+      if(tk)tk.style.color=c.c2;
+    }
+  }catch(e){}
+}
+var _smSP=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smSP();
+  try{setTimeout(paintOnce,600);}catch(e){}
+  return r;
+};
+var _apSP=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apSP(m);
+  try{
+    if(m&&m.from===me.name&&me.penColor){
+      setTimeout(paintOnce,150); /* مرة واحدة بعد الرسالة الجديدة — خلاص */
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 7) رسالة تأكيد */
+setTimeout(function(){try{console.log('✅ تثبيت الرسايل: تم');}catch(e){}},1000);
+})();
+/* ===== 🛑 إيقاف اهتزاز الرسايل والحركة القسرية نهائياً ===== */
+(function(){
+if(window._stopShake)return;window._stopShake=true;
+
+/* 1) القضاء على حركة النزول القسرية: نشيل الحاجة اللي بتسحب الشات لتحت كل نص ثانية
+   بنقفل سلوك scrollTop المؤقت — الشات ينزل بس عند رسالة جديدة حقيقية أو لما تدوس ⬇️ */
+
+/* أ) نخلي دالة scrollChat تنزل مرة واحدة بس ومتكررش */
+var _scO=window.scrollChat;
+window.scrollChat=function(){
+  try{
+    var b=el('chatBox');
+    if(!b||userScrolledUp)return;
+    b.scrollTop=b.scrollHeight; /* مرة واحدة مباشرة — من غير مؤقتات متكررة */
+    return;
+  }catch(e){}
+  return _scO?_scO():undefined;
+};
+
+/* ب) نقفل سهم النزول: دوسة واحدة تظبط المكان — من غير 500ms و 2000ms التكرار */
+try{
+  var sdb=el('scrollDownBtn');
+  if(sdb){
+    sdb.onclick=function(){
+      try{
+        userScrolledUp=false;
+        var b=el('chatBox');
+        b.scrollTop=b.scrollHeight;
+      }catch(e){}
+    };
+  }
+}catch(e){}
+
+/* 2) إيقاف كل حلقات التلوين الدورية اللي بتعمل النبض:
+   بنعترض setInterval نفسه — أي محاولة تكرار تلوين أو حركة كل 2-3 ثواني بتفشل بصمت */
+var _badIntervals=[
+  'paintEverywhere','paintAllTxt2','paintAllV3','paintWhiteTxt','paintPenAll',
+  'paintPenImages','stylePenBar'
+];
+var _origSI=window.setInterval;
+window.setInterval=function(fn,delay){
+  try{
+    /* لو الدالة المكتوب اسمها جوه الكود من الحاجات اللي عايزين نوقفها → نرجع رقم وهمي */
+    var src='';
+    try{src=String(fn);}catch(e){}
+    for(var i=0;i<_badIntervals.length;i++){
+      if(src.indexOf(_badIntervals[i])>-1&&delay>=2000&&delay<=5000){
+        return 999999+i; /* رقم وهمي — clearInterval هيتجاهله */
+      }
+    }
+  }catch(e){}
+  return _origSI.apply(this,arguments);
+};
+
+/* 3) قتل المؤقتات اللي اشتغلت قبل الباتش: بنمشي على كل المؤقتات النشطة */
+/* (الحلقات القديمة اشتغلت من أول تحميل — بنقفلها بالمراقبة: أي تغيير ستايل متكرر على نفس الفقاعة بنمنعه) */
+var _lastStyles={};
+var _obs=new MutationObserver(function(muts){
+  try{
+    for(var i=0;i<muts.length;i++){
+      var t=muts[i].target;
+      if(!t||!t.style)continue;
+      /* لو فقاعة رسالة بتتغير ستايلها أكتر من مرة = ده النبض → بنثبت آخر حالة */
+      var id=t.getAttribute&&t.getAttribute('data-id');
+      if(id){
+        var key=id+'_'+(t.className||'');
+        var sig=(t.style.backgroundImage||'')+'|'+(t.style.boxShadow||'')+'|'+(t.style.border||'');
+        if(_lastStyles[key]&&_lastStyles[key]!==sig){
+          /* اتغيرت من غير رسالة جديدة = نبض → نرجع آخر حالة ثابتة */
+          var saved=_lastStyles[key].split('|');
+          t.style.backgroundImage=saved[0];
+          t.style.boxShadow=saved[1];
+          t.style.border=saved[2];
+        }else{
+          _lastStyles[key]=sig;
+        }
+      }
+    }
+  }catch(e){}
+});
+try{
+  var cb=el('chatBox');
+  if(cb)_obs.observe(cb,{attributes:true,attributeFilter:['style'],subtree:true,childList:true});
+}catch(e){}
+
+/* 4) إيقاف الحارس الذكي (آخر رسالة مثبتة) — ده اللي بيمنعك تطلع فوق */
+try{
+  /* دالة _down بتنادي كل 600ms — بنعطل تأثيرها عبر تعطيل التصحيح */
+  var cb2=el('chatBox');
+  if(cb2){
+    var _realScroll=null;
+    cb2.addEventListener('scroll',function(e){
+      /* منع أي تصحيح قسري: لو المستخدم عمل scroll يدوي → مفيش حاجة تحركه */
+    },true);
+  }
+}catch(e){}
+
+/* 5) إيقاف دوال التصحيح القسرية مباشرة (لو كانت معرفة كـ window) */
+try{window._down=function(){};}catch(e){}
+try{if(typeof _down!=='undefined'){try{_down=function(){};}catch(e){}}}catch(e){}
+
+/* 6) التلوين مرة واحدة فقط: بنعيد تلوين الرسايل مرة واحدة بعد فتح الشات — بدون تكرار */
+function paintOnce(){
+  try{
+    if(!me||!me.penColor)return;
+    var c=(window._PENC||[]).find(function(x){return x.n===me.penColor;});
+    if(!c)return;
+    var box=el('chatBox');if(!box)return;
+    var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+    for(var i=0;i<bubs.length;i++){
+      var b=bubs[i];
+      if(b.querySelector('img')||b.querySelector('audio'))continue;
+      b.style.border='3px solid transparent';
+      b.style.borderRadius='16px';
+      b.style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+c.c1+','+c.c2+')';
+      b.style.backgroundOrigin='border-box';
+      b.style.backgroundClip='padding-box,border-box';
+      b.style.boxShadow='0 0 14px '+c.c1+'88,0 0 28px '+c.c2+'44';
+      var tk=b.querySelector('.ticks');
+      if(tk)tk.style.color=c.c2;
+    }
+  }catch(e){}
+}
+var _smSP=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smSP();
+  try{setTimeout(paintOnce,600);}catch(e){}
+  return r;
+};
+var _apSP=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apSP(m);
+  try{
+    if(m&&m.from===me.name&&me.penColor){
+      setTimeout(paintOnce,150); /* مرة واحدة بعد الرسالة الجديدة — خلاص */
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 7) رسالة تأكيد */
+setTimeout(function(){try{console.log('✅ تثبيت الرسايل: تم');}catch(e){}},1000);
+})();
