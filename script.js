@@ -11741,3 +11741,95 @@ window.go=function(s,nv,fb){
     }catch(e){}
   },4000);
 })();
+/* ===== 🎨 شريط الكتابة + الصور بلون رسايلك ===== */
+(function(){
+if(window._penBarImg)return;window._penBarImg=true;
+
+function myG(){
+  try{
+    if(!me||!me.penColor)return null;
+    return (window._PENC||[]).find(function(x){return x.n===me.penColor;})||null;
+  }catch(e){return null;}
+}
+
+/* 1) شريط الكتابة كله بلونك */
+window.stylePenBar=function(){
+  try{
+    var g=myG();
+    var inp=el('msgInput');if(!inp)return;
+    var send=document.querySelector('#s-chat .ic-btn[onclick="sendMsg()"]');
+    /* نطلع من حقل الكتابة لحد الحاوية اللي فيها زرار الإرسال */
+    var row=null,cur=inp.parentElement,lv=0;
+    while(cur&&lv<6&&cur!==document.body){
+      if(cur.id==='s-chat'||(cur.classList&&cur.classList.contains('screen')))break;
+      if(!row&&send&&cur.contains(send))row=cur;
+      cur=cur.parentElement;lv++;
+    }
+    if(!row)row=inp.closest('.chat-input')||inp.parentElement;
+    if(row){
+      if(g){
+        row.style.border='3px solid transparent';
+        row.style.borderRadius='18px';
+        row.style.backgroundImage='linear-gradient(rgba(10,10,25,.92),rgba(10,10,25,.92)),linear-gradient(135deg,'+g.c1+','+g.c2+')';
+        row.style.backgroundOrigin='border-box';
+        row.style.backgroundClip='padding-box,border-box';
+        row.style.boxShadow='0 0 14px '+g.c1+'88,0 0 28px '+g.c2+'44';
+      }else{
+        row.style.border='';row.style.backgroundImage='';row.style.boxShadow='';row.style.borderRadius='';
+      }
+    }
+    /* زرار الإرسال يبقى بلونك بدل الأزرق */
+    if(send){
+      if(g){
+        send.style.background='linear-gradient(135deg,'+g.c1+','+g.c2+')';
+        send.style.boxShadow='0 0 12px '+g.c1+'99';
+        send.style.border='none';
+      }else{
+        send.style.background='';send.style.boxShadow='';send.style.border='';
+      }
+    }
+    /* حقل الكتابة شفاف عشان لون الشريط يبان */
+    if(g){inp.style.background='transparent';inp.style.color='#fff';}
+    else{inp.style.background='';inp.style.color='';}
+  }catch(e){}
+};
+
+/* 2) الصور بلونك بدل الأزرق */
+window.paintPenImages=function(){
+  try{
+    var g=myG();if(!g)return;
+    var box=el('chatBox');if(!box)return;
+    var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+    for(var i=0;i<bubs.length;i++){
+      var b=bubs[i];
+      /* ندور على صورة حقيقية (مش ستيكر ولا صورة مصغرة في الرد) */
+      var hasImg=null,imgs=b.querySelectorAll('img');
+      for(var k=0;k<imgs.length;k++){
+        if(!imgs[k].closest('.reply-bar')&&!imgs[k].classList.contains('stick')){hasImg=imgs[k];break;}
+      }
+      if(!hasImg)continue;
+      b.style.border='3px solid transparent';
+      b.style.borderRadius='16px';
+      b.style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+g.c1+','+g.c2+')';
+      b.style.backgroundOrigin='border-box';
+      b.style.backgroundClip='padding-box,border-box';
+      b.style.boxShadow='0 0 14px '+g.c1+'88,0 0 28px '+g.c2+'44';
+      var tk=b.querySelector('.ticks');
+      if(tk)tk.style.color=g.c2;
+    }
+  }catch(e){}
+};
+
+/* 3) التشغيل: مع كل رسالة + فتح الشات + إرسال صورة + دوري */
+var _apBI=window.appendMsg;
+window.appendMsg=function(m){var r=_apBI(m);try{setTimeout(function(){stylePenBar();paintPenImages();},80);}catch(e){}return r;};
+var _smBI=window.subMsgs;
+window.subMsgs=async function(){var r=await _smBI();try{setTimeout(stylePenBar,300);setTimeout(paintPenImages,500);setTimeout(paintPenImages,1500);}catch(e){}return r;};
+var _ouBI=window.openUser;
+window.openUser=function(n){var r=_ouBI(n);try{setTimeout(stylePenBar,400);setTimeout(stylePenBar,1200);}catch(e){}return r;};
+var _jrBI=window.joinRoom;
+window.joinRoom=async function(rid){var r=await _jrBI(rid);try{setTimeout(stylePenBar,400);}catch(e){}return r;};
+var _ciBI=window.confirmImage;
+window.confirmImage=async function(){var r=await _ciBI();try{setTimeout(paintPenImages,300);setTimeout(paintPenImages,900);}catch(e){}return r;};
+setInterval(function(){try{stylePenBar();paintPenImages();}catch(e){}},2500);
+})();
