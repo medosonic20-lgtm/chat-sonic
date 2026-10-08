@@ -14806,3 +14806,196 @@ window.buyAgeHide=async function(){
   }catch(e){throw e;}
 };
 })();
+/* ===== ✍️ زرار A: بوب أب خيارات — اختيار واحد بس في المرة ===== */
+(function(){
+if(window._fmtSingle)return;window._fmtSingle=true;
+
+/* الحالة: تنسيق واحد بس — '' يعني عادي */
+window._fmtSel='';
+var FORMATS=[
+  {k:'b',t:'B',lbl:'عريض',css:'font-weight:900'},
+  {k:'i',t:'I',lbl:'مائل',css:'font-style:italic;font-family:Georgia,serif'},
+  {k:'u',t:'U',lbl:'خط تحت',css:'text-decoration:underline'}
+];
+window.FMT_DEFS=FORMATS;
+
+/* 1) زرار A */
+function buildBtn(){
+  try{
+    var inp=el('msgInput');
+    if(!inp||el('fmtABtn'))return;
+    var row=inp.closest('.chat-input')||inp.parentElement;
+    if(!row)return;
+    var btn=document.createElement('button');
+    btn.id='fmtABtn';
+    btn.title='تنسيق النص';
+    btn.style.cssText='cursor:pointer;flex-shrink:0;border:none;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:var(--txt);background:var(--card2);margin-left:6px';
+    btn.innerHTML='<span style="text-decoration:overline">A</span>';
+    btn.onclick=function(e){e.preventDefault();e.stopPropagation();openFmtPop();};
+    var cam=row.querySelector('label[for="imgInput"]');
+    if(cam)cam.parentElement.insertBefore(btn,cam);
+    else row.insertBefore(btn,row.firstChild);
+    updateBtn();
+  }catch(e){}
+}
+function updateBtn(){
+  try{
+    var b=el('fmtABtn');
+    if(!b)return;
+    var f=curFmt();
+    if(f){
+      b.style.background='linear-gradient(135deg,#a855f7,#6d28d9)';
+      b.style.color='#fff';
+      b.style.boxShadow='0 0 12px rgba(168,85,247,.65)';
+      b.title='تنسيق: '+f.lbl+' (دوس للتغيير)';
+    }else{
+      b.style.background='var(--card2)';
+      b.style.color='var(--txt)';
+      b.style.boxShadow='none';
+      b.title='تنسيق النص';
+    }
+  }catch(e){}
+}
+function curFmt(){
+  try{
+    for(var i=0;i<FORMATS.length;i++){
+      if(FORMATS[i].k===window._fmtSel)return FORMATS[i];
+    }
+  }catch(e){}
+  return null;
+}
+
+/* 2) البوب أب */
+function openFmtPop(){
+  try{
+    var old=el('fmtPop');
+    if(old){old.remove();return;}
+    var btn=el('fmtABtn');
+    if(!btn)return;
+    var pop=document.createElement('div');
+    pop.id='fmtPop';
+    pop.style.cssText='position:fixed;z-index:600;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:0 6px 24px rgba(0,0,0,.55)';
+    var h='<div style="font-size:11px;color:var(--mut);text-align:center;margin-bottom:8px">اختار شكل رسالتك</div>';
+    h+='<div style="display:flex;gap:8px;justify-content:center">';
+    FORMATS.forEach(function(f){
+      var on=(window._fmtSel===f.k);
+      h+='<button class="fmtOptBtn" data-fk="'+f.k+'" title="'+f.lbl+'" style="width:44px;height:40px;border:none;border-radius:10px;cursor:pointer;font-size:17px;color:'+(on?'#fff':'var(--txt)')+';background:'+(on?'linear-gradient(135deg,#a855f7,#6d28d9)':'var(--card2)')+';'+f.css+'">'+f.t+'</button>';
+    });
+    h+='</div>';
+    h+='<div style="font-size:10px;color:var(--mut);text-align:center;margin-top:8px">اختيار واحد فقط — دوس تاني لإلغائه</div>';
+    pop.innerHTML=h;
+    document.body.appendChild(pop);
+    var r=btn.getBoundingClientRect();
+    pop.style.bottom=(window.innerHeight-r.top+8)+'px';
+    pop.style.left=Math.max(8,Math.min(r.left-80,window.innerWidth-pop.offsetWidth-8))+'px';
+    /* اختيار من البوب */
+    var optBtns=pop.querySelectorAll('.fmtOptBtn');
+    for(var i=0;i<optBtns.length;i++){
+      optBtns[i].onclick=function(ev){
+        ev.stopPropagation();
+        var k=this.getAttribute('data-fk');
+        /* اختيار واحد: لو نفسه = إلغاء، لو غيره = استبدال */
+        window._fmtSel=(window._fmtSel===k)?'':k;
+        /* تحديث ألوان الأزرار */
+        for(var j=0;j<optBtns.length;j++){
+          var k2=optBtns[j].getAttribute('data-fk');
+          var on2=(window._fmtSel===k2);
+          var f2=FORMATS.find(function(x){return x.k===k2;});
+          optBtns[j].style.background=on2?'linear-gradient(135deg,#a855f7,#6d28d9)':'var(--card2)';
+          optBtns[j].style.color=on2?'#fff':'var(--txt)';
+        }
+        updateBtn();
+        var f3=curFmt();
+        toast(f3?('✍️ التنسيق: '+f3.lbl):'↩️ تنسيق عادي');
+      };
+    }
+    /* قفل بالضغط برة */
+    setTimeout(function(){
+      document.addEventListener('click',function h(ev){
+        var p=el('fmtPop');
+        if(p&&!p.contains(ev.target)&&!btn.contains(ev.target)){
+          p.remove();
+          document.removeEventListener('click',h);
+        }
+      });
+    },50);
+  }catch(e){}
+}
+
+/* 3) الحفظ: النص نضيف + التنسيق في meta.fmt.k */
+var _amS=SDB.addMsg.bind(SDB);
+SDB.addMsg=async function(m){
+  try{
+    if(window._fmtSel&&m&&m.type==='text'&&me&&m.from===me.name){
+      m.meta=m.meta||{};
+      m.meta.fmt={k:window._fmtSel};
+    }
+  }catch(e){}
+  return _amS(m);
+};
+
+/* 4) العرض: تطبيق التنسيق الواحد + تنظيف أي علامات قديمة */
+function styleMsg(node,m){
+  try{
+    if(!node||!m||m.type!=='text'||m.deleted)return;
+    var fmt=(m.meta&&m.meta.fmt)?m.meta.fmt.k:'';
+    var kids=node.childNodes;
+    for(var j=0;j<kids.length;j++){
+      var n=kids[j];
+      if(n.nodeType===3&&n.textContent.trim()){
+        var txt=n.textContent;
+        var changed=false;
+        /* شيل علامات النظام القديم من العرض */
+        var clean=txt.replace(/\*\*/g,'').replace(/__/g,'');
+        if(clean.length>2&&clean[0]==='*'&&clean[clean.length-1]==='*')clean=clean.slice(1,-1);
+        if(clean!==txt){txt=clean;changed=true;}
+        var css='';
+        if(fmt==='b')css='font-weight:900;';
+        else if(fmt==='i')css='font-style:italic;';
+        else if(fmt==='u')css='text-decoration:underline;';
+        if(css||changed){
+          var sp=document.createElement('span');
+          sp.style.cssText=css;
+          sp.textContent=txt;
+          node.replaceChild(sp,n);
+        }
+        return;
+      }
+    }
+  }catch(e){}
+}
+
+var _apS2=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_apS2(m);
+  try{setTimeout(function(){styleMsg(document.querySelector('[data-id="'+m._id+'"]'),m);},50);}catch(e){}
+  return r;
+};
+var _smS2=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smS2();
+  try{
+    setTimeout(function(){
+      var box=el('chatBox');
+      if(!box)return;
+      var bubs=box.querySelectorAll('.bub');
+      for(var i=0;i<bubs.length;i++){
+        var id=bubs[i].getAttribute('data-id');
+        var m=null;
+        for(var k=0;k<msgsCache.length;k++){
+          if(msgsCache[k]._id===id){m=msgsCache[k];break;}
+        }
+        if(m)styleMsg(bubs[i],m);
+      }
+    },400);
+  }catch(e){}
+  return r;
+};
+
+/* 5) البناء عند فتح الشات */
+var _ouS3=window.openUser;
+window.openUser=function(n){var r=_ouS3(n);try{setTimeout(buildBtn,300);setTimeout(buildBtn,900);}catch(e){}return r;};
+var _jrS3=window.joinRoom;
+window.joinRoom=async function(rid){var r=await _jrS3(rid);try{setTimeout(buildBtn,300);setTimeout(buildBtn,900);}catch(e){}return r;};
+setInterval(function(){try{buildBtn();}catch(e){}},2000);
+})();
