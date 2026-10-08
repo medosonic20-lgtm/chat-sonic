@@ -12518,3 +12518,636 @@ if(typeof _smPC==='function'){
   };
 }
 })();
+/* ===== 💰 عملاتي — شاشة جديدة شغالة 100% ===== */
+(function(){
+if(window._coinsHub)return;window._coinsHub=true;
+
+var PACKS=[[100,40,0],[150,60,5],[200,80,10],[250,100,20],[300,120,30],[350,140,45],[400,160,60],[450,180,80],[500,200,100],[600,240,120],[700,280,150],[800,320,190],[900,360,240],[1000,400,300],[1250,500,400],[1500,600,525]];
+
+/* 1) الشاشة */
+if(!el('s-coins')){
+  var scr=document.createElement('div');
+  scr.className='screen';scr.id='s-coins';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ عملاتي</div><div id="coinsHubBody" style="padding:4px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+  else content.appendChild(scr);
+}
+try{if(typeof MAIN_SCREENS!=='undefined'&&MAIN_SCREENS.indexOf('coins')===-1)MAIN_SCREENS.push('coins');}catch(e){}
+
+/* 2) رسم الشاشة */
+window.renderCoinsHub=function(){
+  try{
+    var box=el('coinsHubBody');if(!box||!me)return;
+    var coins=(me.coins)||0;
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#2a1a4e,#141038);border-radius:18px;padding:26px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(255,215,0,.25)">';
+    h+='<div style="width:80px;height:80px;margin:0 auto 10px;background:linear-gradient(135deg,#FFE55C,#FF9800);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:38px;box-shadow:0 0 30px rgba(255,183,0,.7)">⭐</div>';
+    h+='<div style="color:#FFD700;font-size:15px;font-weight:bold">رصيد عملاتك</div>';
+    h+='<div style="color:#fff;font-size:36px;font-weight:900;margin-top:4px">🪙 '+coins+'</div></div>';
+    h+='<div style="font-size:14px;font-weight:bold;color:var(--txt);margin:6px 0 10px;padding:0 4px">💎 باقات الشحن — كل ما تشحن أكتر المكافأة تكبر</div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+    PACKS.forEach(function(p,idx){
+      var total=p[0]+p[2],price=p[1];
+      var isMax=(idx===PACKS.length-1);
+      h+='<div onclick="openCoinsPay('+p[0]+','+price+','+p[2]+')" style="background:var(--card);border:2px solid '+(isMax?'#FFD700':'var(--line)')+';border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;position:relative;min-height:110px'+(isMax?';box-shadow:0 0 16px rgba(255,215,0,.35)':'')+'">';
+      if(p[2]>0)h+='<span style="position:absolute;top:-8px;right:10px;background:var(--grn);color:#fff;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:8px">🎁 +'+p[2]+' مجاناً</span>';
+      if(isMax)h+='<span style="position:absolute;top:-8px;left:10px;background:#FFD700;color:#111;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:8px">👑 الأضخم</span>';
+      h+='<div style="font-size:21px;font-weight:900;color:#FFD700;margin-top:'+(p[2]>0?'8px':'4px')+'">🪙 '+total+'</div>';
+      h+='<div style="font-size:10px;color:var(--mut)">'+(p[2]>0?(p[0]+' + '+p[2]+' هدية'):p[0]+' عملة')+'</div>';
+      h+='<div style="font-size:16px;font-weight:900;color:var(--txt);margin-top:6px">'+price+' جنيه</div></div>';
+    });
+    h+='</div>';
+    h+='<div style="background:var(--card2);border-radius:12px;padding:12px;font-size:11px;color:var(--mut);line-height:2;margin-top:12px;text-align:center">📌 اضغط الباقة ← حوّل على فودافون كاش ← ارفع صورة الإيصال ← تستلم عملاتك بعد تأكيد الإدارة ⚡</div>';
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+/* 3) نافذة الدفع */
+window.openCoinsPay=function(c,price,bonus){
+  if(!me)return toast('سجل دخولك أولاً');
+  var total=c+bonus;
+  window._coinsPay={c:c,price:price,bonus:bonus};
+  var old=el('coinsPayModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='coinsPayModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:330px;max-height:88vh;overflow-y:auto">'
+  +'<h3 style="color:#FFD700">🪙 شراء '+total+' عملة</h3>'
+  +'<div style="background:var(--bg);border-radius:12px;padding:10px;text-align:center;margin-bottom:8px">'
+  +'<div style="font-size:13px;color:var(--mut)">'+c+' عملة'+(bonus>0?' <b style="color:var(--grn)">+ '+bonus+' هدية 🎁</b>':'')+'</div>'
+  +'<div style="font-size:26px;font-weight:900;color:var(--txt);margin-top:4px">'+price+' جنيه</div></div>'
+  +'<p style="font-size:13px;text-align:center;color:var(--txt)">حوّل <b style="color:#FFD700">'+price+' جنيه</b> على فودافون كاش:</p>'
+  +'<div onclick="copyVoda()" style="background:var(--bg);border:2px dashed #FFD700;border-radius:12px;padding:12px;text-align:center;cursor:pointer">'
+  +'<div style="font-size:22px;font-weight:900;color:#FFD700;direction:ltr">01013255816</div>'
+  +'<div style="font-size:11px;color:var(--mut);margin-top:4px">📊 اضغط للنسخ 📋</div></div>'
+  +'<div style="font-size:12px;color:var(--txt);text-align:center;margin:10px 0 6px">بعد التحويل، ارفع صورة الإيصال:</div>'
+  +'<input type="file" id="coinsPayImg" accept="image/*" style="display:none" onchange="coinsPayPreview(event)">'
+  +'<label for="coinsPayImg" id="coinsPayImgLbl" style="width:100%;min-height:70px;background:var(--bg);border:2px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:24px;margin-bottom:6px">📷 ارفع صورة التحويل</label>'
+  +'<textarea id="coinsPayNote" placeholder="ملاحظة (اختياري)..." style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px;font-size:12px;min-height:40px;resize:none;margin-bottom:6px"></textarea>'
+  +'<button style="background:var(--grn);color:#fff" onclick="coinsPaySubmit()">✅ إرسال الطلب للإدارة</button>'
+  +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'coinsPayModal\')">إغلاق</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('coinsPayModal');};
+  document.body.appendChild(m);
+  m.classList.add('open');
+};
+
+window.coinsPayPreview=function(e){
+  var f=e.target.files[0];if(!f)return;
+  compressImg(f,function(d){
+    window._coinsPayImg=d;
+    var lbl=el('coinsPayImgLbl');
+    if(lbl)lbl.innerHTML='<img src="'+d+'" style="max-height:110px;border-radius:8px">';
+  });
+  e.target.value='';
+};
+
+window.coinsPaySubmit=async function(){
+  try{
+    if(!window._coinsPay||!window._coinsPayImg)return toast('📷 ارفع صورة التحويل الأول');
+    var p=window._coinsPay;
+    var note=(el('coinsPayNote')?el('coinsPayNote').value.trim():'');
+    toast('⏳ جاري الإرسال...');
+    var url=await uploadMedia(window._coinsPayImg,'.jpg');
+    if(!url)return toast('فشل رفع الصورة، حاول تاني');
+    var total=p.c+p.bonus;
+    var r=await sb.from('topup_requests').insert({
+      user:me.name,amount:total,price:p.price,img:url,
+      note:(note?note+' | ':'')+'باقة '+p.c+'+'+p.bonus,
+      status:'pending',time:Date.now()
+    });
+    if(r&&r.error)return toast('❌ خطأ: '+r.error.message);
+    window._coinsPayImg=null;window._coinsPay=null;
+    closeModal('coinsPayModal');
+    toast('✅ وصل طلبك للإدارة — تستلم '+total+' عملة بعد التأكيد');
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* 4) ربط زرار عملاتي الموجود بالشاشة الجديدة */
+function wireItem(){
+  try{
+    var item=el('walletMenuItem');
+    if(!item){
+      var scr=el('s-settings');if(!scr)return;
+      var items=scr.querySelectorAll('.m-item');
+      for(var i=0;i<items.length;i++){
+        if((items[i].innerText||'').indexOf('عملاتي')>-1){item=items[i];break;}
+      }
+    }
+    if(!item||item._coinsWired)return;
+    item._coinsWired=true;
+    item.onclick=function(){go('coins',null);};
+  }catch(e){}
+}
+
+/* 5) تجاوز الحظر القديم: wallet ← coins + تحديث الرصيد عند الفتح */
+var _goCH=window.go;
+window.go=function(s,nv,fb){
+  if(s==='wallet')s='coins';
+  var r=_goCH(s,nv,fb);
+  try{if(s==='coins'){wireItem();setTimeout(renderCoinsHub,60);}}catch(e){}
+  return r;
+};
+
+setInterval(wireItem,2500);
+setTimeout(wireItem,800);
+var _saCH=window.startAll;
+window.startAll=async function(){
+  var r=await _saCH();
+  try{wireItem();}catch(e){}
+  return r;
+};
+})();
+/* ===== 🖼️ الإطار للجميع — التصفح والأسعار متاحة للكل، التفعيل بالاشتراك ===== */
+(function(){
+if(window._framesForAll)return;window._framesForAll=true;
+var FRAME_COST=100,FRAME_DAYS=30;
+var _list=[];
+
+function isSub(){try{return me&&(me.frameExp&&me.frameExp>Date.now());}catch(e){return false;}}
+function isAdm(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+
+/* 1) عنصر "إطار الصورة" ظاهر للجميع — CSS أقوى من أي إخفاء قديم */
+try{
+  var st=document.createElement('style');
+  st.textContent='#frameMenuItem{display:flex!important}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* 2) شاشة الإطارات: الجميع يشوف الإطارات والسعر */
+window.initFrames=async function(){
+  try{
+    var grid=el('framesGrid');if(!grid)return;
+    grid.innerHTML='<div style="text-align:center;color:var(--mut);grid-column:1/-1">جاري التحميل...</div>';
+    var d=await sb.from('frames').select('*').order('id',{ascending:true});
+    if(d.error){grid.innerHTML='<div style="text-align:center;color:var(--red);grid-column:1/-1">خطأ: '+d.error.message+'</div>';return;}
+    _list=d.data||[];
+    var adm=isAdm(),sub=isSub();
+    var h='';
+    if(adm){
+      h+='<div style="grid-column:1/-1;background:rgba(139,92,246,.12);border:1px solid #8B5CF6;border-radius:12px;padding:10px;text-align:center;font-size:12.5px;color:#c4b5fd;font-weight:bold;margin-bottom:4px">👑 إدارة — الإطار مجاني دائماً</div>';
+    }else if(sub){
+      h+='<div style="grid-column:1/-1;background:rgba(34,211,238,.12);border:1px solid #22d3ee;border-radius:12px;padding:10px;text-align:center;font-size:13px;color:#22d3ee;font-weight:bold;margin-bottom:4px">✅ اشتراك الإطار نشط — متبقي '+Math.ceil((me.frameExp-Date.now())/86400000)+' يوم</div>';
+    }else{
+      h+='<div style="grid-column:1/-1;background:var(--card);border:2px solid #FFD700;border-radius:14px;padding:12px;text-align:center;margin-bottom:4px;box-shadow:0 0 14px rgba(255,215,0,.2)">';
+      h+='<div style="font-size:14px;font-weight:bold;color:var(--txt)">🖼️ إطار حول صورتك يظهر لكل الأعضاء</div>';
+      h+='<div style="font-size:11.5px;color:var(--mut);margin:4px 0 8px">اشترك واختار أي إطار — 🪙 '+FRAME_COST+' عملة / '+FRAME_DAYS+' يوم</div>';
+      h+='<button class="adm-btn" style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900;border-radius:12px;padding:9px 22px" onclick="buyFrameAll()">🪙 اشترك الآن</button></div>';
+    }
+    if(!_list.length){
+      h+='<div style="grid-column:1/-1;text-align:center;color:var(--mut);padding:20px">لا توجد إطارات حالياً — تابعنا قريباً ✨</div>';
+      grid.innerHTML=h;return;
+    }
+    _list.forEach(function(fr,i){
+      var sel=(me&&me.frame===fr.url);
+      var locked=(!sub&&!adm);
+      h+='<div style="position:relative;background:var(--card2);border:2px solid '+(sel?'var(--grn)':'var(--line)')+';border-radius:12px;padding:12px 8px;text-align:center;'+(locked?'':'cursor:pointer;')+'" onclick="pickFrameAll('+i+')">';
+      h+='<div style="width:70px;height:70px;margin:0 auto 6px;position:relative">';
+      h+='<div class="u-ava" style="width:42px;height:42px;position:absolute;top:14px;left:14px;z-index:1">👨</div>';
+      h+='<img src="'+fr.url+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:2" onerror="this.style.display=\'none\'"></div>';
+      if(sel)h+='<div style="font-size:10px;color:var(--grn);font-weight:bold">✅ مُعيّن</div>';
+      if(locked)h+='<div style="font-size:9px;color:#FFD700;font-weight:bold">🔒 بالاشتراك</div>';
+      if(adm)h+='<button class="xbtn" style="position:absolute;top:4px;left:4px;padding:2px 6px;font-size:10px" onclick="event.stopPropagation();delFrame('+fr.id+')">✕</button>';
+      h+='</div>';
+    });
+    if(adm)h+='<div style="background:var(--card2);border:2px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:32px;min-height:110px;color:var(--acc)" onclick="document.getElementById(\'frameInput\').click()">➕</div>';
+    grid.innerHTML=h;
+  }catch(e){}
+};
+
+/* 3) الضغط على إطار: مشترك = يتحدد / غير مشترك = نافذة الاشتراك */
+window.pickFrameAll=function(i){
+  try{
+    var fr=_list[i];if(!fr)return;
+    if(!isAdm()&&!isSub()){openFrameSub();return;}
+    if(window.setFrame)window.setFrame(fr.url);
+  }catch(e){}
+};
+
+/* 4) نافذة الاشتراك */
+window.openFrameSub=function(){
+  try{
+    var old=el('frameSubModal');if(old)old.remove();
+    var m=document.createElement('div');m.id='frameSubModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:320px;text-align:center">'
+    +'<div style="font-size:40px">🖼️</div>'
+    +'<h3>ميزة الإطار</h3>'
+    +'<p style="font-size:13px;color:var(--txt);line-height:2">فعّل الميزة واختار أي إطار يظهر حول صورتك في كل الموقع<br><b style="color:#FFD700">🪙 '+FRAME_COST+' عملة — لمدة '+FRAME_DAYS+' يوم</b></p>'
+    +'<div style="font-size:12px;color:var(--mut);margin-bottom:8px">رصيدك: 🪙 '+((me&&me.coins)||0)+'</div>'
+    +'<button style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900" onclick="buyFrameAll();closeModal(\'frameSubModal\')">🪙 اشترك الآن</button>'
+    +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'frameSubModal\')">لاحقاً</button></div>';
+    m.onclick=function(e){if(e.target===m)closeModal('frameSubModal');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+  }catch(e){}
+};
+
+/* 5) الشراء */
+window.buyFrameAll=async function(){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    var coins=(me.coins)||0;
+    if(coins<FRAME_COST)return toast('🪙 العملات غير كافية — يرجي الشحن (ناقصك '+(FRAME_COST-coins)+' عملة من "عملاتي")');
+    if(!confirm('اشتراك ميزة الإطار بـ '+FRAME_COST+' عملة لمدة '+FRAME_DAYS+' يوم؟'))return;
+    await updateMe({coins:coins-FRAME_COST,frameExp:Date.now()+FRAME_DAYS*86400000,framesUnlocked:true});
+    me.coins=coins-FRAME_COST;
+    try{logTrans('buy',FRAME_COST,'اشتراك: الإطار','');}catch(e){}
+    toast('🎉 تم الاشتراك! اختار الإطار اللي يعجبك');
+    try{initFrames();}catch(e){}
+  }catch(e){}
+};
+})();
+/* ===== 🎁 هدايا الشارات — للمالك فقط + مزايا كاملة للفائزين ===== */
+(function(){
+if(window._giftBdg3)return;window._giftBdg3=true;
+
+/* أدوات فحص الشارة */
+window.activeGiftBadge=function(u){
+  try{
+    if(!u||!u.gift_badges)return null;
+    var now=Date.now();
+    for(var i=u.gift_badges.length-1;i>=0;i--){
+      if(u.gift_badges[i]&&u.gift_badges[i].exp>now)return u.gift_badges[i];
+    }
+  }catch(e){}
+  return null;
+};
+window.hasGiftBadge=function(u){return !!window.activeGiftBadge(u);};
+
+/* ========== 1) شاشة الإهداء — لصاحب الموقع فقط ========== */
+window.renderGiftBadge=async function(){
+  try{
+    if(!me||!isOwner()){go('settings',null);return toast('👑 لصاحب الموقع فقط');}
+    var box=el('giftBadgeBody');if(!box)return;
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#2a1a4e,#141038);border-radius:18px;padding:20px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(255,215,0,.3)">';
+    h+='<div style="font-size:34px">🎁</div>';
+    h+='<div style="font-size:16px;font-weight:900;color:#FFD700">إهداء شارة لعضو</div>';
+    h+='<div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:4px">هدية من صاحب الموقع — الشارة تفتح لمزاياها + الإطار طول المدة</div></div>';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px">';
+    h+='<div style="font-size:13px;font-weight:bold;color:var(--txt);margin-bottom:8px">1️⃣ اسم العضو الفائز:</div>';
+    h+='<input id="gbTarget" placeholder="اكتب اسم العضوية بالظبط" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:10px;font-size:14px"></div>';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px">';
+    h+='<div style="font-size:13px;font-weight:bold;color:var(--txt);margin-bottom:8px">2️⃣ اختار الشارة:</div>';
+    h+='<div id="gbPick" style="display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px"><div style="color:var(--mut);font-size:12px">جاري التحميل...</div></div></div>';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px">';
+    h+='<div style="font-size:13px;font-weight:bold;color:var(--txt);margin-bottom:8px">3️⃣ عدد الأيام:</div>';
+    h+='<input id="gbDays" type="number" min="1" value="3" style="width:100%;padding:12px;background:var(--bg);border:2px solid #FFD700;color:var(--txt);border-radius:10px;font-size:17px;font-weight:900;text-align:center">';
+    h+='<div style="display:flex;gap:8px;justify-content:center;margin-top:8px">'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0" onclick="el(\'gbDays\').value=1">يوم</button>'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0" onclick="el(\'gbDays\').value=3">3 أيام</button>'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0" onclick="el(\'gbDays\').value=7">7 أيام</button>'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0" onclick="el(\'gbDays\').value=30">30 يوم</button>'
+    +'</div></div>';
+    h+='<button class="lbtn" style="background:var(--grn)" onclick="doGiftBadge2()">🎁 تنفيذ الإهداء</button>';
+    box.innerHTML=h;
+    var d=await sb.from('badges').select('*').order('id',{ascending:true});
+    window._gb2Items=(d.data||[]);
+    var pk=el('gbPick');if(!pk)return;
+    if(!window._gb2Items.length){pk.innerHTML='<div style="color:var(--mut);font-size:12px">لا توجد شارات — أضفها من متجر الشارات أولاً</div>';return;}
+    window._gb2Sel=null;
+    var hh='';
+    window._gb2Items.forEach(function(b,i){
+      hh+='<div onclick="pickGiftBadge2('+i+')" id="gb2Item'+i+'" style="min-width:84px;cursor:pointer;border:2px solid var(--line);border-radius:12px;padding:10px 8px;text-align:center;background:var(--bg);flex-shrink:0">';
+      hh+='<img src="'+b.url+'" style="width:48px;height:48px;object-fit:contain"><div style="font-size:10px;font-weight:bold;color:var(--txt);margin-top:4px">'+escapeHtml(b.name||'شارة')+'</div></div>';
+    });
+    pk.innerHTML=hh;
+  }catch(e){}
+};
+
+window.pickGiftBadge2=function(i){
+  window._gb2Sel=i;
+  var items=document.querySelectorAll('[id^="gb2Item"]');
+  for(var k=0;k<items.length;k++)items[k].style.borderColor='var(--line)';
+  var it=el('gb2Item'+i);
+  if(it)it.style.borderColor='#FFD700';
+};
+
+window.doGiftBadge2=async function(){
+  try{
+    if(!me||!isOwner())return toast('👑 لصاحب الموقع فقط');
+    var target=el('gbTarget')?el('gbTarget').value.trim():'';
+    if(!target)return toast('اكتب اسم العضو');
+    if(isOwnerName(target))return toast('👑 صاحب الموقع محتاج هدية؟ 😄');
+    if(window._gb2Sel===null||window._gb2Sel===undefined)return toast('اختار الشارة الأول');
+    var b=window._gb2Items[window._gb2Sel];if(!b)return toast('اختار الشارة الأول');
+    var days=parseInt(el('gbDays').value);
+    if(isNaN(days)||days<1)return toast('اكتب عدد الأيام');
+    var u=await SDB.getUser(target);
+    if(!u)return toast('❌ العضوية غير موجودة: '+target);
+    if(!confirm('إهداء شارة «'+(b.name||'')+'» لـ '+getMsgName(target)+' لمدة '+days+' يوم؟'))return;
+    var now=Date.now();
+    var arr=Array.isArray(u.gift_badges)?u.gift_badges:[];
+    arr.push({url:b.url,name:b.name||'شارة',exp:now+days*86400000,by:me.name,time:now});
+    await SDB.patchUser(target,{gift_badges:arr});
+    try{
+      var s=await SDB.loadSettings();
+      var notes=Array.isArray(s.gb2_notices)?s.gb2_notices:[];
+      notes.push({to:target,name:b.name||'شارة',url:b.url,days:days,from:me.name,time:now});
+      if(notes.length>200)notes=notes.slice(-200);
+      await SDB.saveSetting('gb2_notices',notes);
+    }catch(e){}
+    el('gbTarget').value='';
+    toast('🎁 تم إهداء الشارة لـ '+getMsgName(target)+' لمدة '+days+' يوم');
+    try{logActivity('gift_badge','إهداء شارة «'+(b.name||'')+'» لـ '+target+' لمدة '+days+' يوم');}catch(e){}
+    try{refreshUsers();}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* 2) عنصر القايمة يظهر للمالك فقط */
+setInterval(function(){
+  try{
+    var mi=el('gbMenuItem');
+    if(mi)mi.style.display=(me&&isOwner())?'flex':'none';
+  }catch(e){}
+},2000);
+
+/* 3) حرس التنقل: غير المالك ميدخلش الشاشة */
+var _goG3=window.go;
+window.go=function(s,nv,fb){
+  if(s==='giftbadge'&&!(me&&isOwner())){
+    toast('👑 لصاحب الموقع فقط');
+    s='settings';
+  }
+  return _goG3(s,nv,fb);
+};
+
+/* ========== 4) الإطار: مفتوح ل أصحاب الشارات ========== */
+window.pickFrameAll=async function(i){
+  try{
+    var allowed=me&&(isOwnerName(me.name)||isAdmin()||(me.frameExp&&me.frameExp>Date.now())||hasGiftBadge(me));
+    if(!allowed){openFrameSub();return;}
+    var d=await sb.from('frames').select('*').order('id',{ascending:true});
+    var fr=(d.data||[])[i];
+    if(fr&&window.setFrame)setFrame(fr.url);
+  }catch(e){}
+};
+
+var _sfG3=window.setFrame;
+window.setFrame=async function(url){
+  try{
+    var allowed=me&&(isOwnerName(me.name)||isAdmin()||(me.frameExp&&me.frameExp>Date.now())||hasGiftBadge(me));
+    if(!allowed)return toast('🔒 ميزة الإطار تتطلب اشتراك أو شارة من صاحب الموقع');
+  }catch(e){}
+  return _sfG3?_sfG3(url):undefined;
+};
+
+/* الإطار يظهر حوالين صورة صاحب الشارة في كل الموقع */
+var _gahG3=window.getAvatarHTML;
+window.getAvatarHTML=function(u,size){
+  size=size||46;
+  try{
+    var show=u&&u.frame&&(isOwnerName(u.name)||isAdmin()||(u.frameExp&&u.frameExp>Date.now())||hasGiftBadge(u));
+    if(show){
+      var ava=window.getAvatar?getAvatar(u):'👨';
+      return '<div class="ava-frame-wrap" style="width:'+(size+14)+'px;height:'+(size+14)+'px"><div class="u-ava" style="width:'+size+'px;height:'+size+'px">'+ava+'</div><img class="frame-img" src="'+u.frame+'" style="position:absolute;inset:-4px;width:calc(100% + 8px);height:calc(100% + 8px);object-fit:contain;pointer-events:none;z-index:3"></div>';
+    }
+  }catch(e){}
+  return _gahG3?_gahG3(u,size):'';
+};
+
+/* عنصر الإطار في الإعدادات: ظاهر لأصحاب الشارات كمان */
+setInterval(function(){
+  try{
+    if(!me)return;
+    var fm=el('frameMenuItem');
+    if(fm)fm.style.display=(isOwnerName(me.name)||isAdmin()||(me.frameExp&&me.frameExp>Date.now())||hasGiftBadge(me))?'flex':'none';
+  }catch(e){}
+},2200);
+
+/* شاشة الإطارات: رسالة خاصة لأصحاب الشارات */
+var _ifG3=window.initFrames;
+window.initFrames=async function(){
+  try{
+    await _ifG3();
+    var grid=el('framesGrid');if(!grid)return;
+    var b=activeGiftBadge(me);
+    if(b&&!(me.frameExp&&me.frameExp>Date.now())&&!isAdmin()){
+      var old=grid.querySelector('div');
+      var note=document.createElement('div');
+      note.style.cssText='grid-column:1/-1;background:linear-gradient(135deg,#3a2a00,#1a1400);border:2px solid #FFD700;border-radius:12px;padding:10px;text-align:center;font-size:12.5px;color:#FFD700;font-weight:bold;margin-bottom:4px';
+      note.innerHTML='🎁 اشتراك الإطار مفتوح عبر شارتك «'+escapeHtml(b.name||'')+'» — باقي '+Math.ceil((b.exp-Date.now())/86400000)+' يوم';
+      grid.insertBefore(note,grid.firstChild);
+    }
+  }catch(e){}
+};
+
+/* ========== 5) أصحاب الشارات فوق — تحت المالك والإدارة ========== */
+function reorderOnlineList(){
+  try{
+    var box=el('usersList');
+    if(!box)return;
+    var kids=[];
+    for(var i=0;i<box.children.length;i++)kids.push(box.children[i]);
+    var promos=[],owner=[],adm=[],vip=[],rest=[];
+    kids.forEach(function(ch){
+      var oc=(ch.getAttribute&&ch.getAttribute('onclick'))||'';
+      var m=oc.match(/openUser\('([^']+)'\)/);
+      if(!m){promos.push(ch);return;}
+      var u=usersCache[m[1]];
+      if(!u){rest.push(ch);return;}
+      if(isOwnerName(u.name))owner.push(ch);
+      else if(u.role&&(u.role.indexOf('إدارة')>-1||u.role.indexOf('سوبر')>-1))adm.push(ch);
+      else if(hasGiftBadge(u)||u.active_badge_url||u.verified===true)vip.push(ch);
+      else rest.push(ch);
+    });
+    if(vip.length||owner.length||adm.length){
+      box.innerHTML='';
+      promos.forEach(function(c){box.appendChild(c);});
+      owner.forEach(function(c){box.appendChild(c);});
+      adm.forEach(function(c){box.appendChild(c);});
+      vip.forEach(function(c){box.appendChild(c);});
+      rest.forEach(function(c){box.appendChild(c);});
+    }
+  }catch(e){}
+}
+var _roG3=window.renderOnline;
+window.renderOnline=function(){
+  var r=_roG3.apply(this,arguments);
+  try{reorderOnlineList();}catch(e){}
+  return r;
+};
+
+/* ========== 6) إشعار التهنئة: نص الشاشة ========== */
+window.checkGiftBadgeNotices=async function(){
+  try{
+    if(!me)return;
+    var s=await SDB.loadSettings();
+    var notes=Array.isArray(s.gb2_notices)?s.gb2_notices:[];
+    var seen=parseInt(LS.getItem('gb2_seen')||'0');
+    var mine=notes.filter(function(x){return x&&x.to===me.name&&(x.time||0)>seen;});
+    if(!mine.length)return;
+    LS.setItem('gb2_seen',String(Date.now()));
+    var list='';
+    mine.forEach(function(x){
+      list+='<div style="background:linear-gradient(135deg,#3a2a00,#1a1400);border:2px solid #FFD700;border-radius:16px;padding:18px;margin-bottom:10px;text-align:center;box-shadow:0 0 22px rgba(255,215,0,.25)">'
+      +'<div style="font-size:36px">🎉</div>'
+      +'<div style="font-size:19px;font-weight:900;color:#FFD700;margin-top:4px">تهانينا!</div>'
+      +'<div style="font-size:13px;color:rgba(255,255,255,.9);margin-top:4px">هدية من صاحب الموقع 👑</div>'
+      +'<img src="'+x.url+'" style="width:64px;height:64px;object-fit:contain;margin:8px 0">'
+      +'<div style="font-size:16px;font-weight:900;color:#fff">شارة «'+escapeHtml(x.name)+'»</div>'
+      +'<div style="font-size:12.5px;color:#FFD700;margin-top:4px">لمدة '+x.days+' يوم</div>'
+      +'<div style="font-size:11px;color:rgba(255,215,0,.75);margin-top:6px;line-height:1.9">الشارة تظهر جنب اسمك في كل الموقع<br>وتفتح لك ميزة الإطار طول المدة ✨</div></div>';
+    });
+    var m=document.createElement('div');m.id='gb2NoticeModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:330px;max-height:85vh;overflow-y:auto"><h3 style="color:#FFD700;text-align:center">🎁 هدية وصلتك</h3>'+list
+    +'<button style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111" onclick="closeModal(\'gb2NoticeModal\')">شكراً صاحب الموقع! 👑</button></div>';
+    m.onclick=function(e){if(e.target===m)closeModal('gb2NoticeModal');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+    if(me.sndNotif!==false)try{beep(1200);}catch(e){}
+  }catch(e){}
+};
+var _saG3=window.startAll;
+window.startAll=async function(){
+  var r=await _saG3();
+  try{setTimeout(checkGiftBadgeNotices,1800);}catch(e){}
+  return r;
+};
+setInterval(function(){try{checkGiftBadgeNotices();}catch(e){}},30000);
+
+/* ========== 7) انتهاء الشارة = انتهاء كل مزاياها ========== */
+setInterval(async function(){
+  try{
+    if(!me||!me.gift_badges||!me.gift_badges.length)return;
+    var now=Date.now(),live=[];
+    me.gift_badges.forEach(function(g){if(g&&g.exp>now)live.push(g);});
+    if(live.length!==me.gift_badges.length){
+      var patch={gift_badges:live};
+      /* لو الإطار كان شغال بسبب الشارة بس → يتشال معاها */
+      if(!(me.frameExp&&me.frameExp>now)&&me.frame)patch.frame=null;
+      await updateMe(patch);
+      toast('⏰ انتهت مدة الشارة — انتهت مزاياها كمان');
+      try{renderOnline();}catch(e){}
+      try{updateProfile();}catch(e){}
+    }
+  }catch(e){}
+},60000);
+})();
+/* ===== ↩️ سحب الإهداء — تحت زرار التنفيذ (لصاحب الموقع فقط) ===== */
+(function(){
+if(window._revokeGift)return;window._revokeGift=true;
+
+/* 1) تركيب القسم بعد ما شاشة الإهداء تترسم */
+var _rgO=window.renderGiftBadge;
+window.renderGiftBadge=async function(){
+  var r=await _rgO();
+  try{
+    var box=el('giftBadgeBody');
+    if(!box||!me||!isOwner())return r;
+    if(el('revokeGiftBox'))return r;
+    var h='<div id="revokeGiftBox" style="margin-top:14px;background:var(--card);border:1px solid var(--red);border-radius:14px;padding:14px">';
+    h+='<div style="font-size:14px;font-weight:bold;color:var(--red);text-align:center;margin-bottom:4px">↩️ سحب الإهداء</div>';
+    h+='<div style="font-size:11px;color:var(--mut);text-align:center;margin-bottom:10px">شيل شارة العضو وكل مزاياها (بما فيها الإطار) فوراً</div>';
+    h+='<input id="rvTarget" placeholder="اسم العضو اللي هتسحب منه الهدية" style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:10px;font-size:14px;margin-bottom:8px">';
+    h+='<button class="lbtn" style="background:var(--red)" onclick="doRevokeGift()">↩️ سحب الشارة نهائياً</button></div>';
+    box.insertAdjacentHTML('beforeend',h);
+  }catch(e){}
+  return r;
+};
+
+/* 2) تنفيذ السحب */
+window.doRevokeGift=async function(){
+  try{
+    if(!me||!isOwner())return toast('👑 لصاحب الموقع فقط');
+    var target=el('rvTarget')?el('rvTarget').value.trim():'';
+    if(!target)return toast('اكتب اسم العضو');
+    if(isOwnerName(target))return toast('👑 صاحب الموقع؟ 😄');
+    var u=await SDB.getUser(target);
+    if(!u)return toast('❌ العضوية غير موجودة: '+target);
+    if(!u.gift_badges||!u.gift_badges.length)return toast('ℹ️ '+getMsgName(target)+' معندوش شارات مهدية');
+    var names=[];
+    u.gift_badges.forEach(function(g){if(g&&g.exp>Date.now())names.push(g.name||'شارة');});
+    if(!names.length)return toast('ℹ️ شاراته المهدية كلها منتهية أصلاً');
+    if(!confirm('سحب '+(names.length>1?names.length+' شارات':'شارة «'+names[0]+'»')+' من '+getMsgName(target)+'؟\n\nسيتم إزالة:\n• الشارة من جنب اسمه\n• الإطار (لو كان شغال بالهدية)\n• كل مزايا الهدية\n\n⚠️ فوراً ولا يمكن التراجع!'))return;
+    /* إزالة الشارات + الإطار لو مش مشترك بفلوس */
+    var patch={gift_badges:[]};
+    if(!(u.frameExp&&u.frameExp>Date.now()))patch.frame=null;
+    await SDB.patchUser(target,patch);
+    toast('↩️ تم سحب الهدية من '+getMsgName(target));
+    try{logActivity('revoke_gift','سحب شارة مهدية من '+target+' بواسطة '+me.name);}catch(e){}
+    el('rvTarget').value='';
+    try{refreshUsers();}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+})();
+/* ===== 🤫 إخفاء رسالة "تم إزالة متجر سونيك" نهائياً ===== */
+(function(){
+if(window._killShopToast)return;window._killShopToast=true;
+
+var _tstK=window.toast;
+window.toast=function(msg){
+  try{
+    var t=String(msg||'');
+    if(t.indexOf('تم إزالة متجر سونيك')>-1)return; /* ميتعرضش خالص */
+  }catch(e){}
+  return _tstK(msg);
+};
+})();
+/* ===== 🤫 إخفاء رسالة "تم إزالة متجر سونيك" نهائياً ===== */
+(function(){
+if(window._killShopToast)return;window._killShopToast=true;
+
+var _tstK=window.toast;
+window.toast=function(msg){
+  try{
+    var t=String(msg||'');
+    if(t.indexOf('تم إزالة متجر سونيك')>-1)return; /* ميتعرضش خالص */
+  }catch(e){}
+  return _tstK(msg);
+};
+})();
+/* ===== 🤫 إخفاء رسايل البداية المزعجة نهائياً ===== */
+(function(){
+if(window._killStartupToasts)return;window._killStartupToasts=true;
+
+/* الرسايل الممنوعة — ضيف أي رسالة مضايقك هنا */
+var BANNED=[
+  'تم إزالة متجر سونيك',
+  'تم تغيير لون المظهر',
+  'تم تغيير لون الموقع'
+];
+
+function isBanned(t){
+  try{
+    var s=String(t||'');
+    for(var i=0;i<BANNED.length;i++){
+      if(s.indexOf(BANNED[i])>-1)return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+/* 1) فلتر دائم على toast */
+var _tstK=window.toast;
+window.toast=function(msg){
+  if(isBanned(msg))return;
+  return _tstK(msg);
+};
+
+/* 2) إزالة فورية لأي توست ظهر قبل الفلتر */
+function purge(){
+  try{
+    var kids=document.body.children;
+    for(var i=kids.length-1;i>=0;i--){
+      var n=kids[i];
+      if(n&&n.tagName==='DIV'&&isBanned(n.innerText)){n.remove();}
+    }
+  }catch(e){}
+}
+purge();
+
+/* 3) حارس مستمر: أي نسخة تظهر بعدين تشال لحظتها */
+try{
+  var mo=new MutationObserver(function(muts){
+    for(var i=0;i<muts.length;i++){
+      var nodes=muts[i].addedNodes;
+      if(!nodes)continue;
+      for(var j=0;j<nodes.length;j++){
+        var n=nodes[j];
+        if(n&&n.nodeType===1&&isBanned(n.innerText)){n.remove();}
+      }
+    }
+  });
+  mo.observe(document.body,{childList:true,subtree:false});
+}catch(e){}
+})();
