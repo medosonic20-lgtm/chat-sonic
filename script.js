@@ -14151,3 +14151,658 @@ setInterval(async function(){
   }catch(e){}
 },60000);
 })();
+/* ===== 🖼️ خلفية البروفايل المتحركة — GIF خلف البروفايل ===== */
+(function(){
+if(window._profAnimBg)return;window._profAnimBg=true;
+
+function getAnimBg(u){try{return (u&&u.prof_bg_anim)?u.prof_bg_anim:null;}catch(e){return null;}}
+
+/* 1) عنصر الإعدادات */
+function ensureItem(){
+  try{
+    if(!me)return;
+    var lists=document.querySelectorAll('#s-settings .menu-list');
+    if(!lists.length||el('profAnimItem'))return;
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='profAnimItem';
+    mi.innerHTML='<span>🖼️ خلفية بروفايل متحركة <span style="background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;font-size:10px;font-weight:bold;padding:3px 10px;border-radius:12px;margin-right:6px">جديد</span></span><span>👈</span>';
+    mi.onclick=function(){go('profanim',null);};
+    lists[0].insertBefore(mi,lists[0].firstChild);
+  }catch(e){}
+}
+setInterval(ensureItem,2500);
+setTimeout(ensureItem,1000);
+
+/* 2) الشاشة */
+if(!el('s-profanim')){
+  var scr=document.createElement('div');
+  scr.className='screen';scr.id='s-profanim';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ خلفية البروفايل المتحركة</div><div id="profAnimBody" style="padding:6px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+  else content.appendChild(scr);
+}
+
+window.renderProfAnim=async function(){
+  try{
+    var box=el('profAnimBody');if(!box||!me)return;
+    var u=await SDB.getUser(me.name);
+    var cur=getAnimBg(u);
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#0e2a3a,#0a1420);border-radius:18px;padding:24px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(6,182,212,.3)">';
+    h+='<div style="font-size:40px">🖼️</div>';
+    h+='<div style="font-size:17px;font-weight:900;color:#fff;margin-top:6px">خلفية البروفايل المتحركة</div>';
+    h+='<div style="font-size:11.5px;color:rgba(255,255,255,.65);margin-top:5px;line-height:2">اختار GIF متحرك من جهازك وهيظهر كخلفية لبروفايلك قدام كل الزوار<br>⚠️ يفضل حجم أقل من 5 ميجا عشان التحميل يبقى سريع</div></div>';
+    if(cur){
+      h+='<div style="background:var(--card);border:1px solid var(--grn);border-radius:14px;padding:14px;margin-bottom:12px">';
+      h+='<div style="font-size:13px;font-weight:bold;color:var(--grn);margin-bottom:8px">✅ عندك خلفية مفعلة</div>';
+      h+='<div style="border-radius:12px;overflow:hidden;margin-bottom:10px;max-height:220px;background:#000;display:flex;align-items:center;justify-content:center"><img src="'+cur+'" style="max-width:100%;max-height:220px;object-fit:contain"></div>';
+      h+='<button class="lbtn" style="background:var(--red);margin:0" onclick="removeProfAnim()">🗑️ إزالة الخلفية</button>';
+      h+='<div style="font-size:11px;color:var(--mut);margin-top:8px">💡 تغيير؟ ارفع واحدة جديدة وهتستبدل القديمة</div></div>';
+    }else{
+      h+='<div style="background:var(--card);border:2px dashed var(--line);border-radius:14px;padding:24px 14px;text-align:center;margin-bottom:12px">';
+      h+='<div style="font-size:30px;margin-bottom:6px">✨</div>';
+      h+='<div style="font-size:13px;color:var(--txt);margin-bottom:12px">مفيش خلفية متحركة عندك لسه</div>';
+      h+='<button class="lbtn" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);margin:0" onclick="document.getElementById(\'paInput\').click()">🖼️ اختار GIF من جهازك</button></div>';
+    }
+    h+='<input type="file" id="paInput" accept="image/gif,image/webp,image/png,image/jpeg" style="display:none" onchange="uploadProfAnim(event)">';
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+/* 3) الرفع: من غير ضغط عشان الأنيميشن ميتقطعش */
+window.uploadProfAnim=function(e){
+  var f=e.target.files[0];if(!f)return;
+  if(f.size>8*1024*1024)return toast('⚠️ الملف كبير جداً (أقصى 8 ميجا) — اختار GIF أصغر');
+  if(f.size>5*1024*1024)toast('⚠️ الحجم '+Math.round(f.size/1024/1024)+'MB — هيحمّل ببطء شوية');
+  toast('⏳ جاري رفع الخلفية...');
+  var ext='.gif';
+  if(f.type==='image/webp')ext='.webp';
+  else if(f.type==='image/png')ext='.png';
+  else if(f.type==='image/jpeg')ext='.jpg';
+  var fname='panim_'+Date.now()+'_'+Math.floor(Math.random()*999)+ext;
+  sb.storage.from('stories').upload(fname,f,{cacheControl:'31536000',upsert:false}).then(function(r){
+    if(r.error)return toast('فشل الرفع: '+r.error.message);
+    var pub=sb.storage.from('stories').getPublicUrl(fname).data.publicUrl;
+    updateMe({prof_bg_anim:pub}).then(function(){
+      toast('🖼️ تم تفعيل خلفيتك المتحركة! 🎉');
+      renderProfAnim();
+    });
+  });
+  e.target.value='';
+};
+
+window.removeProfAnim=async function(){
+  if(!confirm('إزالة الخلفية المتحركة؟'))return;
+  await updateMe({prof_bg_anim:null});
+  toast('تم الإزالة');
+  renderProfAnim();
+};
+
+/* 4) العرض جوه البروفايل: طبقة خلف البروفايل كله */
+function applyAnimBg(u){
+  try{
+    var modal=el('userProfileModal');
+    if(!modal||!modal.classList.contains('open'))return;
+    var container=modal.firstElementChild;
+    if(!container)return;
+    clearAnimBg();
+    var url=getAnimBg(u);
+    if(!url)return;
+    /* خلفية الصفحة تبقى شفافة عشان الـ GIF يبان */
+    container.dataset.origBg=container.style.background;
+    container.style.position='relative';
+    container.style.background='rgba(10,8,22,.55)';
+    var bg=document.createElement('div');
+    bg.id='profBgAnim';
+    bg.style.cssText='position:absolute;inset:0;background-image:url("'+url+'");background-size:cover;background-position:center;z-index:0;pointer-events:none';
+    var dim=document.createElement('div');
+    dim.id='profBgAnimDim';
+    dim.style.cssText='position:absolute;inset:0;background:rgba(8,6,18,.45);z-index:0;pointer-events:none';
+    container.insertBefore(dim,container.firstChild);
+    container.insertBefore(bg,container.firstChild);
+    var scroll=container.firstElementChild;
+    if(scroll){scroll.style.position='relative';scroll.style.zIndex='1';}
+    /* الغلاف يبقى شبه شفاف عشان الحركة تبان وراه */
+    var cov=el('upCover');
+    if(cov&&cov.parentElement){
+      cov.parentElement.dataset.origBg=cov.parentElement.style.background;
+      cov.parentElement.style.background='rgba(15,15,15,.4)';
+    }
+    container.dataset.animBgApplied='1';
+  }catch(e){}
+}
+function clearAnimBg(){
+  try{
+    var modal=el('userProfileModal');
+    if(!modal)return;
+    var container=modal.firstElementChild;
+    if(!container)return;
+    var b=el('profBgAnim');if(b)b.remove();
+    var d=el('profBgAnimDim');if(d)d.remove();
+    if(container.dataset.animBgApplied==='1'){
+      container.style.background=container.dataset.origBg||'';
+      delete container.dataset.animBgApplied;
+      delete container.dataset.origBg;
+    }
+    var cov=el('upCover');
+    if(cov&&cov.parentElement&&cov.parentElement.dataset.origBg!==undefined){
+      cov.parentElement.style.background=cov.parentElement.dataset.origBg;
+      delete cov.parentElement.dataset.origBg;
+    }
+  }catch(e){}
+}
+
+var _oupAB=window.openUserProfile;
+window.openUserProfile=function(name){
+  var r=_oupAB(name);
+  try{
+    setTimeout(async function(){
+      try{
+        var u=await SDB.getUser(name);
+        applyAnimBg(u);
+      }catch(e){}
+    },700);
+  }catch(e){}
+  return r;
+};
+
+/* 5) التنظيف عند الإغلاق */
+var _cmPA=window.closeModal;
+window.closeModal=function(id){
+  if(id==='userProfileModal')clearAnimBg();
+  return _cmPA(id);
+};
+
+/* 6) الربط */
+var _goPA=window.go;
+window.go=function(s,nv,fb){
+  var r=_goPA(s,nv,fb);
+  try{if(s==='profanim')renderProfAnim();}catch(e){}
+  return r;
+};
+})();
+/* ===== 🖼️ إصلاح ظهور الخلفية المتحركة — خلف البروفايل مباشرة ===== */
+(function(){
+if(window._profAnimFix)return;window._profAnimFix=true;
+
+function applyDirect(u){
+  try{
+    var modal=el('userProfileModal');
+    if(!modal||!modal.classList.contains('open'))return;
+    var container=modal.firstElementChild;
+    if(!container)return;
+    /* شيل طبقات النسخة القديمة لو موجودة */
+    var b=el('profBgAnim');if(b)b.remove();
+    var d=el('profBgAnimDim');if(d)d.remove();
+    var url=u&&u.prof_bg_anim;
+    if(!url){
+      container.style.backgroundImage='';
+      container.style.backgroundSize='';
+      container.style.backgroundPosition='';
+      if(container.dataset.origBg!==undefined){
+        container.style.background=container.dataset.origBg;
+        delete container.dataset.origBg;
+      }
+      return;
+    }
+    if(container.dataset.origBg===undefined)container.dataset.origBg=container.style.background||'';
+    /* الخلفية المتحركة: طبقة تعتيم خفيفة + الـ GIF — بطريقة واحدة مضمونة */
+    container.style.background='rgba(8,6,18,.5)';
+    container.style.backgroundImage='linear-gradient(rgba(8,6,18,.45),rgba(8,6,18,.45)),url("'+url+'")';
+    container.style.backgroundSize='cover';
+    container.style.backgroundPosition='center';
+    /* الغلاف يتشفاف شوية عشان الحركة تبان حواليه كمان */
+    var cov=el('upCover');
+    if(cov&&cov.parentElement){
+      if(cov.parentElement.dataset.origBg===undefined)cov.parentElement.dataset.origBg=cov.parentElement.style.background||'';
+      cov.parentElement.style.background='transparent';
+    }
+  }catch(e){}
+}
+
+var _oupAF=window.openUserProfile;
+window.openUserProfile=function(name){
+  var r=_oupAF(name);
+  try{
+    /* مرتين للأمان: أول تحميل + لو البيانات اتأخرت */
+    setTimeout(async function(){try{var u=await SDB.getUser(name);applyDirect(u);}catch(e){}},900);
+    setTimeout(async function(){try{var u=await SDB.getUser(name);applyDirect(u);}catch(e){}},2200);
+  }catch(e){}
+  return r;
+};
+
+var _cmAF=window.closeModal;
+window.closeModal=function(id){
+  if(id==='userProfileModal'){
+    try{
+      var modal=el('userProfileModal');
+      var container=modal?modal.firstElementChild:null;
+      if(container){
+        container.style.backgroundImage='';
+        container.style.backgroundSize='';
+        container.style.backgroundPosition='';
+        if(container.dataset.origBg!==undefined){
+          container.style.background=container.dataset.origBg;
+          delete container.dataset.origBg;
+        }
+      }
+      var cov=el('upCover');
+      if(cov&&cov.parentElement&&cov.parentElement.dataset.origBg!==undefined){
+        cov.parentElement.style.background=cov.parentElement.dataset.origBg;
+        delete cov.parentElement.dataset.origBg;
+      }
+    }catch(e){}
+  }
+  return _cmAF(id);
+};
+})();
+/* ===== 💰 الخلفية المتحركة بالعملات: 460 عملة / 30 يوم ===== */
+(function(){
+if(window._profAnimPaid)return;window._profAnimPaid=true;
+var ANIM_COST=460,ANIM_DAYS=30;
+
+function animSub(){try{return me&&(me.animBgExp&&me.animBgExp>Date.now());}catch(e){return false;}}
+function animAdm(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+
+/* 1) البوابة: أي محاولة رفع من غير اشتراك = نافذة الاشتراك */
+var _upaO=window.uploadProfAnim;
+window.uploadProfAnim=function(e){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    if(!animAdm()&&!animSub()){openAnimSub();e.target.value='';return;}
+  }catch(e){}
+  return _upaO?_upaO(e):undefined;
+};
+
+/* 2) نافذة الاشتراك */
+window.openAnimSub=function(){
+  try{
+    var old=el('animSubModal');if(old)old.remove();
+    var m=document.createElement('div');m.id='animSubModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:320px;text-align:center">'
+    +'<div style="font-size:40px">🖼️</div>'
+    +'<h3>خلفية البروفايل المتحركة</h3>'
+    +'<p style="font-size:13px;color:var(--txt);line-height:2">خلفية GIF متحركة لبروفايلك يشوفها كل الزوار<br>وغيّرها براحتك طول مدة الاشتراك<br><b style="color:#FFD700">🪙 '+ANIM_COST+' عملة — لمدة '+ANIM_DAYS+' يوم</b></p>'
+    +'<div style="font-size:12px;color:var(--mut);margin-bottom:8px">رصيدك: 🪙 '+((me&&me.coins)||0)+'</div>'
+    +'<button style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900" onclick="buyAnimSub()">🪙 اشترك الآن</button>'
+    +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'animSubModal\')">لاحقاً</button></div>';
+    m.onclick=function(e){if(e.target===m)closeModal('animSubModal');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+  }catch(e){}
+};
+
+/* 3) الشراء */
+window.buyAnimSub=async function(){
+  try{
+    if(!me)return;
+    var coins=(me.coins)||0;
+    if(coins<ANIM_COST){closeModal('animSubModal');return toast('🪙 العملات غير كافية — يرجي الشحن (ناقصك '+(ANIM_COST-coins)+' عملة من "عملاتي")');}
+    if(!confirm('اشتراك الخلفية المتحركة بـ '+ANIM_COST+' عملة لمدة '+ANIM_DAYS+' يوم؟'))return;
+    await updateMe({coins:coins-ANIM_COST,animBgExp:Date.now()+ANIM_DAYS*86400000});
+    me.coins=coins-ANIM_COST;
+    try{logTrans('buy',ANIM_COST,'اشتراك: الخلفية المتحركة','');}catch(e){}
+    closeModal('animSubModal');
+    toast('🎉 تم الاشتراك! اختار خلفيتك دلوقتي');
+    try{renderProfAnim();}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* 4) شاشة الخلفية تعرض حالة الاشتراك */
+var _rpa=window.renderProfAnim;
+window.renderProfAnim=async function(){
+  var r=_rpa?await _rpa():undefined;
+  try{
+    var box=el('profAnimBody');if(!box)return r;
+    var old=el('animSubBar');if(old)old.remove();
+    var bar=document.createElement('div');
+    bar.id='animSubBar';
+    if(animAdm()){
+      bar.style.cssText='background:rgba(139,92,246,.12);border:1px solid #8B5CF6;border-radius:12px;padding:10px;margin-bottom:10px;text-align:center;font-size:12.5px;color:#c4b5fd;font-weight:bold';
+      bar.innerHTML='👑 إدارة — مجاني دائماً';
+    }else if(animSub()){
+      bar.style.cssText='background:rgba(34,211,238,.12);border:1px solid #22d3ee;border-radius:12px;padding:10px;margin-bottom:10px;text-align:center;font-size:13px;color:#22d3ee;font-weight:bold';
+      bar.innerHTML='✅ اشتراكك نشط — متبقي '+Math.ceil((me.animBgExp-Date.now())/86400000)+' يوم';
+    }else{
+      bar.style.cssText='background:var(--card);border:2px solid #FFD700;border-radius:14px;padding:12px;margin-bottom:10px;text-align:center;box-shadow:0 0 14px rgba(255,215,0,.2)';
+      bar.innerHTML='<div style="font-size:14px;font-weight:bold;color:var(--txt)">🖼️ اشترك وفعّل خلفية متحركة لبروفايلك</div>'
+      +'<div style="font-size:11.5px;color:var(--mut);margin:4px 0 8px">🪙 '+ANIM_COST+' عملة / '+ANIM_DAYS+' يوم — غيّرها براحتك</div>'
+      +'<button class="adm-btn" style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900;border-radius:12px;padding:9px 22px" onclick="openAnimSub()">🪙 اشترك الآن</button>';
+    }
+    box.insertBefore(bar,box.firstChild);
+    /* 5) إخفاء أزرار الرفع والإزالة والمعاينة لغير المشتركين */
+    if(!animAdm()&&!animSub()){
+      var btns=box.querySelectorAll('button, input');
+      for(var i=0;i<btns.length;i++){
+        var b=btns[i];
+        var oc=b.getAttribute?(b.getAttribute('onclick')||''):'';
+        if(oc.indexOf('paInput')>-1||oc.indexOf('uploadProfAnim')>-1||oc.indexOf('removeProfAnim')>-1||b.id==='paInput')b.style.display='none';
+      }
+      var prevs=box.querySelectorAll('img');
+      for(var j=0;j<prevs.length;j++)if(prevs[j].closest('[style*="max-height:220px"]'))prevs[j].style.display='none';
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 6) انتهاء المدة: الخلفية تتقفل */
+setInterval(async function(){
+  try{
+    if(!me||!me.animBgExp)return;
+    if(Date.now()>me.animBgExp){
+      await updateMe({animBgExp:null,prof_bg_anim:null});
+      toast('⏰ انتهى اشتراك الخلفية المتحركة — جدده من الإعدادات');
+      try{renderProfAnim();}catch(e){}
+    }
+  }catch(e){}
+},60000);
+})();
+/* ===== 🙈 إخفاء العمر: 155 عملة / 30 يوم ===== */
+(function(){
+if(window._ageHide)return;window._ageHide=true;
+var AGE_COST=155,AGE_DAYS=30;
+
+function ageSub(){try{return me&&(me.ageHideExp&&me.ageHideExp>Date.now());}catch(e){return false;}}
+function ageAdm(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+
+/* 1) عنصر الإعدادات */
+function ensureItem(){
+  try{
+    if(!me)return;
+    var lists=document.querySelectorAll('#s-settings .menu-list');
+    if(!lists.length||el('ageHideItem'))return;
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='ageHideItem';
+    mi.innerHTML='<span>🙈 إخفاء العمر <span style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#111;font-size:10px;font-weight:bold;padding:3px 10px;border-radius:12px;margin-right:6px">🪙 '+AGE_COST+'</span></span><span>👈</span>';
+    mi.onclick=function(){go('agehide',null);};
+    lists[0].insertBefore(mi,lists[0].firstChild);
+  }catch(e){}
+}
+setInterval(ensureItem,2500);
+setTimeout(ensureItem,1000);
+
+/* 2) الشاشة */
+if(!el('s-agehide')){
+  var scr=document.createElement('div');
+  scr.className='screen';scr.id='s-agehide';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ إخفاء العمر</div><div id="ageHideBody" style="padding:6px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+  else content.appendChild(scr);
+}
+
+window.renderAgeHide=async function(){
+  try{
+    var box=el('ageHideBody');if(!box||!me)return;
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#3a2a10,#141038);border-radius:18px;padding:24px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(245,158,11,.3)">';
+    h+='<div style="font-size:40px">🙈</div>';
+    h+='<div style="font-size:17px;font-weight:900;color:#fff;margin-top:6px">إخفاء العمر</div>';
+    h+='<div style="font-size:11.5px;color:rgba(255,255,255,.65);margin-top:5px;line-height:2">عمرك الحقيقي محفوظ عادي — بس اللي يشوف بروفايلك يشوف (--) بدل السن<br>الإدارة بتشوف عمرك دايماً مهما كان</div></div>';
+    if(ageAdm()){
+      h+='<div style="background:rgba(139,92,246,.12);border:1px solid #8B5CF6;border-radius:12px;padding:12px;text-align:center;font-size:13px;color:#c4b5fd;font-weight:bold">👑 إدارة — مجاني دائماً</div>';
+    }else if(ageSub()){
+      h+='<div style="background:rgba(34,211,238,.12);border:1px solid #22d3ee;border-radius:12px;padding:12px;margin-bottom:12px;text-align:center">';
+      h+='<div style="font-size:13.5px;color:#22d3ee;font-weight:bold">✅ الإخفاء مفعّل — متبقي '+Math.ceil((me.ageHideExp-Date.now())/86400000)+' يوم</div>';
+      h+='<div style="font-size:11px;color:var(--mut);margin-top:4px">عمرك ظاهر عندك عندك بس — للآخرين (--)</div></div>';
+    }else{
+      h+='<div style="background:var(--card);border:2px solid #f59e0b;border-radius:14px;padding:14px;margin-bottom:12px;text-align:center">';
+      h+='<div style="font-size:14px;font-weight:bold;color:var(--txt)">🙈 اشترك واخف عمرك عن الجميع</div>';
+      h+='<div style="font-size:11.5px;color:var(--mut);margin:4px 0 8px">🪙 '+AGE_COST+' عملة / '+AGE_DAYS+' يوم</div>';
+      h+='<div style="font-size:12px;color:var(--mut);margin-bottom:8px">رصيدك: 🪙 '+((me.coins)||0)+'</div>';
+      h+='<button class="adm-btn" style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900;border-radius:12px;padding:9px 22px" onclick="buyAgeHide()">🪙 اشترك الآن</button></div>';
+    }
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+/* 3) الشراء */
+window.buyAgeHide=async function(){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    var coins=(me.coins)||0;
+    if(coins<AGE_COST)return toast('🪙 العملات غير كافية — يرجي الشحن (ناقصك '+(AGE_COST-coins)+' عملة من "عملاتي")');
+    if(!confirm('اشتراك إخفاء العمر بـ '+AGE_COST+' عملة لمدة '+AGE_DAYS+' يوم؟'))return;
+    await updateMe({coins:coins-AGE_COST,ageHideExp:Date.now()+AGE_DAYS*86400000});
+    me.coins=coins-AGE_COST;
+    try{logTrans('buy',AGE_COST,'اشتراك: إخفاء العمر','');}catch(e){}
+    toast('🙈 تم تفعيل إخفاء العمر!');
+    renderAgeHide();
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* 4) الإخفاء الفعلي في قايمة المتصلين: (--) مكان العمر */
+function maskAges(){
+  try{
+    if(!me)return;
+    var box=el('usersList');
+    if(!box)return;
+    var kids=box.querySelectorAll('.u-card');
+    for(var i=0;i<kids.length;i++){
+      var oc=kids[i].getAttribute('onclick')||'';
+      var m=oc.match(/openUser\('([^']+)'\)/);
+      if(!m)continue;
+      var u=usersCache[m[1]];
+      if(!u)continue;
+      /* الإدارة تشوف الكل — والمالك برضه — والعضو يشوف نفسه */
+      if(isOwnerName(me.name)||ageAdm())continue;
+      if(u.name===me.name)continue;
+      if(!(u.ageHideExp&&u.ageHideExp>Date.now()))continue;
+      var nm=kids[i].querySelector('.u-name');
+      if(!nm)continue;
+      var html=nm.innerHTML;
+      if(html.indexOf('(--)')>-1)continue;
+      /* نستبدل (رقم) بـ (--) */
+      nm.innerHTML=html.replace(/\(\s*\d{1,3}\s*\)/,'(<b style="opacity:.6">--</b>)');
+    }
+  }catch(e){}
+}
+var _roAH=window.renderOnline;
+window.renderOnline=function(){
+  var r=_roAH.apply(this,arguments);
+  try{maskAges();}catch(e){}
+  return r;
+};
+setTimeout(maskAges,1500);
+
+/* 5) الإخفاء في البروفايل */
+var _oupAH=window.openUserProfile;
+window.openUserProfile=function(name){
+  var r=_oupAH(name);
+  try{
+    setTimeout(async function(){
+      try{
+        if(!me||isOwnerName(me.name)||ageAdm())return;
+        var u=await SDB.getUser(name);
+        if(!u||!(u.ageHideExp&&u.ageHideExp>Date.now()))return;
+        var nm=el('upName');
+        if(nm)nm.innerHTML=nm.innerHTML.replace(/\d+\s*سنة/,'-- سنة');
+      }catch(e){}
+    },400);
+    setTimeout(function(){
+      try{
+        if(!me||isOwnerName(me.name)||ageAdm())return;
+        var nm=el('upName');
+        if(nm)nm.innerHTML=nm.innerHTML.replace(/\d+\s*سنة/,'-- سنة');
+      }catch(e){}
+    },1200);
+  }catch(e){}
+  return r;
+};
+
+/* 6) الإخفاء في نتائج المراقبة والشات (الفايلات اللي بتعرض العمر) */
+var _rcAH=window.refreshChatHeader;
+window.refreshChatHeader=function(u){
+  try{
+    var r=_rcAH?_rcAH(u):undefined;
+    return r;
+  }catch(e){}
+  return _rcAH?_rcAH(u):undefined;
+};
+
+/* 7) انتهاء المدة */
+setInterval(async function(){
+  try{
+    if(!me||!me.ageHideExp)return;
+    if(Date.now()>me.ageHideExp){
+      await updateMe({ageHideExp:null});
+      toast('⏰ انتهى اشتراك إخفاء العمر — عمرك بقى ظاهر للجميع');
+      try{renderAgeHide();}catch(e){}
+      try{renderOnline();}catch(e){}
+    }
+  }catch(e){}
+},60000);
+
+/* 8) الربط */
+var _goAH=window.go;
+window.go=function(s,nv,fb){
+  var r=_goAH(s,nv,fb);
+  try{if(s==='agehide')renderAgeHide();}catch(e){}
+  return r;
+};
+})();
+/* ===== 🔀 إخفاء/إظهار العمر — زرارين تبديل حر ===== */
+(function(){
+if(window._ageToggle)return;window._ageToggle=true;
+var AGE_COST=155,AGE_DAYS=30;
+
+function ageSub(){try{return me&&(me.ageHideExp&&me.ageHideExp>Date.now());}catch(e){return false;}}
+function ageAdm(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+function ageHidden(){try{return ageSub()&&me.ageHideOn!==false;}catch(e){return false;}}
+
+/* 1) الشاشة الجديدة: زرارين */
+window.renderAgeHide=async function(){
+  try{
+    var box=el('ageHideBody');if(!box||!me)return;
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#3a2a10,#141038);border-radius:18px;padding:24px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(245,158,11,.3)">';
+    h+='<div style="font-size:40px">🙈</div>';
+    h+='<div style="font-size:17px;font-weight:900;color:#fff;margin-top:6px">إخفاء العمر</div>';
+    h+='<div style="font-size:11.5px;color:rgba(255,255,255,.65);margin-top:5px;line-height:2">عمرك الحقيقي محفوظ عادي — بس اللي يشوف بروفايلك يشوف (--) بدل السن<br>الإدارة بتشوف عمرك دايماً مهما كان</div></div>';
+    /* شريط الحالة */
+    if(ageAdm()){
+      h+='<div style="background:rgba(139,92,246,.12);border:1px solid #8B5CF6;border-radius:12px;padding:10px;margin-bottom:12px;text-align:center;font-size:12.5px;color:#c4b5fd;font-weight:bold">👑 إدارة — تبديل مجاني دائماً</div>';
+    }else if(ageSub()){
+      h+='<div style="background:rgba(34,211,238,.12);border:1px solid #22d3ee;border-radius:12px;padding:10px;margin-bottom:12px;text-align:center;font-size:13px;color:#22d3ee;font-weight:bold">✅ اشتراكك نشط — متبقي '+Math.ceil((me.ageHideExp-Date.now())/86400000)+' يوم — بدّل براحتك</div>';
+    }else{
+      h+='<div style="background:var(--card);border:2px solid #f59e0b;border-radius:14px;padding:14px;margin-bottom:12px;text-align:center">';
+      h+='<div style="font-size:14px;font-weight:bold;color:var(--txt)">🙈 اشترك الأول واخف عمرك</div>';
+      h+='<div style="font-size:11.5px;color:var(--mut);margin:4px 0 8px">🪙 '+AGE_COST+' عملة / '+AGE_DAYS+' يوم — والتبديل خلال المدة مجاني</div>';
+      h+='<div style="font-size:12px;color:var(--mut);margin-bottom:8px">رصيدك: 🪙 '+((me.coins)||0)+'</div>';
+      h+='<button class="adm-btn" style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900;border-radius:12px;padding:9px 22px" onclick="buyAgeHide()">🪙 اشترك الآن</button></div>';
+    }
+    /* الزرارين — للإدارة والمشتركين فقط */
+    if(ageAdm()||ageSub()){
+      var nowHid=ageHidden();
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+      h+='<div onclick="setAgeHide(true)" style="background:var(--card);border:2px solid '+(nowHid?'var(--grn)':'var(--line)')+';border-radius:14px;padding:18px 10px;text-align:center;cursor:pointer'+(nowHid?';box-shadow:0 0 14px rgba(34,197,94,.35)':'')+'">';
+      h+='<div style="font-size:32px">🙈</div>';
+      h+='<div style="font-size:14px;font-weight:900;color:'+(nowHid?'var(--grn)':'var(--txt)')+';margin-top:6px">إخفاء العمر</div>';
+      h+='<div style="font-size:10.5px;color:var(--mut);margin-top:4px">'+(nowHid?'✅ شغال الآن — عمرك (-- للآخرين)':'اضغط للإخفاء')+'</div></div>';
+      h+='<div onclick="setAgeHide(false)" style="background:var(--card);border:2px solid '+(!nowHid?'var(--grn)':'var(--line)')+';border-radius:14px;padding:18px 10px;text-align:center;cursor:pointer'+(!nowHid?';box-shadow:0 0 14px rgba(34,197,94,.35)':'')+'">';
+      h+='<div style="font-size:32px">👀</div>';
+      h+='<div style="font-size:14px;font-weight:900;color:'+(!nowHid?'var(--grn)':'var(--txt)')+';margin-top:6px">إظهار العمر</div>';
+      h+='<div style="font-size:10.5px;color:var(--mut);margin-top:4px">'+(!nowHid?'✅ شغال الآن — عمرك ظاهر':'اضغط للإظهار')+'</div></div>';
+      h+='</div>';
+      h+='<div style="font-size:11px;color:var(--mut);text-align:center;margin-top:10px">💡 التبديل بينهم مجاني — التأثير بيطبق فوراً على قايمة المتصلين والبروفايل</div>';
+    }
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+/* 2) التبديل */
+window.setAgeHide=async function(hide){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    if(!ageAdm()&&!ageSub())return toast('🔒 اشترك الأول من فوق');
+    await updateMe({ageHideOn:hide});
+    me.ageHideOn=hide;
+    toast(hide?'🙈 تم إخفاء عمرك — للآخرين (--)':'👀 تم إظهار عمرك — ظاهر للجميع');
+    renderAgeHide();
+    try{renderOnline();}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* 3) الإخفاء في قايمة المتصلين: بيتحقق من ageHideOn برضه */
+function maskAges2(){
+  try{
+    if(!me)return;
+    var box=el('usersList');
+    if(!box)return;
+    var kids=box.querySelectorAll('.u-card');
+    for(var i=0;i<kids.length;i++){
+      var oc=kids[i].getAttribute('onclick')||'';
+      var m=oc.match(/openUser\('([^']+)'\)/);
+      if(!m)continue;
+      var u=usersCache[m[1]];
+      if(!u)continue;
+      if(isOwnerName(me.name)||ageAdm())continue;
+      if(u.name===me.name)continue;
+      var hidden=u.ageHideExp&&u.ageHideExp>Date.now()&&u.ageHideOn!==false;
+      var nm=kids[i].querySelector('.u-name');
+      if(!nm)continue;
+      var html=nm.innerHTML;
+      if(!hidden){
+        /* لو اتأخر الإظهار: رجّع الرقم الأصلي */
+        if(html.indexOf('(<b')>-1){
+          var real=(u.age||'--');
+          nm.innerHTML=html.replace(/\(<b[^>]*>--<\/b>\)/,'('+real+')');
+        }
+        continue;
+      }
+      if(html.indexOf('(<b')>-1)continue;
+      nm.innerHTML=html.replace(/\(\s*\d{1,3}\s*\)/,'(<b style="opacity:.6">--</b>)');
+    }
+  }catch(e){}
+}
+var _roAT=window.renderOnline;
+window.renderOnline=function(){
+  var r=_roAT.apply(this,arguments);
+  try{maskAges2();}catch(e){}
+  return r;
+};
+setTimeout(maskAges2,1500);
+
+/* 4) الإخفاء في البروفايل حسب ageHideOn */
+var _oupAT=window.openUserProfile;
+window.openUserProfile=function(name){
+  var r=_oupAT(name);
+  try{
+    setTimeout(async function(){
+      try{
+        if(!me||isOwnerName(me.name)||ageAdm())return;
+        var u=await SDB.getUser(name);
+        if(!u)return;
+        var hidden=u.ageHideExp&&u.ageHideExp>Date.now()&&u.ageHideOn!==false;
+        var nm=el('upName');
+        if(!nm)return;
+        if(hidden)nm.innerHTML=nm.innerHTML.replace(/\d+\s*سنة/,'-- سنة');
+        else{
+          /* رجّع العمر الحقيقي لو كان متخبي */
+          var real=(u.age||'--');
+          if(nm.innerHTML.indexOf('-- سنة')>-1)nm.innerHTML=nm.innerHTML.replace(/--\s*سنة/,real+' سنة');
+        }
+      }catch(e){}
+    },400);
+  }catch(e){}
+  return r;
+};
+
+/* 5) الاشتراك الجديد = الإخفاء مفعّل تلقائياً */
+var _bah=window.buyAgeHide;
+window.buyAgeHide=async function(){
+  try{
+    var r=_bah?await _bah():undefined;
+    try{
+      if(me&&me.ageHideExp&&me.ageHideExp>Date.now()&&me.ageHideOn===undefined){
+        await updateMe({ageHideOn:true});
+        me.ageHideOn=true;
+      }
+    }catch(e){}
+    return r;
+  }catch(e){throw e;}
+};
+})();
