@@ -13151,3 +13151,79 @@ try{
   mo.observe(document.body,{childList:true,subtree:false});
 }catch(e){}
 })();
+/* ===== ✏️ تعديل الشارات: الاسم + الندرة + السعر — للإدارة ===== */
+(function(){
+if(window._badgeEdit)return;window._badgeEdit=true;
+
+/* 1) إضافة زرار تعديل ✏️ جنب زرار الحذف لكل شارة (بعد رسم المتجر) */
+var _rbE=window.renderBadgesNew;
+window.renderBadgesNew=async function(){
+  var r=await _rbE();
+  try{
+    if(!me||!isAdmin())return r;
+    var grid=el('badgesGridNew');
+    if(!grid)return r;
+    var dels=grid.querySelectorAll('.xbtn');
+    for(var i=0;i<dels.length;i++){
+      var d=dels[i];
+      if(d._editWired)continue;
+      var oc=d.getAttribute('onclick')||'';
+      var m=oc.match(/delBadgeNew\(([^)]+)\)/);
+      if(!m)continue;
+      d._editWired=true;
+      var id=m[1];
+      var eb=document.createElement('button');
+      eb.className='ebtn';
+      eb.style.cssText='position:absolute;top:4px;left:34px;padding:2px 7px;font-size:11px';
+      eb.innerHTML='✏️';
+      eb.onclick=function(ev){ev.stopPropagation();editBadgeNew(id);};
+      d.parentElement.appendChild(eb);
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 2) نافذة التعديل: كل حاجة في مكان واحد */
+window.editBadgeNew=async function(id){
+  if(!isAdmin())return toast('ممنوع');
+  var d=await sb.from('badges').select('*').eq('id',id).limit(1);
+  var b=d.data&&d.data[0];
+  if(!b)return toast('الشارة غير موجودة');
+  var old=el('editBadgeModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='editBadgeModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:320px">'
+  +'<h3>✏️ تعديل الشارة</h3>'
+  +'<div style="text-align:center;margin-bottom:10px"><img src="'+b.url+'" style="width:64px;height:64px;object-fit:contain"></div>'
+  +'<div style="font-size:12px;color:var(--mut);margin-bottom:4px">اسم الشارة:</div>'
+  +'<input id="ebName" value="'+String(b.name||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px;margin-bottom:10px">'
+  +'<div style="font-size:12px;color:var(--mut);margin-bottom:4px">الندرة:</div>'
+  +'<select id="ebRarity" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px;margin-bottom:10px">'
+  +['عادي','أسطوري','ملكي','ملكي VIP'].map(function(x){return '<option '+(b.rarity===x?'selected':'')+'>'+x+'</option>';}).join('')
+  +'</select>'
+  +'<div style="font-size:12px;color:var(--mut);margin-bottom:4px">السعر (بالعملات):</div>'
+  +'<input id="ebPrice" type="number" value="'+(b.price||0)+'" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:14px;font-weight:bold;margin-bottom:10px">'
+  +'<button style="background:var(--grn);color:#fff" onclick="saveBadgeEdit('+id+')">💾 حفظ التعديل</button>'
+  +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'editBadgeModal\')">إلغاء</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('editBadgeModal');};
+  document.body.appendChild(m);
+  m.classList.add('open');
+};
+
+/* 3) حفظ التعديل في قاعدة البيانات */
+window.saveBadgeEdit=async function(id){
+  try{
+    if(!isAdmin())return toast('ممنوع');
+    var name=el('ebName').value.trim();
+    var rar=el('ebRarity').value;
+    var price=parseInt(el('ebPrice').value);
+    if(!name)return toast('اكتب اسم الشارة');
+    if(isNaN(price)||price<0)return toast('اكتب سعر صحيح');
+    var r=await sb.from('badges').update({name:name,rarity:rar,price:price}).eq('id',id);
+    if(r&&r.error)return toast('خطأ: '+r.error.message);
+    closeModal('editBadgeModal');
+    toast('✅ تم حفظ التعديل');
+    renderBadgesNew();
+    try{logActivity('badge_edit','تعديل شارة → '+name+' ('+price+' عملة)');}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+})();
