@@ -13227,3 +13227,927 @@ window.saveBadgeEdit=async function(id){
   }catch(e){toast('خطأ: '+e.message);}
 };
 })();
+/* ===== 🎵 موسيقى البروفايل + قص بالمقطع (شريط بداية/نهاية) ===== */
+(function(){
+if(window._profMusic2)return;window._profMusic2=true;
+
+var MAX_SEC=120;
+
+/* ============ أدوات WebAudio للقص ============ */
+var _actx=null;
+function actx(){try{if(!_actx)_actx=new(window.AudioContext||window.webkitAudioContext)();return _actx;}catch(e){return null;}}
+
+function decodeFile(file){
+  return new Promise(function(res,rej){
+    var fr=new FileReader();
+    fr.onload=function(e){
+      var ctx=actx();
+      if(!ctx)return rej('المتصفح لا يدعم المعالجة');
+      ctx.decodeAudioData(e.target.buffer,function(buf){res(buf);},function(){rej('صيغة الصوت غير مدعومة');});
+    };
+    fr.onerror=function(){rej('فشل قراءة الملف');};
+    fr.readAsArrayBuffer(file);
+  });
+}
+
+/* قص من buffer: من start إلى end ثانية → WAV Blob */
+function cutBuffer(buf,startS,endS){
+  var ctx=actx();
+  var sr=buf.sampleRate;
+  var s=Math.max(0,Math.floor(startS*sr));
+  var e=Math.min(buf.length,Math.floor(endS*sr));
+  var len=Math.max(1,e-s);
+  var out=ctx.createBuffer(buf.numberOfChannels,len,sr);
+  for(var ch=0;ch<buf.numberOfChannels;ch++){
+    out.copyToChannel(buf.getChannelData(ch).subarray(s,e),ch);
+  }
+  return out;
+}
+
+function bufToWav(buf){
+  var numCh=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
+  var bytes=44+len*numCh*2;
+  var ab=new ArrayBuffer(bytes),view=new DataView(ab);
+  function wr(o,s){for(var i=0;i<s.length;i++)view.setUint8(o+i,s.charCodeAt(i));}
+  wr(0,'RIFF');view.setUint32(4,bytes-8,true);wr(8,'WAVE');wr(12,'fmt ');
+  view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,numCh,true);
+  view.setUint32(24,sr,true);view.setUint32(28,sr*numCh*2,true);view.setUint16(32,numCh*2,true);
+  view.setUint16(34,16,true);wr(36,'data');view.setUint32(40,len*numCh*2,true);
+  var off=44;
+  for(var i=0;i<len;i++){
+    for(var ch=0;ch<numCh;ch++){
+      var v=Math.max(-1,Math.min(1,buf.getChannelData(ch)[i]));
+      view.setInt16(off,v<0?v*0x8000:v*0x7FFF,true);off+=2;
+    }
+  }
+  return new Blob([ab],{type:'audio/wav'});
+}
+
+/* ============ نافذة القص ============ */
+window.openMusicTrimmer=function(file){
+  if(!me)return toast('سجل دخولك أولاً');
+  toast('⏳ جاري تحليل الصوت...');
+  decodeFile(file).then(function(buf){
+    var total=buf.duration;
+    var durTxt=Math.floor(total/60)+':'+('0'+Math.round(total%60)).slice(-2);
+    if(total<3)return toast('⚠️ المقطع قصير جداً');
+    var old=el('trimModal');if(old)old.remove();
+    var maxSel=Math.min(MAX_SEC,total);
+    /* الحالة: selS = البداية، selE = النهاية */
+    var S=0,E=maxSel;
+    var playing=false,ruf=null;
+    var m=document.createElement('div');m.id='trimModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:340px">'
+    +'<h3 style="color:#a855f7">✂️ قص المقطع المطلوب</h3>'
+    +'<div style="text-align:center;font-size:12px;color:var(--mut);margin-bottom:8px">طول الملف: <b style="color:var(--txt)">'+durTxt+'</b> — اختار حتى '+MAX_SEC+' ثانية</div>'
+    /* المشغل */
+    +'<div style="display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px;padding:10px;margin-bottom:10px">'
+    +'<button id="tmPlay" style="width:40px;height:40px;border-radius:50%;border:none;background:linear-gradient(135deg,#a855f7,#6d28d9);color:#fff;font-size:16px;cursor:pointer;flex-shrink:0">▶</button>'
+    +'<div style="font-size:11px;color:var(--mut)" id="tmNow">— استمع للملف —</div></div>'
+    /* الشريط */
+    +'<div id="tmTrack" style="position:relative;height:56px;background:var(--bg);border-radius:10px;cursor:pointer;user-select:none;touch-action:none;overflow:hidden;margin-bottom:6px">'
+    +'<div id="tmWave" style="position:absolute;inset:0;opacity:.35"></div>'
+    +'<div id="tmSel" style="position:absolute;top:0;bottom:0;background:rgba(168,85,247,.3);border-left:3px solid #a855f7;border-right:3px solid #a855f7;left:0;width:100%"></div>'
+    +'<div id="tmHS" class="tmH" style="position:absolute;top:0;bottom:0;width:14px;background:#fff;border:2px solid #a855f7;border-radius:8px;left:-7px;cursor:grab;z-index:3;box-shadow:0 0 8px rgba(168,85,247,.6)"></div>'
+    +'<div id="tmHE" class="tmH" style="position:absolute;top:0;bottom:0;width:14px;background:#fff;border:2px solid #6d28d9;border-radius:8px;right:-7px;cursor:grab;z-index:3;box-shadow:0 0 8px rgba(168,85,247,.6)"></div>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:bold;color:#a855f7;margin-bottom:10px">'
+    +'<span id="tmT1">بداية: 0:00</span><span id="tmT2">نهاية: 0:'+('0'+maxSel).slice(-2)+'</span></div>'
+    /* أزرار سريعة */
+    +'<div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px">'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0;font-size:11px;padding:7px 12px" onclick="tmQuick(\'s0\')">⏮ من البداية</button>'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0;font-size:11px;padding:7px 12px" onclick="tmQuick(\'mid\')">⏬ أوسع مقطع</button>'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0;font-size:11px;padding:7px 12px" onclick="tmQuick(\'e0\')">من النهاية ⏭</button></div>'
+    +'<button style="background:linear-gradient(135deg,#a855f7,#6d28d9);color:#fff;font-weight:900" onclick="tmConfirm(\''+durTxt+'\')">✅ حفظ المقطع المحدد</button>'
+    +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="tmCancel()">إلغاء</button></div>';
+    m.onclick=function(e){if(e.target===m)tmCancel();};
+    document.body.appendChild(m);
+    m.classList.add('open');
+
+    var track=el('tmTrack'),sel=el('tmSel'),hs=el('tmHS'),he=el('tmHE');
+    var t1=el('tmT1'),t2=el('tmT2'),now=el('tmNow');
+    function fmt(v){var m2=Math.floor(v/60),s=Math.round(v%60);return m2+':'+('0'+s).slice(-2);}
+    function draw(){
+      var L=(S/total*100),R=(E/total*100);
+      sel.style.left=L+'%';
+      sel.style.width=(R-L)+'%';
+      hs.style.left='calc('+L+'% - 7px)';
+      he.style.left='calc('+R+'% - 7px)';
+      t1.innerText='بداية: '+fmt(S);
+      t2.innerText='نهاية: '+fmt(E)+' ('+Math.round(E-S)+'ث)';
+    }
+    /* سحب المقابض (لمس + ماوس) */
+    var drag=null;
+    function posFrom(ev){
+      var r=track.getBoundingClientRect();
+      var x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
+      return Math.max(0,Math.min(total,x/r.width*total));
+    }
+    function onDown(ev){
+      var t=ev.target;
+      drag=(t===hs)?'s':(t===he)?'e':null;
+      if(!drag){
+        /* ضغطة على الشريط = تحريك أقرب مقبض */
+        var p=posFrom(ev);
+        drag=(Math.abs(p-S)<Math.abs(p-E))?'s':'e';
+        if(drag==='s')S=Math.min(p,E-1);else E=Math.max(p,S+1);
+      }
+      ev.preventDefault();
+      draw();
+    }
+    function onMove(ev){
+      if(!drag)return;
+      var p=posFrom(ev);
+      if(drag==='s')S=Math.min(p,E-1);
+      else E=Math.max(p,S+1);
+      /* حدود 60 ثانية: لو الاختيار أكبر نقص من النهاية */
+      if(E-S>maxSel){
+        if(drag==='s')S=E-maxSel;else E=S+maxSel;
+      }
+      draw();
+      ev.preventDefault();
+    }
+    function onUp(){drag=null;}
+    track.addEventListener('mousedown',onDown);
+    track.addEventListener('touchstart',onDown,{passive:false});
+    document.addEventListener('mousemove',onMove);
+    track.addEventListener('touchmove',onMove,{passive:false});
+    document.addEventListener('mouseup',onUp);
+    track.addEventListener('touchend',onUp);
+    draw();
+
+    /* المشغل: يستمع للمقطع المحدد فقط */
+    var audio=new Audio();audio.src=URL.createObjectURL(file);
+    el('tmPlay').onclick=function(){
+      if(playing){audio.pause();playing=false;el('tmPlay').innerHTML='▶';return;}
+      audio.currentTime=S;audio.play();playing=true;el('tmPlay').innerHTML='⏸';
+    };
+    audio.ontimeupdate=function(){
+      if(playing){
+        now.innerText='▶ '+fmt(audio.currentTime);
+        if(audio.currentTime>=E||audio.currentTime<S){audio.pause();playing=false;el('tmPlay').innerHTML='▶';now.innerText='— انتهى المقطع —';}
+      }
+    };
+
+    window.tmQuick=function(k){
+      if(k==='s0'){S=0;E=Math.min(maxSel,total);}
+      else if(k==='mid'){S=Math.max(0,(total-maxSel)/2);E=S+Math.min(maxSel,total);}
+      else{E=total;S=Math.max(0,total-maxSel);}
+      draw();
+    };
+    window.tmCancel=function(){
+      try{audio.pause();URL.revokeObjectURL(audio.src);}catch(e){}
+      closeModal('trimModal');
+    };
+    window.tmConfirm=function(){
+      if(E-S<3)return toast('⚠️ المقطع المحدد قصير جداً (أقل من 3 ثواني)');
+      try{audio.pause();}catch(e){}
+      toast('✂️ جاري القص والرفع...');
+      var cut=cutBuffer(buf,S,E);
+      var wav=bufToWav(cut);
+      /* حجم WAV: لو أكبر من 4 ميجا نرفض (60ث ستيريو hi = نادر */
+      if(wav.size>4*1024*1024)return toast('⚠️ المقطع كبير — جرب مقطع أقصر');
+      var fname='pmusic_'+Date.now()+'.wav';
+      sb.storage.from('stories').upload(fname,wav,{cacheControl:'31536000',upsert:false}).then(function(r){
+        if(r.error)return toast('فشل الرفع: '+r.error.message);
+        var pub=sb.storage.from('stories').getPublicUrl(fname).data.publicUrl;
+        updateMe({prof_music:pub}).then(function(){
+          tmCancel();
+          toast('🎵 تم حفظ مقطعك! ('+Math.round(E-S)+' ثانية) 🎉');
+          renderProfMusic();
+        });
+      });
+    };
+  }).catch(function(err){toast('⚠️ '+err);});
+};
+
+/* ============ الشاشة الأساسية ============ */
+function ensureItem(){
+  try{
+    if(!me)return;
+    var lists=document.querySelectorAll('#s-settings .menu-list');
+    if(!lists.length||el('profMusicItem'))return;
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='profMusicItem';
+    mi.innerHTML='<span>🎵 موسيقى البروفايل <span style="background:linear-gradient(135deg,#a855f7,#6d28d9);color:#fff;font-size:10px;font-weight:bold;padding:3px 10px;border-radius:12px;margin-right:6px">جديد</span></span><span>👈</span>';
+    mi.onclick=function(){go('profmusic',null);};
+    lists[0].insertBefore(mi,lists[0].firstChild);
+  }catch(e){}
+}
+setInterval(ensureItem,2500);
+setTimeout(ensureItem,1000);
+
+if(!el('s-profmusic')){
+  var scr=document.createElement('div');
+  scr.className='screen';scr.id='s-profmusic';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ موسيقى البروفايل</div><div id="profMusicBody" style="padding:6px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+  else content.appendChild(scr);
+}
+
+window.renderProfMusic=async function(){
+  try{
+    var box=el('profMusicBody');if(!box||!me)return;
+    var u=await SDB.getUser(me.name);
+    var cur=(u&&u.prof_music)?u.prof_music:null;
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#2a1044,#141038);border-radius:18px;padding:24px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(168,85,247,.3)">';
+    h+='<div style="font-size:40px">🎵</div>';
+    h+='<div style="font-size:17px;font-weight:900;color:#fff;margin-top:6px">موسيقى البروفايل</div>';
+    h+='<div style="font-size:11.5px;color:rgba(255,255,255,.65);margin-top:5px;line-height:2">اختار أي أغنية من جهازك ✓ ثم قص المقطع اللي يعجبك (حتى '+MAX_SEC+' ثانية) ✓ وهيشتغل في بروفايلك</div></div>';
+    if(cur){
+      h+='<div style="background:var(--card);border:1px solid var(--grn);border-radius:14px;padding:14px;margin-bottom:12px">';
+      h+='<div style="font-size:13px;font-weight:bold;color:var(--grn);margin-bottom:8px">✅ عندك موسيقى مفعلة</div>';
+      h+='<audio controls src="'+cur+'" style="width:100%;margin-bottom:8px"></audio>';
+      h+='<button class="lbtn" style="background:var(--red);margin:0" onclick="removeProfMusic()">🗑️ إزالة</button>';
+      h+='<div style="font-size:11px;color:var(--mut);margin-top:8px">💡 تغيير؟ ارفع أغنية جديدة وقص مقطع جديد</div></div>';
+    }else{
+      h+='<div style="background:var(--card);border:2px dashed var(--line);border-radius:14px;padding:24px 14px;text-align:center;margin-bottom:12px">';
+      h+='<div style="font-size:30px;margin-bottom:6px">🎶</div>';
+      h+='<div style="font-size:13px;color:var(--txt);margin-bottom:12px">مفيش موسيقى عندك لسه</div>';
+      h+='<button class="lbtn" style="background:linear-gradient(135deg,#a855f7,#6d28d9);margin:0" onclick="document.getElementById(\'pmInput\').click()">🎵 اختار أغنية من جهازك</button>';
+      h+='<input type="file" id="pmInput" accept="audio/*" style="display:none" onchange="pickProfMusic(event)"></div>';
+    }
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+window.pickProfMusic=function(e){
+  var f=e.target.files[0];
+  if(!f)return;
+  if(f.type.indexOf('audio')!==0)return toast('⚠️ اختار ملف صوتي');
+  if(f.size>30*1024*1024)return toast('⚠️ الملف كبير جداً (أقصى 30 ميجا)');
+  e.target.value='';
+  openMusicTrimmer(f);
+};
+
+window.removeProfMusic=async function(){
+  if(!confirm('إزالة موسيقى بروفايلك؟'))return;
+  await updateMe({prof_music:null});
+  toast('تم الإزالة');
+  renderProfMusic();
+};
+
+/* المشغل في البروفايل */
+var _oupM2=window.openUserProfile;
+window.openUserProfile=function(name){
+  var r=_oupM2(name);
+  try{
+    setTimeout(async function(){
+      try{
+        var u=await SDB.getUser(name);
+        if(!u||!u.prof_music)return;
+        var modal=el('userProfileModal');
+        if(!modal||!modal.classList.contains('open'))return;
+        var anchor=el('upName')?el('upName').parentElement:null;
+        if(!anchor)return;
+        var old=el('profMusicBox');if(old)old.remove();
+        var box=document.createElement('div');
+        box.id='profMusicBox';
+        box.style.cssText='margin:6px 16px 10px;background:linear-gradient(135deg,#1a1033,#3d1b5e);border:1px solid rgba(168,85,247,.4);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:12px';
+        box.innerHTML='<button id="pmPlay" style="width:42px;height:42px;border-radius:50%;border:none;background:linear-gradient(135deg,#a855f7,#6d28d9);display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;cursor:pointer;flex-shrink:0;box-shadow:0 0 14px rgba(168,85,247,.5)">▶</button>'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:12.5px;font-weight:bold;color:#fff">🎵 موسيقى بروفايل '+escapeHtml(getMsgName(name))+'</div>'
+        +'<div style="font-size:10px;color:rgba(255,255,255,.55);margin-top:2px">اضغط للتشغيل</div></div>';
+        anchor.parentElement.insertBefore(box,anchor.nextSibling);
+        var audio=new Audio(u.prof_music);
+        var btn=el('pmPlay');
+        btn.onclick=function(){
+          if(audio.paused){audio.play();btn.innerHTML='⏸';}
+          else{audio.pause();btn.innerHTML='▶';}
+        };
+        audio.onended=function(){btn.innerHTML='▶';};
+        if(me&&name===me.name){
+          var rm=document.createElement('button');
+          rm.style.cssText='background:rgba(230,69,83,.2);border:1px solid var(--red);color:var(--red);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:13px;flex-shrink:0';
+          rm.innerHTML='🗑️';
+          rm.onclick=async function(){
+            if(!confirm('إزالة موسيقى بروفايلك؟'))return;
+            await updateMe({prof_music:null});
+            box.remove();audio.pause();
+            toast('تم الإزالة');
+          };
+          box.appendChild(rm);
+        }
+      }catch(e){}
+    },700);
+  }catch(e){}
+  return r;
+};
+
+/* إيقاف عند الإغلاق */
+var _cmPM2=window.closeModal;
+window.closeModal=function(id){
+  if(id==='userProfileModal'){
+    try{var a=el('pmAudio');if(a){a.pause();a.currentTime=0;}}catch(e){}
+    try{var b=el('profMusicBox');if(b)b.remove();}catch(e){}
+  }
+  return _cmPM2(id);
+};
+
+/* الربط */
+var _goPM2=window.go;
+window.go=function(s,nv,fb){
+  var r=_goPM2(s,nv,fb);
+  try{if(s==='profmusic')renderProfMusic();}catch(e){}
+  return r;
+};
+})();
+/* ===== 📊 شريط تقدم القص والرفع + مؤشر التشغيل الحي ===== */
+(function(){
+if(window._trimProg)return;window._trimProg=true;
+
+/* أدوات الصوت (نفس المنطق) */
+var _actx=null;
+function actx(){try{if(!_actx)_actx=new(window.AudioContext||window.webkitAudioContext)();return _actx;}catch(e){return null;}}
+function decodeFile(file){
+  return new Promise(function(res,rej){
+    var fr=new FileReader();
+    fr.onload=function(e){
+      var ctx=actx();if(!ctx)return rej('المتصفح لا يدعم المعالجة');
+      ctx.decodeAudioData(e.target.buffer,function(b){res(b);},function(){rej('صيغة الصوت غير مدعومة');});
+    };
+    fr.onerror=function(){rej('فشل قراءة الملف');};
+    fr.readAsArrayBuffer(file);
+  });
+}
+function cutBuffer(buf,s0,e0){
+  var ctx=actx(),sr=buf.sampleRate;
+  var s=Math.max(0,Math.floor(s0*sr)),e=Math.min(buf.length,Math.floor(e0*sr));
+  var len=Math.max(1,e-s);
+  var out=ctx.createBuffer(buf.numberOfChannels,len,sr);
+  for(var ch=0;ch<buf.numberOfChannels;ch++)out.copyToChannel(buf.getChannelData(ch).subarray(s,e),ch);
+  return out;
+}
+function bufToWav(buf){
+  var nc=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
+  var bytes=44+len*nc*2,ab=new ArrayBuffer(bytes),v=new DataView(ab);
+  function wr(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}
+  wr(0,'RIFF');v.setUint32(4,bytes-8,true);wr(8,'WAVE');wr(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,nc,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*nc*2,true);v.setUint16(32,nc*2,true);
+  v.setUint16(34,16,true);wr(36,'data');v.setUint32(40,len*nc*2,true);
+  var off=44;
+  for(var i=0;i<len;i++)for(var ch=0;ch<nc;ch++){
+    var x=Math.max(-1,Math.min(1,buf.getChannelData(ch)[i]));
+    v.setInt16(off,x<0?x*0x8000:x*0x7FFF,true);off+=2;
+  }
+  return new Blob([ab],{type:'audio/wav'});
+}
+
+var MAX_SEC=120;
+/* نسخة محسنة من نافذة القص: فيها شريط تقدم + مؤشر تشغيل */
+window.openMusicTrimmer=function(file){
+  if(!me)return toast('سجل دخولك أولاً');
+  toast('⏳ جاري تحليل الصوت...');
+  decodeFile(file).then(function(buf){
+    var total=buf.duration;
+    if(total<3)return toast('⚠️ المقطع قصير جداً');
+    var maxSel=Math.min(MAX_SEC,total);
+    var S=0,E=maxSel,playing=false,drag=null;
+    function fmt(v){var m=Math.floor(v/60),s=Math.round(v%60);return m+':'+('0'+s).slice(-2);}
+    var old=el('trimModal');if(old)old.remove();
+    var m=document.createElement('div');m.id='trimModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:340px">'
+    +'<h3 style="color:#a855f7">✂️ قص المقطع المطلوب</h3>'
+    +'<div style="text-align:center;font-size:12px;color:var(--mut);margin-bottom:8px">طول الملف: <b style="color:var(--txt)">'+fmt(total)+'</b> — اختار حتى '+MAX_SEC+' ثانية</div>'
+    +'<div style="display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px;padding:10px;margin-bottom:10px">'
+    +'<button id="tmPlay" style="width:40px;height:40px;border-radius:50%;border:none;background:linear-gradient(135deg,#a855f7,#6d28d9);color:#fff;font-size:16px;cursor:pointer;flex-shrink:0">▶</button>'
+    +'<div style="flex:1"><div id="tmNow" style="font-size:11px;color:var(--mut)">— استمع للملف —</div>'
+    +'<div style="height:5px;background:var(--card2);border-radius:3px;margin-top:5px;overflow:hidden"><div id="tmPlayFill" style="height:100%;width:0;background:linear-gradient(90deg,#a855f7,#6d28d9)"></div></div></div></div>'
+    +'<div id="tmTrack" style="position:relative;height:60px;background:var(--bg);border-radius:10px;cursor:pointer;user-select:none;touch-action:none;overflow:hidden;margin-bottom:6px">'
+    +'<div id="tmSel" style="position:absolute;top:0;bottom:0;background:rgba(168,85,247,.28);border-left:3px solid #a855f7;border-right:3px solid #a855f7;left:0;width:100%"></div>'
+    +'<div id="tmPos" style="position:absolute;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 8px #fff;left:0;z-index:2;display:none"></div>'
+    +'<div id="tmHS" style="position:absolute;top:0;bottom:0;width:14px;background:#fff;border:2px solid #a855f7;border-radius:8px;left:-7px;cursor:grab;z-index:3;box-shadow:0 0 8px rgba(168,85,247,.6)"></div>'
+    +'<div id="tmHE" style="position:absolute;top:0;bottom:0;width:14px;background:#fff;border:2px solid #6d28d9;border-radius:8px;right:-7px;cursor:grab;z-index:3;box-shadow:0 0 8px rgba(168,85,247,.6)"></div></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:bold;color:#a855f7;margin-bottom:10px">'
+    +'<span id="tmT1">بداية: 0:00</span><span id="tmT2">نهاية: '+fmt(E)+' ('+Math.round(E-S)+'ث)</span></div>'
+    +'<div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px">'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0;font-size:11px;padding:7px 10px" onclick="tmQuick(\'s0\')">⏮ البداية</button>'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0;font-size:11px;padding:7px 10px" onclick="tmQuick(\'mid\')">⏬ الوسط</button>'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0;font-size:11px;padding:7px 10px" onclick="tmQuick(\'e0\')">النهاية ⏭</button></div>'
+    /* شريط التقدم */
+    +'<div id="tmProgWrap" style="display:none;background:var(--bg);border-radius:12px;padding:12px;margin-bottom:10px">'
+    +'<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:6px"><span id="tmProgTxt" style="color:var(--txt);font-weight:bold">⏳ جاري...</span><span id="tmProgPct" style="color:#a855f7;font-weight:900">0%</span></div>'
+    +'<div style="height:12px;background:var(--card2);border-radius:8px;overflow:hidden"><div id="tmProgFill" style="height:100%;width:0;background:linear-gradient(90deg,#a855f7,#6d28d9);transition:width .25s;border-radius:8px"></div></div></div>'
+    +'<button id="tmSave" style="background:linear-gradient(135deg,#a855f7,#6d28d9);color:#fff;font-weight:900" onclick="tmConfirm()">✅ حفظ المقطع المحدد</button>'
+    +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="tmCancel()">إلغاء</button></div>';
+    m.onclick=function(e){if(e.target===m)tmCancel();};
+    document.body.appendChild(m);
+    m.classList.add('open');
+
+    var track=el('tmTrack'),sel=el('tmSel'),hs=el('tmHS'),he=el('tmHE');
+    var t1=el('tmT1'),t2=el('tmT2'),now=el('tmNow');
+    var pos=el('tmPos'),fill=el('tmPlayFill');
+    var pw=el('tmProgWrap'),pf=el('tmProgFill'),pp=el('tmProgPct'),pt=el('tmProgTxt');
+    function draw(){
+      var L=(S/total*100),R=(E/total*100);
+      sel.style.left=L+'%';sel.style.width=(R-L)+'%';
+      hs.style.left='calc('+L+'% - 7px)';he.style.left='calc('+R+'% - 7px)';
+      t1.innerText='بداية: '+fmt(S);
+      t2.innerText='نهاية: '+fmt(E)+' ('+Math.round(E-S)+'ث)';
+    }
+    function posFrom(ev){
+      var r=track.getBoundingClientRect();
+      var x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
+      return Math.max(0,Math.min(total,x/r.width*total));
+    }
+    function onDown(ev){
+      var t=ev.target;
+      drag=(t===hs)?'s':(t===he)?'e':null;
+      if(!drag){var p=posFrom(ev);drag=(Math.abs(p-S)<Math.abs(p-E))?'s':'e';
+        if(drag==='s')S=Math.min(p,E-1);else E=Math.max(p,S+1);}
+      ev.preventDefault();draw();
+    }
+    function onMove(ev){
+      if(!drag)return;
+      var p=posFrom(ev);
+      if(drag==='s')S=Math.min(p,E-1);else E=Math.max(p,S+1);
+      if(E-S>maxSel){if(drag==='s')S=E-maxSel;else E=S+maxSel;}
+      draw();ev.preventDefault();
+    }
+    function onUp(){drag=null;}
+    track.addEventListener('mousedown',onDown);
+    track.addEventListener('touchstart',onDown,{passive:false});
+    document.addEventListener('mousemove',onMove);
+    track.addEventListener('touchmove',onMove,{passive:false});
+    document.addEventListener('mouseup',onUp);
+    track.addEventListener('touchend',onUp);
+    draw();
+
+    var audio=new Audio();audio.src=URL.createObjectURL(file);
+    el('tmPlay').onclick=function(){
+      if(playing){audio.pause();playing=false;el('tmPlay').innerHTML='▶';return;}
+      audio.currentTime=S;audio.play();playing=true;el('tmPlay').innerHTML='⏸';
+      pos.style.display='block';
+    };
+    audio.ontimeupdate=function(){
+      if(!playing)return;
+      now.innerText='▶ يستمع الآن: '+fmt(audio.currentTime);
+      var p=Math.max(0,Math.min(1,(audio.currentTime-S)/Math.max(0.1,E-S)));
+      fill.style.width=(p*100)+'%';
+      pos.style.left=(audio.currentTime/total*100)+'%';
+      if(audio.currentTime>=E){audio.pause();playing=false;el('tmPlay').innerHTML='▶';now.innerText='— انتهى المقطع —';fill.style.width='100%';}
+    };
+
+    window.tmQuick=function(k){
+      if(k==='s0'){S=0;E=Math.min(maxSel,total);}
+      else if(k==='mid'){S=Math.max(0,(total-maxSel)/2);E=S+Math.min(maxSel,total);}
+      else{E=total;S=Math.max(0,total-maxSel);}
+      draw();
+    };
+    window.tmCancel=function(){
+      try{audio.pause();URL.revokeObjectURL(audio.src);}catch(e){}
+      closeModal('trimModal');
+    };
+    function setProg(p,txt){
+      if(pw)pw.style.display='block';
+      if(pf)pf.style.width=p+'%';
+      if(pp)pp.innerText=Math.round(p)+'%';
+      if(pt&&txt)pt.innerText=txt;
+    }
+    window.tmConfirm=function(){
+      if(E-S<3)return toast('⚠️ المقطع قصير جداً (أقل من 3 ثواني)');
+      try{audio.pause();playing=false;}catch(e){}
+      var save=el('tmSave');
+      if(save){save.disabled=true;save.style.opacity='.6';save.innerText='⏳ جاري المعالجة...';}
+      setProg(10,'✂️ جاري القص من الملف الأصلي...');
+      setTimeout(function(){
+        try{
+          var cut=cutBuffer(buf,S,E);
+          setProg(35,'🎛️ جاري التحويل لصيغة مناسبة...');
+          setTimeout(function(){
+            var wav=bufToWav(cut);
+            if(wav.size>14*1024*1024){setProg(0,'');
+if(save){save.disabled=false;save.style.opacity='';save.innerText='✅ حفظ المقطع المحدد';}return toast('⚠️ المقطع كبير — جرب أقصر');}
+            setProg(45,'📤 جاري الرفع...');
+            var fake=45;
+            var iv=setInterval(function(){fake=Math.min(fake+Math.random()*8,90);setProg(fake,'📤 جاري الرفع...');},350);
+            var fname='pmusic_'+Date.now()+'.wav';
+            sb.storage.from('stories').upload(fname,wav,{cacheControl:'31536000',upsert:false}).then(function(r){
+              clearInterval(iv);
+              if(r.error){setProg(0,'❌ فشل الرفع');if(save){save.disabled=false;save.style.opacity='';save.innerText='✅ حفظ المقطع المحدد';}return toast('فشل الرفع: '+r.error.message);}
+              setProg(100,'✅ تم الرفع بنجاح!');
+              var pub=sb.storage.from('stories').getPublicUrl(fname).data.publicUrl;
+              setTimeout(function(){
+                updateMe({prof_music:pub}).then(function(){
+                  tmCancel();
+                  toast('🎵 تم حفظ مقطعك ('+Math.round(E-S)+' ثانية) 🎉');
+                  renderProfMusic();
+                });
+              },500);
+            });
+          },150);
+        }catch(err){setProg(0,'❌ خطأ');toast('خطأ: '+err.message);if(save){save.disabled=false;save.style.opacity='';save.innerText='✅ حفظ المقطع المحدد';}}
+      },200);
+    };
+  }).catch(function(err){toast('⚠️ '+err);});
+};
+})();
+/* ===== 🎵 القص المحصّن: تفعيل الصوت + مهلة + خطة بديلة بدون تحليل ===== */
+(function(){
+if(window._trimSafe)return;window._trimSafe=true;
+
+var MAX_SEC=60;
+var _actx=null;
+function actx(){
+  try{
+    if(!_actx)_actx=new(window.AudioContext||window.webkitAudioContext)();
+    if(_actx.state==='suspended')_actx.resume();
+    return _actx;
+  }catch(e){return null;}
+}
+
+/* مدة الملف بطريقة موثوقة (عنصر Audio — تشتغل مع كل الصيغ) */
+function getDuration(file){
+  return new Promise(function(res,rej){
+    var a=new Audio();
+    a.preload='metadata';
+    a.src=URL.createObjectURL(file);
+    a.onloadedmetadata=function(){var d=a.duration;URL.revokeObjectURL(a.src);res(d);};
+    a.onerror=function(){URL.revokeObjectURL(a.src);rej();};
+    setTimeout(function(){rej();},12000);
+  });
+}
+
+/* تحليل مع مهلة: لو مستحيل ينحل نرجع null */
+function tryDecode(file){
+  return new Promise(function(res){
+    var done=false;
+    var fr=new FileReader();
+    fr.onload=function(e){
+      var ctx=actx();
+      if(!ctx){if(!done){done=true;res(null);}return;}
+      var timer=setTimeout(function(){if(!done){done=true;res(null);}},15000);
+      try{
+        ctx.decodeAudioData(e.target.buffer,function(b){
+          if(done)return;done=true;clearTimeout(timer);res(b);
+        },function(){
+          if(done)return;done=true;clearTimeout(timer);res(null);
+        });
+      }catch(err){if(!done){done=true;clearTimeout(timer);res(null);}}
+    };
+    fr.onerror=function(){if(!done){done=true;res(null);}};
+    fr.readAsArrayBuffer(file);
+  });
+}
+
+function bufToWav(buf){
+  var nc=buf.numberOfChannels,sr=buf.sampleRate,len=buf.length;
+  var bytes=44+len*nc*2,ab=new ArrayBuffer(bytes),v=new DataView(ab);
+  function wr(o,s){for(var i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));}
+  wr(0,'RIFF');v.setUint32(4,bytes-8,true);wr(8,'WAVE');wr(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,nc,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*nc*2,true);v.setUint16(32,nc*2,true);
+  v.setUint16(34,16,true);wr(36,'data');v.setUint32(40,len*nc*2,true);
+  var off=44;
+  for(var i=0;i<len;i++)for(var ch=0;ch<nc;ch++){
+    var x=Math.max(-1,Math.min(1,buf.getChannelData(ch)[i]));
+    v.setInt16(off,x<0?x*0x8000:x*0x7FFF,true);off+=2;
+  }
+  return new Blob([ab],{type:'audio/wav'});
+}
+
+function uploadDirect(file){
+  toast('⏳ جاري رفع الملف كامدا...');
+  var fname='pmusic_'+Date.now()+'_direct';
+  var ext=(file.name&&file.name.lastIndexOf('.')>-1)?file.name.slice(file.name.lastIndexOf('.')):'.mp3';
+  sb.storage.from('stories').upload(fname+ext,file,{cacheControl:'31536000',upsert:false}).then(function(r){
+    if(r.error)return toast('فشل الرفع: '+r.error.message);
+    var pub=sb.storage.from('stories').getPublicUrl(fname+ext).data.publicUrl;
+    updateMe({prof_music:pub}).then(function(){
+      toast('🎵 تم تفعيل موسيقى بروفايلك! 🎉');
+      try{renderProfMusic();}catch(e){}
+    });
+  });
+}
+
+window.openMusicTrimmer=function(file){
+  if(!me)return toast('سجل دخولك أولاً');
+  toast('⏳ جاري تحليل الصوت...');
+  /* ضغطة تفعل الصوت على الموبايل */
+  try{var c=actx();if(c&&c.resume)c.resume();}catch(e){}
+  /* أولاً: المدة بطريقة موثوقة */
+  getDuration(file).then(function(total){
+    if(total&&total<=MAX_SEC+1){
+      /* ملف قصير أصلاً — متاح: قص أو رفع مباشر */
+      toast('✅ المدة '+Math.round(total)+' ثانية — مناسبة');
+      tryDecode(file).then(function(buf){
+        if(buf){openTrimUI(file,buf,total);}
+        else{
+          /* فشل التحليل → رفع مباشر */
+          if(confirm('جهازك مش داعم القص للصيغة دي.\nالملف مدته أقل من 60 ثانية — يترفع زي ما هو؟\n(أو اختار ملف mp3 لاستخدام القص)')){
+            uploadDirect(file);
+          }
+        }
+      });
+    }else{
+      /* ملف طويل — لازم تحليل عشان نقص */
+      tryDecode(file).then(function(buf){
+        if(buf){openTrimUI(file,buf,total||MAX_SEC);}
+        else{
+          toast('⚠️ جهازك مش داعم قص الصيغة دي — اختار مقطع mp3 أقل من '+MAX_SEC+' ثانية');
+        }
+      });
+    }
+  }).catch(function(){
+    toast('⚠️ مشكلة في قراءة الملف — جرب صيغة mp3');
+  });
+};
+
+/* نافذة القص (نفس التصميم مع شريط التقدم) */
+function openTrimUI(file,buf,total){
+  var maxSel=Math.min(MAX_SEC,total);
+  var S=0,E=maxSel,playing=false,drag=null;
+  function fmt(v){var m=Math.floor(v/60),s=Math.round(v%60);return m+':'+('0'+s).slice(-2);}
+  var old=el('trimModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='trimModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:340px">'
+  +'<h3 style="color:#a855f7">✂️ قص المقطع المطلوب</h3>'
+  +'<div style="text-align:center;font-size:12px;color:var(--mut);margin-bottom:8px">طول الملف: <b style="color:var(--txt)">'+fmt(total)+'</b> — اختار حتى '+MAX_SEC+' ثانية</div>'
+  +'<div style="display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px;padding:10px;margin-bottom:10px">'
+  +'<button id="tmPlay" style="width:40px;height:40px;border-radius:50%;border:none;background:linear-gradient(135deg,#a855f7,#6d28d9);color:#fff;font-size:16px;cursor:pointer;flex-shrink:0">▶</button>'
+  +'<div style="flex:1"><div id="tmNow" style="font-size:11px;color:var(--mut)">— استمع للملف —</div>'
+  +'<div style="height:5px;background:var(--card2);border-radius:3px;margin-top:5px;overflow:hidden"><div id="tmPlayFill" style="height:100%;width:0;background:linear-gradient(90deg,#a855f7,#6d28d9)"></div></div></div></div>'
+  +'<div id="tmTrack" style="position:relative;height:60px;background:var(--bg);border-radius:10px;cursor:pointer;user-select:none;touch-action:none;overflow:hidden;margin-bottom:6px">'
+  +'<div id="tmSel" style="position:absolute;top:0;bottom:0;background:rgba(168,85,247,.28);border-left:3px solid #a855f7;border-right:3px solid #a855f7;left:0;width:100%"></div>'
+  +'<div id="tmPos" style="position:absolute;top:0;bottom:0;width:3px;background:#fff;box-shadow:0 0 8px #fff;left:0;z-index:2;display:none"></div>'
+  +'<div id="tmHS" style="position:absolute;top:0;bottom:0;width:14px;background:#fff;border:2px solid #a855f7;border-radius:8px;left:-7px;cursor:grab;z-index:3"></div>'
+  +'<div id="tmHE" style="position:absolute;top:0;bottom:0;width:14px;background:#fff;border:2px solid #6d28d9;border-radius:8px;right:-7px;cursor:grab;z-index:3"></div></div>'
+  +'<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:bold;color:#a855f7;margin-bottom:10px">'
+  +'<span id="tmT1">بداية: 0:00</span><span id="tmT2">نهاية: '+fmt(E)+' ('+Math.round(E-S)+'ث)</span></div>'
+  +'<div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px">'
+  +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0;font-size:11px;padding:7px 10px" onclick="tmQuick(\'s0\')">⏮ البداية</button>'
+  +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0;font-size:11px;padding:7px 10px" onclick="tmQuick(\'mid\')">⏬ الوسط</button>'
+  +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0;font-size:11px;padding:7px 10px" onclick="tmQuick(\'e0\')">النهاية ⏭</button></div>'
+  +'<div id="tmProgWrap" style="display:none;background:var(--bg);border-radius:12px;padding:12px;margin-bottom:10px">'
+  +'<div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:6px"><span id="tmProgTxt" style="color:var(--txt);font-weight:bold">⏳ جاري...</span><span id="tmProgPct" style="color:#a855f7;font-weight:900">0%</span></div>'
+  +'<div style="height:12px;background:var(--card2);border-radius:8px;overflow:hidden"><div id="tmProgFill" style="height:100%;width:0;background:linear-gradient(90deg,#a855f7,#6d28d9);transition:width .25s;border-radius:8px"></div></div></div>'
+  +'<button id="tmSave" style="background:linear-gradient(135deg,#a855f7,#6d28d9);color:#fff;font-weight:900" onclick="tmConfirm()">✅ حفظ المقطع المحدد</button>'
+  +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="tmCancel()">إلغاء</button></div>';
+  m.onclick=function(e){if(e.target===m)tmCancel();};
+  document.body.appendChild(m);
+  m.classList.add('open');
+
+  var track=el('tmTrack'),sel=el('tmSel'),hs=el('tmHS'),he=el('tmHE');
+  var t1=el('tmT1'),t2=el('tmT2'),now=el('tmNow');
+  var pos=el('tmPos'),fill=el('tmPlayFill');
+  var pw=el('tmProgWrap'),pf=el('tmProgFill'),pp=el('tmProgPct'),pt=el('tmProgTxt');
+  function draw(){
+    var L=(S/total*100),R=(E/total*100);
+    sel.style.left=L+'%';sel.style.width=(R-L)+'%';
+    hs.style.left='calc('+L+'% - 7px)';he.style.left='calc('+R+'% - 7px)';
+    t1.innerText='بداية: '+fmt(S);
+    t2.innerText='نهاية: '+fmt(E)+' ('+Math.round(E-S)+'ث)';
+  }
+  function posFrom(ev){
+    var r=track.getBoundingClientRect();
+    var x=(ev.touches?ev.touches[0].clientX:ev.clientX)-r.left;
+    return Math.max(0,Math.min(total,x/r.width*total));
+  }
+  function onDown(ev){
+    var t=ev.target;
+    drag=(t===hs)?'s':(t===he)?'e':null;
+    if(!drag){var p=posFrom(ev);drag=(Math.abs(p-S)<Math.abs(p-E))?'s':'e';
+      if(drag==='s')S=Math.min(p,E-1);else E=Math.max(p,S+1);}
+    ev.preventDefault();draw();
+  }
+  function onMove(ev){
+    if(!drag)return;
+    var p=posFrom(ev);
+    if(drag==='s')S=Math.min(p,E-1);else E=Math.max(p,S+1);
+    if(E-S>maxSel){if(drag==='s')S=E-maxSel;else E=S+maxSel;}
+    draw();ev.preventDefault();
+  }
+  function onUp(){drag=null;}
+  track.addEventListener('mousedown',onDown);
+  track.addEventListener('touchstart',onDown,{passive:false});
+  document.addEventListener('mousemove',onMove);
+  track.addEventListener('touchmove',onMove,{passive:false});
+  document.addEventListener('mouseup',onUp);
+  track.addEventListener('touchend',onUp);
+  draw();
+
+  var audio=new Audio();audio.src=URL.createObjectURL(file);
+  el('tmPlay').onclick=function(){
+    try{var c=actx();if(c&&c.resume)c.resume();}catch(e){}
+    if(playing){audio.pause();playing=false;el('tmPlay').innerHTML='▶';return;}
+    audio.currentTime=S;audio.play();playing=true;el('tmPlay').innerHTML='⏸';
+    pos.style.display='block';
+  };
+  audio.ontimeupdate=function(){
+    if(!playing)return;
+    now.innerText='▶ يستمع الآن: '+fmt(audio.currentTime);
+    var p=Math.max(0,Math.min(1,(audio.currentTime-S)/Math.max(0.1,E-S)));
+    fill.style.width=(p*100)+'%';
+    pos.style.left=(audio.currentTime/total*100)+'%';
+    if(audio.currentTime>=E){audio.pause();playing=false;el('tmPlay').innerHTML='▶';now.innerText='— انتهى المقطع —';fill.style.width='100%';}
+  };
+
+  window.tmQuick=function(k){
+    if(k==='s0'){S=0;E=Math.min(maxSel,total);}
+    else if(k==='mid'){S=Math.max(0,(total-maxSel)/2);E=S+Math.min(maxSel,total);}
+    else{E=total;S=Math.max(0,total-maxSel);}
+    draw();
+  };
+  window.tmCancel=function(){
+    try{audio.pause();URL.revokeObjectURL(audio.src);}catch(e){}
+    closeModal('trimModal');
+  };
+  function setProg(p,txt){
+    if(pw)pw.style.display='block';
+    if(pf)pf.style.width=p+'%';
+    if(pp)pp.innerText=Math.round(p)+'%';
+    if(pt&&txt)pt.innerText=txt;
+  }
+  window.tmConfirm=function(){
+    if(E-S<3)return toast('⚠️ المقطع قصير جداً (أقل من 3 ثواني)');
+    try{audio.pause();playing=false;}catch(e){}
+    var save=el('tmSave');
+    if(save){save.disabled=true;save.style.opacity='.6';save.innerText='⏳ جاري المعالجة...';}
+    setProg(10,'✂️ جاري القص...');
+    setTimeout(function(){
+      try{
+        var sr=buf.sampleRate;
+        var s=Math.max(0,Math.floor(S*sr)),e=Math.min(buf.length,Math.floor(E*sr));
+        var len=Math.max(1,e-s);
+        var out=new(window.AudioContext||window.webkitAudioContext)().createBuffer(buf.numberOfChannels,len,sr);
+        for(var ch=0;ch<buf.numberOfChannels;ch++)out.copyToChannel(buf.getChannelData(ch).subarray(s,e),ch);
+        setProg(35,'🎛️ جاري التحويل...');
+        setTimeout(function(){
+          var wav=bufToWav(out);
+          setProg(45,'📤 جاري الرفع...');
+          var fake=45;
+          var iv=setInterval(function(){fake=Math.min(fake+Math.random()*8,90);setProg(fake,'📤 جاري الرفع...');},350);
+          var fname='pmusic_'+Date.now()+'.wav';
+          sb.storage.from('stories').upload(fname,wav,{cacheControl:'31536000',upsert:false}).then(function(r){
+            clearInterval(iv);
+            if(r.error){setProg(0,'❌ فشل');if(save){save.disabled=false;save.style.opacity='';save.innerText='✅ حفظ المقطع المحدد';}return toast('فشل الرفع: '+r.error.message);}
+            setProg(100,'✅ تم الرفع!');
+            var pub=sb.storage.from('stories').getPublicUrl(fname).data.publicUrl;
+            setTimeout(function(){
+              updateMe({prof_music:pub}).then(function(){
+                tmCancel();
+                toast('🎵 تم حفظ مقطعك ('+Math.round(E-S)+' ثانية) 🎉');
+                try{renderProfMusic();}catch(e){}
+              });
+            },500);
+          });
+        },150);
+      }catch(err){setProg(0,'❌ خطأ');toast('خطأ: '+err.message);if(save){save.disabled=false;save.style.opacity='';save.innerText='✅ حفظ المقطع المحدد';}}
+    },200);
+  };
+}
+})();
+/* ===== 🎵 موسيقى البروفايل — رفع مباشر بدون أي حدود ===== */
+(function(){
+if(window._musicDirect)return;window._musicDirect=true;
+
+/* 1) تجاوز نافذة القص نهائياً: أي ملف يترفع مباشرة */
+window.openMusicTrimmer=function(file){
+  if(!me)return toast('سجل دخولك أولاً');
+  toast('⏳ جاري رفع الموسيقى...');
+  var base='pmusic_'+Date.now()+'_d';
+  var ext=(file.name&&file.name.lastIndexOf('.')>-1)?file.name.slice(file.name.lastIndexOf('.')):'.mp3';
+  var fname=base+ext;
+  sb.storage.from('stories').upload(fname,file,{cacheControl:'31536000',upsert:false}).then(function(r){
+    if(r.error)return toast('❌ فشل الرفع: '+r.error.message);
+    var pub=sb.storage.from('stories').getPublicUrl(fname).data.publicUrl;
+    updateMe({prof_music:pub}).then(function(){
+      toast('🎵 تم تفعيل موسيقى بروفايلك! 🎉');
+      try{renderProfMusic();}catch(e){}
+    });
+  }).catch(function(e){toast('❌ خطأ في الرفع');});
+};
+
+/* 2) نافذة القص لو اتفتحت من أي كود قديم = رفع مباشر برضه */
+window.tmConfirm=function(){};
+window.tmCancel=function(){try{closeModal('trimModal');}catch(e){}};
+})();
+
+/* ===== 💰 موسيقى البروفايل بالعملات: 100 عملة / 30 يوم ===== */
+(function(){
+if(window._musicPaid)return;window._musicPaid=true;
+var MUSIC_COST=270,MUSIC_DAYS=30;
+
+function musicSub(){try{return me&&(me.musicExp&&me.musicExp>Date.now());}catch(e){return false;}}
+function musicAdm(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+
+/* 1) البوابة: أي محاولة اختار أغنية من غير اشتراك = نافذة الاشتراك */
+var _pmO=window.pickProfMusic;
+window.pickProfMusic=function(e){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    if(!musicAdm()&&!musicSub()){openMusicSub();e.target.value='';return;}
+  }catch(e){}
+  return _pmO?_pmO(e):undefined;
+};
+
+/* أيضاً حاجز على الرفع المباشر (لو اتنادت بأي طريقة) */
+var _udO=window.uploadDirectMusic;
+window.uploadDirectMusic=function(file){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    if(!musicAdm()&&!musicSub()){openMusicSub();return;}
+  }catch(e){}
+  return _udO?_udO(file):undefined;
+};
+
+/* 2) نافذة الاشتراك */
+window.openMusicSub=function(){
+  try{
+    var old=el('musicSubModal');if(old)old.remove();
+    var m=document.createElement('div');m.id='musicSubModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:320px;text-align:center">'
+    +'<div style="font-size:40px">🎵</div>'
+    +'<h3>موسيقى البروفايل</h3>'
+    +'<p style="font-size:13px;color:var(--txt);line-height:2">ارفع أي أغنية من جهازك وتشتغل في بروفايلك<br>وغيّرها براحتك طول مدة الاشتراك<br><b style="color:#FFD700">🪙 '+MUSIC_COST+' عملة — لمدة '+MUSIC_DAYS+' يوم</b></p>'
+    +'<div style="font-size:12px;color:var(--mut);margin-bottom:8px">رصيدك: 🪙 '+((me&&me.coins)||0)+'</div>'
+    +'<button style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900" onclick="buyMusicSub()">🪙 اشترك الآن</button>'
+    +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'musicSubModal\')">لاحقاً</button></div>';
+    m.onclick=function(e){if(e.target===m)closeModal('musicSubModal');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+  }catch(e){}
+};
+
+/* 3) الشراء */
+window.buyMusicSub=async function(){
+  try{
+    if(!me)return;
+    var coins=(me.coins)||0;
+    if(coins<MUSIC_COST){closeModal('musicSubModal');return toast('🪙 العملات غير كافية — يرجي الشحن (ناقصك '+(MUSIC_COST-coins)+' عملة من "عملاتي")');}
+    if(!confirm('اشتراك موسيقى البروفايل بـ '+MUSIC_COST+' عملة لمدة '+MUSIC_DAYS+' يوم؟'))return;
+    await updateMe({coins:coins-MUSIC_COST,musicExp:Date.now()+MUSIC_DAYS*86400000});
+    me.coins=coins-MUSIC_COST;
+    try{logTrans('buy',MUSIC_COST,'اشتراك: موسيقى البروفايل','');}catch(e){}
+    closeModal('musicSubModal');
+    toast('🎉 تم الاشتراك! اختار أغنيتك دلوقتي');
+    try{renderProfMusic();}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* 4) شاشة "موسيقى البروفايل" تعرض حالة الاشتراك */
+var _rpm=window.renderProfMusic;
+window.renderProfMusic=async function(){
+  var r=_rpm?await _rpm():undefined;
+  try{
+    var box=el('profMusicBody');if(!box)return r;
+    var old=el('musicSubBar');if(old)old.remove();
+    var bar=document.createElement('div');
+    bar.id='musicSubBar';
+    if(musicAdm()){
+      bar.style.cssText='background:rgba(139,92,246,.12);border:1px solid #8B5CF6;border-radius:12px;padding:10px;margin-bottom:10px;text-align:center;font-size:12.5px;color:#c4b5fd;font-weight:bold';
+      bar.innerHTML='👑 إدارة — مجاني دائماً';
+    }else if(musicSub()){
+      bar.style.cssText='background:rgba(34,211,238,.12);border:1px solid #22d3ee;border-radius:12px;padding:10px;margin-bottom:10px;text-align:center;font-size:13px;color:#22d3ee;font-weight:bold';
+      bar.innerHTML='✅ اشتراكك نشط — متبقي '+Math.ceil((me.musicExp-Date.now())/86400000)+' يوم';
+    }else{
+      bar.style.cssText='background:var(--card);border:2px solid #FFD700;border-radius:14px;padding:12px;margin-bottom:10px;text-align:center;box-shadow:0 0 14px rgba(255,215,0,.2)';
+      bar.innerHTML='<div style="font-size:14px;font-weight:bold;color:var(--txt)">🎵 اشترك وارفع أغنيتك في بروفايلك</div>'
+      +'<div style="font-size:11.5px;color:var(--mut);margin:4px 0 8px">🪙 '+MUSIC_COST+' عملة / '+MUSIC_DAYS+' يوم — غيّرها براحتك</div>'
+      +'<button class="adm-btn" style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900;border-radius:12px;padding:9px 22px" onclick="openMusicSub()">🪙 اشترك الآن</button>';
+    }
+    box.insertBefore(bar,box.firstChild);
+  }catch(e){}
+  return r;
+};
+
+/* 5) إخفاء حقل الرفع لغير المشتركين (شاشة الإعدادات) */
+var _rpm2=window.renderProfMusic;
+window.renderProfMusic=async function(){
+  var r=await _rpm2();
+  try{
+    var box=el('profMusicBody');
+    if(box&&!musicAdm()&&!musicSub()){
+      /* اخفي أزرار الرفع والإزالة والصوت الموجود */
+      var btns=box.querySelectorAll('button, audio, input');
+      for(var i=0;i<btns.length;i++){
+        var b=btns[i];
+        var oc=b.getAttribute?(b.getAttribute('onclick')||''):'';
+        var fid=b.id||'';
+        if(oc.indexOf('pmInput')>-1||oc.indexOf('removeProfMusic')>-1||oc.indexOf('pickProfMusic')>-1||fid==='pmInput')b.style.display='none';
+      }
+      var au=box.querySelectorAll('audio');
+      for(var j=0;j<au.length;j++)au[j].style.display='none';
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 6) المشغل في البروفايل يظهر بس لمن عنده الموسيقى أصلاً — شغال عادي بدون شرط (الموسيقى بتحتاج اشتراك للرفع بس، المشاهدة للكل) */
+
+/* 7) انتهاء المدة: الموسيقى تتقفل */
+setInterval(async function(){
+  try{
+    if(!me||!me.musicExp)return;
+    if(Date.now()>me.musicExp){
+      await updateMe({musicExp:null,prof_music:null});
+      toast('⏰ انتهى اشتراك موسيقى البروفايل — جدده من الإعدادات');
+      try{renderProfMusic();}catch(e){}
+    }
+  }catch(e){}
+},60000);
+})();
