@@ -14999,3 +14999,316 @@ var _jrS3=window.joinRoom;
 window.joinRoom=async function(rid){var r=await _jrS3(rid);try{setTimeout(buildBtn,300);setTimeout(buildBtn,900);}catch(e){}return r;};
 setInterval(function(){try{buildBtn();}catch(e){}},2000);
 })();
+/* ===== 🔒 امتيازات برايفت: تعديل + حذف رسايل الطرفين — 1440 عملة / 30 يوم ===== */
+(function(){
+if(window._primeFeat)return;window._primeFeat=true;
+var PRIME_COST=1440,PRIME_DAYS=30;
+
+function hasPrime(){try{return me&&(me.primeExp&&me.primeExp>Date.now());}catch(e){return false;}}
+function isAdmU(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+
+/* 1) عنصر الإعدادات */
+function ensureItem(){
+  try{
+    if(!me)return;
+    var lists=document.querySelectorAll('#s-settings .menu-list');
+    if(!lists.length||el('primeFeatItem'))return;
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='primeFeatItem';
+    mi.innerHTML='<span>🔒 امتيازات برايفت <span style="background:linear-gradient(135deg,#7dd3fc,#3b82f6);color:#111;font-size:10px;font-weight:bold;padding:3px 10px;border-radius:12px;margin-right:6px">🪙 '+PRIME_COST+'</span></span><span>👈</span>';
+    mi.onclick=function(){go('primefeat',null);};
+    lists[0].insertBefore(mi,lists[0].firstChild);
+  }catch(e){}
+}
+setInterval(ensureItem,2500);
+setTimeout(ensureItem,1000);
+
+/* 2) الشاشة */
+if(!el('s-primefeat')){
+  var scr=document.createElement('div');
+  scr.className='screen';scr.id='s-primefeat';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ امتيازات برايفت</div><div id="primeFeatBody" style="padding:6px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+  else content.appendChild(scr);
+}
+
+window.renderPrimeFeat=async function(){
+  try{
+    var box=el('primeFeatBody');if(!box||!me)return;
+    var h='';
+    h+='<div style="background:radial-gradient(ellipse at top,#0e2a3a,#0a1420);border-radius:18px;padding:24px 14px;text-align:center;margin-bottom:12px;border:1px solid rgba(125,211,252,.35)">';
+    h+='<div style="font-size:40px">🔒</div>';
+    h+='<div style="font-size:17px;font-weight:900;color:#7dd3fc;margin-top:6px">امتيازات فاخرة برايفت</div>';
+    h+='<div style="font-size:11.5px;color:rgba(255,255,255,.65);margin-top:5px;line-height:2">قوة الإدارة في محادثاتك الخاصة:</div></div>';
+    h+='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px">';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><span style="font-size:20px">✏️</span><div style="font-size:13px;color:var(--txt);font-weight:bold">تعديل رسايل الطرفين</div></div>';
+    h+='<div style="font-size:11.5px;color:var(--mut);line-height:1.9;margin-right:30px">عدّل أي رسالة في المحادثة — رسايلك ورسايل الطرف التاني</div>';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin:12px 0 10px"><span style="font-size:20px">🗑️</span><div style="font-size:13px;color:var(--txt);font-weight:bold">حذف رسايل الطرفين</div></div>';
+    h+='<div style="font-size:11.5px;color:var(--mut);line-height:1.9;margin-right:30px">امسح أي رسالة نهائياً من المحادثة — من الطرفين</div>';
+    h+='<div style="background:var(--bg);border-radius:10px;padding:8px 10px;margin-top:10px;font-size:10.5px;color:var(--mut);line-height:1.9">⚠️ يعمل في المحادثات الخاصة فقط — استخدمه بمسؤولية، وإساءة الاستخدام تعرضك للمساءلة</div></div>';
+    if(isAdmU()){
+      h+='<div style="background:rgba(139,92,246,.12);border:1px solid #8B5CF6;border-radius:12px;padding:12px;text-align:center;font-size:13px;color:#c4b5fd;font-weight:bold">👑 إدارة — الامتياز شغال دائماً</div>';
+    }else if(hasPrime()){
+      h+='<div style="background:rgba(34,211,238,.12);border:1px solid #22d3ee;border-radius:12px;padding:12px;margin-bottom:12px;text-align:center">';
+      h+='<div style="font-size:13.5px;color:#22d3ee;font-weight:bold">✅ برايفت شغال — متبقي '+Math.ceil((me.primeExp-Date.now())/86400000)+' يوم</div>';
+      h+='<div style="font-size:11px;color:var(--mut);margin-top:4px">افتح قايمة أي رسالة (⋮) في الخاص هتلاقي تعديل وحذف</div></div>';
+    }else{
+      h+='<div style="background:var(--card);border:2px solid #7dd3fc;border-radius:14px;padding:14px;margin-bottom:12px;text-align:center">';
+      h+='<div style="font-size:14px;font-weight:bold;color:var(--txt)">🔒 اشترك وفعّل الامتيازات</div>';
+      h+='<div style="font-size:11.5px;color:var(--mut);margin:4px 0 8px">🪙 '+PRIME_COST+' عملة / '+PRIME_DAYS+' يوم</div>';
+      h+='<div style="font-size:12px;color:var(--mut);margin-bottom:8px">رصيدك: 🪙 '+((me.coins)||0)+'</div>';
+      h+='<button class="adm-btn" style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-weight:900;border-radius:12px;padding:9px 22px" onclick="buyPrime()">🪙 اشترك الآن</button></div>';
+    }
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+/* 3) الشراء */
+window.buyPrime=async function(){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    var coins=(me.coins)||0;
+    if(coins<PRIME_COST)return toast('🪙 العملات غير كافية — يرجي الشحن (ناقصك '+(PRIME_COST-coins)+' عملة من "عملاتي")');
+    if(!confirm('اشتراك امتيازات برايفت بـ '+PRIME_COST+' عملة لمدة '+PRIME_DAYS+' يوم؟'))return;
+    await updateMe({coins:coins-PRIME_COST,primeExp:Date.now()+PRIME_DAYS*86400000});
+    me.coins=coins-PRIME_COST;
+    try{logTrans('buy',PRIME_COST,'اشتراك: امتيازات برايفت','');}catch(e){}
+    toast('🔒 تم تفعيل امتيازات برايفت!');
+    renderPrimeFeat();
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* 4) القوة: قايمة الرسالة فيها تعديل وحذف لأي رسالة في الخاص */
+window.openMsgMenu=function(e,id,from){
+  try{e.preventDefault();e.stopPropagation();}catch(_e){}
+  msgMenuId=id;msgMenuTarget=from;
+  var menu=el('msgMenu');
+  var isMine=(from===me.name);
+  var prime=hasPrime()&&chat&&chat.type==='user';
+  var canMod=isMine||isOwner()||prime;
+  menu.innerHTML='<button onclick="doReply()">↩️ رد</button>'
+  +'<button onclick="doReact()">❤️ رياكشن</button>'
+  +(canMod?'<button onclick="doEditPrime()">✏️ تعديل</button><button onclick="doDeletePrime()">🗑️ حذف</button>':'');
+  menu.classList.add('open');
+  menu.style.display='flex';
+  var mw=165,mh=menu.offsetHeight||150;
+  var x=(e.clientX||window.innerWidth-180),y=(e.clientY||200);
+  if(x+mw>window.innerWidth-8)x=window.innerWidth-mw-8;
+  if(x<8)x=8;
+  if(y+mh>window.innerHeight-8)y=window.innerHeight-mh-8;
+  if(y<8)y=8;
+  menu.style.top=y+'px';menu.style.left=x+'px';
+};
+
+/* 5) التعديل: لرسايل الطرفين */
+window.doEditPrime=function(){
+  hideMsgMenu();
+  var m=msgsCache.find(function(x){return x._id===msgMenuId;});
+  if(!m)return;
+  var isMine=(m.from===me.name);
+  var prime=hasPrime()&&chat&&chat.type==='user';
+  if(!isMine&&!isOwner()&&!prime)return toast('🔒 التعديل يتطلب اشتراك برايفت');
+  if(m.type!=='text')return toast('ممكن تعديل الرسايل النصية فقط');
+  editingMsgId=msgMenuId;
+  el('msgInput').value=m.data;
+  el('msgInput').focus();
+  if(!isMine)toast('✏️ بتعديل رسالة '+getMsgName(m.from)+' — اكتب الجديد وابعته');
+};
+
+/* 6) الحذف: لرسايل الطرفين */
+window.doDeletePrime=async function(){
+  hideMsgMenu();
+  var m=msgsCache.find(function(x){return x._id===msgMenuId;});
+  if(!m)return;
+  var isMine=(m.from===me.name);
+  var prime=hasPrime()&&chat&&chat.type==='user';
+  if(!isMine&&!isOwner()&&!prime)return toast('🔒 الحذف يتطلب اشتراك برايفت');
+  await SDB.updMsg(msgMenuId,{deleted:true,body:''});
+  var idx=msgsCache.findIndex(function(x){return x._id===msgMenuId;});
+  if(idx>-1){msgsCache[idx].deleted=true;msgsCache[idx].data='';updateMsg(msgsCache[idx]);}
+  toast(isMine?'🗑️ تم حذف الرسالة':'🗑️ تم حذف رسالة '+getMsgName(m.from));
+};
+
+/* 7) انتهاء المدة */
+setInterval(async function(){
+  try{
+    if(!me||!me.primeExp)return;
+    if(Date.now()>me.primeExp){
+      await updateMe({primeExp:null});
+      toast('⏰ انتهى اشتراك امتيازات برايفت');
+      try{renderPrimeFeat();}catch(e){}
+    }
+  }catch(e){}
+},60000);
+
+/* 8) الربط */
+var _goPF=window.go;
+window.go=function(s,nv,fb){
+  var r=_goPF(s,nv,fb);
+  try{if(s==='primefeat')renderPrimeFeat();}catch(e){}
+  return r;
+};
+})();
+/* ===== ✨ المميزات الخاصة — الصفحة الرئيسية (كل المميزات في مكان واحد) ===== */
+(function(){
+if(window._featsHub)return;window._featsHub=true;
+
+var FEATS=[
+ {id:'music',icon:'🎵',title:'موسيقى البروفايل',desc:'ارفع أي أغنية من جهازك وتشتغل في بروفايلك قدام كل الزوار — وغيّرها براحتك طول مدة الاشتراك.',cost:270,days:30,go:'profmusic',has:function(){return me&&me.musicExp&&me.musicExp>Date.now();}},
+ {id:'animbg',icon:'🖼️',title:'خلفية بروفايل متحركة',desc:'خلفية GIF متحركة تظهر خلف بروفايلك قدام الجميع — اختارها من جهازك وغيّرها وقت ما تحب.',cost:460,days:30,go:'profanim',has:function(){return me&&me.animBgExp&&me.animBgExp>Date.now();}},
+ {id:'agehide',icon:'🙈',title:'إخفاء العمر',desc:'عمرك يظهر (--) لكل الأعضاء — وزرارين إخفاء/إظهار تبدل بينهم براحتك طول المدة. الإدارة تشوف دايماً.',cost:155,days:30,go:'agehide',has:function(){return me&&me.ageHideExp&&me.ageHideExp>Date.now();}},
+ {id:'prime',icon:'🔒',title:'امتيازات فاخرة برايفت',desc:'قوة الإدارة في محادثاتك الخاصة: تعديل وحذف رسايل الطرفين — يعمل في الخاص فقط.',cost:1440,days:30,go:'primefeat',has:function(){return me&&me.primeExp&&me.primeExp>Date.now();}},
+ {id:'whoview',icon:'👁️',title:'من شاهد ملفي',desc:'اعرف مين زار بروفايلك وامتى وكام مرة — قايمة كاملة بالزوار.',cost:0,days:0,go:null,has:function(){return true;},free:true},
+ {id:'fmt',icon:'✍️',title:'تنسيق الرسايل',desc:'زرار A جنب الكاميرا — ابعت رسايلك عريضة أو مائلة أو بخط تحت.',cost:0,days:0,go:null,has:function(){return true;},free:true},
+ {id:'story',icon:'📸',title:'الستوري',desc:'انشر صورك وفيديوهاتك وحالاتك النصية — تختفي بعد 24 ساعة وتعرف مين شافها.',cost:0,days:0,go:null,has:function(){return true;},free:true},
+ {id:'cover',icon:'🖼️',title:'صورة خلفية البروفايل',desc:'غلاف خاص لبروفايلك — صورة أو GIF متحرك من جهازك.',cost:0,days:0,go:null,has:function(){return !!(me&&me.cover);},free:true},
+ {id:'badge',icon:'🏅',title:'شارة مميزة',desc:'شارات حصرية تظهر جنب اسمك في كل الموقع — من متجر الشارات.',cost:0,days:0,go:'badgesNew',has:function(){return me&&me.active_badge_url;},free:true},
+ {id:'frames',icon:'👑',title:'إطار حول الصورة',desc:'إطار فخم حوالين صورتك في كل الموقع — لمدة 30 يوم.',cost:100,days:30,go:null,has:function(){return me&&(me.frameExp&&me.frameExp>Date.now());}},
+ {id:'musicstory',icon:'⏱️',title:'حالات 24 ساعة',desc:'انشر حالتك وخليها 24 ساعة كاملة — عرف مين شاف ورد على من شاف.',cost:0,days:0,go:null,has:function(){return true;},free:true}
+];
+
+/* 1) الشاشة */
+if(!el('s-featshop')){
+  var scr=document.createElement('div');
+  scr.className='screen';scr.id='s-featshop';
+  scr.innerHTML='<div class="sub-title" onclick="go(\'settings\')">➔ المميزات الخاصة</div><div id="featShopBody" style="padding:6px"></div>';
+  var content=document.querySelector('.content');
+  var ref=el('s-settings');
+  if(ref&&ref.parentElement)content.insertBefore(scr,ref);
+  else content.appendChild(scr);
+}
+try{if(typeof MAIN_SCREENS!=='undefined'&&MAIN_SCREENS.indexOf('featshop')===-1)MAIN_SCREENS.push('featshop');}catch(e){}
+
+/* 2) الرسم — تصميم الكروت الشبكية */
+window.renderFeatShop=function(){
+  try{
+    var box=el('featShopBody');if(!box)return;
+    var h='';
+    h+='<div style="text-align:center;margin-bottom:14px">';
+    h+='<div style="font-size:20px;font-weight:900;color:#7dd3fc;text-shadow:0 0 18px rgba(125,211,252,.4)">✨ المميزات الخاصة ✨</div>';
+    h+='<div style="font-size:12px;color:var(--mut);margin-top:5px">استمتع بمزايا حصرية تمنحك تجربة أكثر تميزاً داخل شات سونيك</div></div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+    FEATS.forEach(function(f){
+      var active=false;
+      try{active=f.has();}catch(e){}
+      var border=active?'var(--grn)':(f.cost?'var(--line)':'#3a4653');
+      var bar=f.cost?'#7dd3fc':'#3b82f6';
+      h+='<div style="background:var(--card);border:1.5px solid '+border+';border-right:4px solid '+bar+';border-radius:14px;padding:12px;position:relative;display:flex;flex-direction:column">';
+      /* العنوان + البادج */
+      h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">';
+      h+='<div style="font-size:13.5px;font-weight:900;color:var(--txt)">'+f.icon+' '+f.title+'</div>';
+      if(active)h+='<span style="background:var(--grn);color:#fff;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:10px;flex-shrink:0">مفعّلة</span>';
+      else if(f.free)h+='<span style="background:#3a4653;color:#cbd5e1;font-size:9px;font-weight:bold;padding:2px 8px;border-radius:10px;flex-shrink:0">مجانية</span>';
+      h+='</div>';
+      /* الوصف */
+      h+='<div style="font-size:10.5px;color:var(--mut);line-height:1.8;margin:6px 0">'+f.desc+'</div>';
+      /* صندوق المدة والسعر */
+      if(f.cost){
+        h+='<div style="background:var(--bg);border-radius:10px;padding:8px;margin:6px 0">';
+        h+='<div style="font-size:10.5px;color:var(--txt)">⏳ المدة: <span style="background:var(--card2);color:#7dd3fc;padding:2px 9px;border-radius:10px;font-weight:bold;font-size:9.5px">'+f.days+' يوم</span></div>';
+        h+='<div style="font-size:11px;color:#4ade80;font-weight:900;margin-top:5px">💵 السعر: '+f.cost+' عملة 🪙</div></div>';
+      }else{
+        h+='<div style="background:var(--bg);border-radius:10px;padding:8px;margin:6px 0">';
+        h+='<div style="font-size:10.5px;color:var(--txt)">⏳ المدة: <span style="background:var(--card2);color:#7dd3fc;padding:2px 9px;border-radius:10px;font-weight:bold;font-size:9.5px">دائمة</span></div>';
+        h+='<div style="font-size:11px;color:#4ade80;font-weight:900;margin-top:5px">🎁 مجاناً للجميع</div></div>';
+      }
+      /* الزرار */
+      h+='<div style="margin-top:auto">';
+      if(active){
+        h+='<div style="text-align:center;padding:9px;background:var(--grn);color:#fff;border-radius:10px;font-size:12px;font-weight:bold">✅ مفعّلة عندك</div>';
+      }else if(f.go){
+        h+='<div onclick="go(\''+f.go+'\',null)" style="text-align:center;padding:9px;background:var(--card2);color:var(--txt);border-radius:10px;font-size:12px;font-weight:bold;cursor:pointer">🛒 '+(f.cost?'اشترك — '+f.cost+' 🪙':'افتح الميزة')+'</div>';
+      }else{
+        h+='<div style="text-align:center;padding:9px;background:var(--card2);color:var(--txt);border-radius:10px;font-size:12px;font-weight:bold;cursor:pointer" onclick="openFeatHint(\''+f.icon+'\',\''+f.title+'\')">🛒 '+(f.free?'مجانية حالياً':'اشترِ الآن')+'</div>';
+      }
+      h+='</div></div>';
+    });
+    h+='</div>';
+    /* فوتر الشراء */
+    h+='<div style="background:var(--card);border:1.5px solid #3b82f6;border-radius:14px;padding:14px;margin-top:14px;text-align:center">';
+    h+='<div style="font-size:14px;font-weight:900;color:#7dd3fc">💳 شحن العملات</div>';
+    h+='<div style="font-size:11px;color:var(--mut);margin:6px 0">حوّل على فودافون كاش وارفع الإيصال — العملات توصل بعد التأكيد</div>';
+    h+='<div onclick="go(\'coins\',null)" style="padding:10px;background:var(--card2);color:var(--txt);border-radius:10px;font-size:13px;font-weight:bold;cursor:pointer">🪙 اذهب إلى عملاتي</div></div>';
+    box.innerHTML=h;
+  }catch(e){}
+};
+
+window.openFeatHint=function(icon,title){
+  try{toast(icon+' '+title+' — متاحة مجاناً حالياً للجميع 🎁');}catch(e){}
+};
+
+/* 3) عنصر الإعدادات */
+function ensureItem(){
+  try{
+    if(!me)return;
+    var lists=document.querySelectorAll('#s-settings .menu-list');
+    if(!lists.length||el('featShopItem'))return;
+    var mi=document.createElement('div');
+    mi.className='m-item';mi.id='featShopItem';
+    mi.innerHTML='<span>✨ المميزات الخاصة <span style="background:linear-gradient(135deg,#3b82f6,#7dd3fc);color:#fff;font-size:10px;font-weight:bold;padding:3px 10px;border-radius:12px;margin-right:6px">جديد</span></span><span>👈</span>';
+    mi.onclick=function(){go('featshop',null);};
+    lists[0].insertBefore(mi,lists[0].firstChild);
+  }catch(e){}
+}
+setInterval(ensureItem,2500);
+setTimeout(ensureItem,1000);
+
+/* 4) الربط + تحديث دوري لحالة "مفعّلة" */
+var _goFS2=window.go;
+window.go=function(s,nv,fb){
+  var r=_goFS2(s,nv,fb);
+  try{if(s==='featshop')renderFeatShop();}catch(e){}
+  return r;
+};
+setInterval(function(){
+  try{
+    if(el('s-featshop')&&el('s-featshop').classList.contains('active'))renderFeatShop();
+  }catch(e){}
+},10000);
+})();
+/* ===== 💜 كروت المميزات الخاصة: حدود بنفسجية متوهجة ===== */
+(function(){
+if(window._featPurple)return;window._featPurple=true;
+var PURPLE='#a855f7';
+
+/* نلف على الرسم: بعد كل رسم نلون الكروت بنفسجي */
+var _rfsP=window.renderFeatShop;
+window.renderFeatShop=function(){
+  var r=_rfsP?_rfsP():undefined;
+  try{
+    setTimeout(function(){
+      var box=el('featShopBody');
+      if(!box)return;
+      /* كل الكروت في الصفحة */
+      var cards=box.children[1]?box.children[1].children:[];
+      for(var i=0;i<cards.length;i++){
+        var c=cards[i];
+        if(!c.style)continue;
+        c.style.border='1.5px solid '+PURPLE;
+        c.style.borderRight='4px solid '+PURPLE;
+        c.style.borderRadius='14px';
+        c.style.boxShadow='0 0 12px rgba(168,85,247,.35)';
+      }
+      /* زرار الشراء يفضل نفسه — بس صندوق السعر يتلون بنفسجي فاتح */
+      var prices=box.querySelectorAll('[style*="color:#4ade80"]');
+      for(var j=0;j<prices.length;j++)prices[j].style.color='#c084fc';
+    },80);
+  }catch(e){}
+  return r;
+};
+
+/* الفوتر برضه بنفسجي */
+var _ivFp=setInterval(function(){
+  try{
+    var box=el('featShopBody');
+    if(!box)return;
+    var foot=box.lastElementChild;
+    if(foot&&foot.style.border&&foot.style.border.indexOf('55, 130, 246')>-1){
+      foot.style.border='1.5px solid '+PURPLE;
+      foot.style.boxShadow='0 0 12px rgba(168,85,247,.3)';
+    }
+  }catch(e){}
+},3000);
+})();
