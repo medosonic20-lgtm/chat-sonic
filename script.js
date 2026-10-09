@@ -15312,6 +15312,109 @@ var _ivFp=setInterval(function(){
   }catch(e){}
 },3000);
 })();
+/* ===== ❤️ إضافة إعجابات — جوه قايمة الشات (للإدارة) ===== */
+(function(){
+if(window._addLikes4)return;window._addLikes4=true;
+
+function isAdmL(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+
+window.doAddLikesAdmin=async function(){
+  try{
+    if(!chat||chat.type!=='user')return toast('افتح محادثة خاصة أولاً');
+    var n=chat.id;
+    if(isOwnerName(n))return toast('👑 صاحب الموقع محتاج لايكات؟ 😄');
+    var amt=prompt('إضافة إعجابات لـ '+getMsgName(n)+'\nاكتب العدد (مثال: 500):','100');
+    if(amt===null)return;
+    amt=parseInt(amt);
+    if(isNaN(amt)||amt<1)return toast('اكتب رقم صحيح');
+    if(!confirm('إضافة '+amt+' ❤️ لـ '+getMsgName(n)+'؟'))return;
+    var u=await SDB.getUser(n);
+    if(!u)return toast('العضو غير موجود');
+    var arr=Array.isArray(u.profile_likes)?u.profile_likes:[];
+    arr.push({from:'الإدارة ⚡',em:'❤️',time:Date.now(),bulk:amt});
+    if(arr.length>300)arr=arr.slice(-300);
+    await SDB.patchUser(n,{profile_likes:arr});
+    try{
+      var s=await SDB.loadSettings();
+      var notes=Array.isArray(s.like_notices)?s.like_notices:[];
+      notes.push({to:n,from:me.name,em:'❤️',bulk:amt,time:Date.now()});
+      if(notes.length>300)notes=notes.slice(-300);
+      await SDB.saveSetting('like_notices',notes);
+    }catch(e){}
+    toast('❤️ أضفت '+amt+' إعجاب لـ '+getMsgName(n));
+    try{logActivity('add_likes','إضافة '+amt+' إعجاب لـ '+n);}catch(e){}
+    try{el('chatMenu').classList.remove('open');}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* اعتراض بناء قايمة الشات: نضيف الزرار جواها للإدارة */
+var _tcL=window.toggleChatMenu;
+window.toggleChatMenu=function(e){
+  try{
+    if(e)e.stopPropagation();
+    var menu=el('chatMenu');
+    if(!menu)return _tcL?_tcL(e):undefined;
+    if(chat&&chat.type==='user'&&isAdmL()){
+      var _mm=(me&&me.allowMedia===false)?'<button onclick="toggleMediaPerm()" id="mediaPermBtn">🖼️ '+(me.mediaBlock&&me.mediaBlock[chat.id]?'السماح بالوسائط':'منع الوسائط')+'</button>':'';
+      menu.innerHTML=_mm
+      +'<button onclick="doAddLikesAdmin()">❤️ إضافة إعجابات</button>'
+      +'<button onclick="openReport()">🚨 إبلاغ الإدارة</button>'
+      +'<button onclick="toggleChatSearch()">🔍 بحث في المحادثة</button>'
+      +'<button onclick="delChat()">🗑️ حذف المحادثة</button>'
+      +'<button onclick="blockTarget()" id="chatBlockBtn">⛔ حظر المستخدم</button>';
+      menu.classList.toggle('open');
+      return;
+    }
+    /* باقي الحالات: السلوك الأصلي */
+  }catch(err){}
+  return _tcL?_tcL(e):undefined;
+};
+
+/* العد الإجمالي يحسب المجمعة */
+window.totalLikes=function(u){
+  try{
+    var arr=Array.isArray(u&&u.profile_likes)?u.profile_likes:[];
+    var t=0;
+    arr.forEach(function(v){t+=(v&&v.bulk)?v.bulk:1;});
+    return t;
+  }catch(e){return 0;}
+};
+
+/* التنبيهين المختلفين */
+window.checkLikeNotices=async function(){
+  try{
+    if(!me)return;
+    var s=await SDB.loadSettings();
+    var notes=Array.isArray(s.like_notices)?s.like_notices:[];
+    var seen=parseInt(LS.getItem('like_seen')||'0');
+    var mine=notes.filter(function(x){return x&&x.to===me.name&&(x.time||0)>seen;});
+    if(!mine.length)return;
+    LS.setItem('like_seen',String(Date.now()));
+    var bulk=mine.filter(function(x){return x.bulk;});
+    var single=mine.filter(function(x){return !x.bulk;});
+    var list='';
+    bulk.forEach(function(x){
+      list+='<div style="background:linear-gradient(135deg,#1a1a3a,#0f0f20);border:1px solid rgba(125,211,252,.5);border-radius:14px;padding:14px;margin-bottom:8px;text-align:center">'
+      +'<div style="font-size:30px">❤️</div>'
+      +'<div style="font-size:15px;font-weight:900;color:#7dd3fc;margin-top:4px">تم تغيير اعجباتك!</div>'
+      +'<div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:4px">أضافت لك الإدارة <b style="color:#7dd3fc">'+x.bulk+'</b> إعجاب</div>'
+      +'<div style="font-size:11px;color:var(--mut);margin-top:3px">افتح بروفايلك وشوف رصيدك 👀</div></div>';
+    });
+    single.forEach(function(x){
+      list+='<div style="background:linear-gradient(135deg,#3a1a1a,#1a0f0f);border:1px solid rgba(239,68,68,.5);border-radius:14px;padding:12px;margin-bottom:8px;text-align:center">'
+      +'<div style="font-size:30px">❤️</div>'
+      +'<div style="font-size:14px;font-weight:900;color:#fca5a5;margin-top:3px">'+escapeHtml(getMsgName(x.from))+' قام بالاعجاب بك!</div></div>';
+    });
+    var m=document.createElement('div');m.id='likeNoticeModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:320px;max-height:85vh;overflow-y:auto"><h3 style="text-align:center;color:#fca5a5">❤️ إعجابات جديدة</h3>'+list
+    +'<button style="background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff" onclick="closeModal(\'likeNoticeModal\')">شكراً! 🎉</button></div>';
+    m.onclick=function(e){if(e.target===m)closeModal('likeNoticeModal');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+    if(me.sndNotif!==false)try{beep(1100);}catch(e){}
+  }catch(e){}
+};
+})();
 /* ===== ❤️ الاعجابات: قلب واحد بس + مين أعجب بيك + تنبيه ===== */
 (function(){
 if(window._profLikeOne)return;window._profLikeOne=true;
@@ -15326,7 +15429,12 @@ function getLikes(u){
   }catch(e){return{};}
 }
 function totalLikes(u){
-  try{return Array.isArray(u&&u.profile_likes)?u.profile_likes.length:0;}catch(e){return 0;}
+  try{
+    var arr=Array.isArray(u&&u.profile_likes)?u.profile_likes:[];
+    var t=0;
+    arr.forEach(function(v){t+=(v&&v.bulk)?v.bulk:1;});
+    return t;
+  }catch(e){return 0;}
 }
 
 /* 1) كارت الاعجابات جوه البروفايل */
