@@ -15312,3 +15312,154 @@ var _ivFp=setInterval(function(){
   }catch(e){}
 },3000);
 })();
+/* ===== ❤️ الاعجابات: قلب واحد بس + مين أعجب بيك + تنبيه ===== */
+(function(){
+if(window._profLikeOne)return;window._profLikeOne=true;
+var COOLDOWN=30000; /* 30 ثانية بين كل إعجاب لنفس البروفايل */
+
+function getLikes(u){
+  try{
+    var out={};
+    var arr=Array.isArray(u&&u.profile_likes)?u.profile_likes:[];
+    arr.forEach(function(v){if(v&&v.from)out[v.from]=(out[v.from]||0)+1;});
+    return out;
+  }catch(e){return{};}
+}
+function totalLikes(u){
+  try{return Array.isArray(u&&u.profile_likes)?u.profile_likes.length:0;}catch(e){return 0;}
+}
+
+/* 1) كارت الاعجابات جوه البروفايل */
+var _oupL1=window.openUserProfile;
+window.openUserProfile=function(name){
+  var r=_oupL1(name);
+  try{
+    setTimeout(async function(){
+      try{
+        var modal=el('userProfileModal');
+        if(!modal||!modal.classList.contains('open'))return;
+        var anchor=el('upName')?el('upName').parentElement:null;
+        if(!anchor)return;
+        var old=el('profLikesBox');if(old)old.remove();
+        var u=await SDB.getUser(name);
+        if(!u)return;
+        var isMine=(me&&name===me.name);
+        var tot=totalLikes(u);
+        var box=document.createElement('div');
+        box.id='profLikesBox';
+        box.style.cssText='margin:8px 16px 10px;background:linear-gradient(135deg,#1a1033,#3d1b5e);border:1px solid rgba(239,68,68,.35);border-radius:14px;padding:12px;text-align:center';
+        var h='<div style="font-size:12px;font-weight:bold;color:#fca5a5;margin-bottom:8px">اعجابات الملف <span style="color:rgba(255,255,255,.55)">(إجمالي '+tot+')</span></div>';
+        if(isMine){
+          h+='<div style="font-size:34px;filter:drop-shadow(0 0 8px rgba(239,68,68,.5))">❤️</div>';
+          h+='<div style="font-size:22px;font-weight:900;color:#fff;margin-top:4px">'+tot+'</div>';
+          if(tot>0)h+='<div onclick="openMyLikedBy()" style="margin-top:8px;font-size:11.5px;color:#7dd3fc;font-weight:bold;cursor:pointer">👁️ شوف مين أعجب بيك</div>';
+        }else{
+          h+='<div onclick="giveProfileLike(\''+String(name).replace(/'/g,"\\'")+'\')" style="display:inline-flex;align-items:center;gap:8px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.45);border-radius:20px;padding:9px 22px;cursor:pointer;transition:transform .15s" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'\'">';
+          h+='<span style="font-size:24px">❤️</span><span style="font-size:13.5px;font-weight:900;color:#fca5a5">اعجبني</span></div>';
+        }
+        box.innerHTML=h;
+        anchor.parentElement.insertBefore(box,anchor.nextSibling);
+      }catch(e){}
+    },800);
+  }catch(e){}
+  return r;
+};
+
+/* 2) الإعجاب: تسجيل + تنبيه + كولداون (إعجاب واحد لكل شخص ما؟ لأ — ممكن يعيد بعد كولداون) */
+window.giveProfileLike=async function(target){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    if(target===me.name)return;
+    if(isBlockedByOther(target))return toast('⛔ محظور من هذا المستخدم');
+    var key='plike_'+target;
+    var last=parseInt(LS.getItem(key)||'0');
+    var left=COOLDOWN-(Date.now()-last);
+    if(left>0){toast('⏳ استنى '+Math.ceil(left/1000)+' ثانية');return;}
+    var u=await SDB.getUser(target);
+    if(!u)return toast('العضو غير موجود');
+    var arr=Array.isArray(u.profile_likes)?u.profile_likes:[];
+    arr.push({from:me.name,em:'❤️',time:Date.now()});
+    if(arr.length>300)arr=arr.slice(-300);
+    await SDB.patchUser(target,{profile_likes:arr});
+    LS.setItem(key,String(Date.now()));
+    /* تنبيه للطرف التاني */
+    try{
+      var s=await SDB.loadSettings();
+      var notes=Array.isArray(s.like_notices)?s.like_notices:[];
+      notes.push({to:target,from:me.name,em:'❤️',time:Date.now()});
+      if(notes.length>300)notes=notes.slice(-300);
+      await SDB.saveSetting('like_notices',notes);
+    }catch(e){}
+    toast('❤️ وصل إعجابك لـ '+getMsgName(target)+'!');
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* 3) قايمة "مين أعجب بيك" */
+window.openMyLikedBy=function(){
+  try{
+    var old=el('likedByModal');if(old)old.remove();
+    var m=document.createElement('div');m.id='likedByModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:330px;max-height:85vh;overflow-y:auto">'
+    +'<h3>❤️ اللي أعجبوا بملفك</h3>'
+    +'<div id="likedByList" style="max-height:55vh;overflow-y:auto"><div style="text-align:center;color:var(--mut);padding:15px">جاري التحميل...</div></div>'
+    +'<button style="background:var(--acc);color:#fff" onclick="closeModal(\'likedByModal\')">إغلاق</button></div>';
+    m.onclick=function(e){if(e.target===m)closeModal('likedByModal');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+    SDB.getUser(me.name).then(function(u){
+      var list=el('likedByList');if(!list)return;
+      var counts=getLikes(u);
+      var arr=Array.isArray(u&&u.profile_likes)?u.profile_likes:[];
+      arr.sort(function(a,b){return (b.time||0)-(a.time||0);});
+      if(!arr.length){list.innerHTML='<div style="text-align:center;color:var(--mut);padding:20px;font-size:13px">لسه محدش أعجب بملفك 🙈</div>';return;}
+      var h='';
+      arr.slice(0,80).forEach(function(v){
+        var uu=usersCache[v.from];
+        var d=Math.floor((Date.now()-(v.time||0))/1000);
+        var ago=(d<60)?'الآن':(d<3600)?'من '+Math.floor(d/60)+' د':(d<86400)?'من '+Math.floor(d/3600)+' س':('من '+Math.floor(d/86400)+' يوم');
+        h+='<div class="u-card" style="margin-bottom:6px;padding:8px 12px" onclick="closeModal(\'likedByModal\');openUserProfile(\''+String(v.from).replace(/'/g,"\\'")+'\')">'
+        +(window.getAvatarHTML?getAvatarHTML(uu||{},36):'<div class="u-ava" style="width:36px;height:36px">👤</div>')
+        +'<div style="flex:1;min-width:0"><div class="u-name" style="font-size:12.5px">'+escapeHtml(getMsgName(v.from))+'</div>'
+        +'<div style="font-size:10px;color:var(--mut)">'+ago+' • '+((counts[v.from]||1)>1?('أعجب '+(counts[v.from])+' مرات'):'أول مرة')+'</div></div>'
+        +'<span style="font-size:20px">❤️</span></div>';
+      });
+      list.innerHTML=h;
+    });
+  }catch(e){}
+};
+
+/* 4) التنبيه الفوري: "قام بالاعجاب بك" */
+window.checkLikeNotices=async function(){
+  try{
+    if(!me)return;
+    var s=await SDB.loadSettings();
+    var notes=Array.isArray(s.like_notices)?s.like_notices:[];
+    var seen=parseInt(LS.getItem('like_seen')||'0');
+    var mine=notes.filter(function(x){return x&&x.to===me.name&&(x.time||0)>seen;});
+    if(!mine.length)return;
+    LS.setItem('like_seen',String(Date.now()));
+    var list='';
+    mine.slice(0,5).forEach(function(x){
+      list+='<div style="background:linear-gradient(135deg,#3a1a1a,#1a0f0f);border:1px solid rgba(239,68,68,.5);border-radius:14px;padding:12px;margin-bottom:8px;text-align:center">'
+      +'<div style="font-size:30px">❤️</div>'
+      +'<div style="font-size:14px;font-weight:900;color:#fca5a5;margin-top:3px">قام بالاعجاب بك!</div>'
+      +'<div style="font-size:12px;color:rgba(255,255,255,.8);margin-top:3px">'+escapeHtml(getMsgName(x.from))+'</div></div>';
+    });
+    var more=(mine.length>5)?('<div style="font-size:11px;color:var(--mut);text-align:center;margin-bottom:8px">و'+(mine.length-5)+' إعجابات تانية ❤️</div>'):'';
+    var m=document.createElement('div');m.id='likeNoticeModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:320px;max-height:85vh;overflow-y:auto"><h3 style="text-align:center;color:#fca5a5">❤️ إعجابات جديدة</h3>'+list+more
+    +'<button style="background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff" onclick="closeModal(\'likeNoticeModal\')">شكراً! 🎉</button></div>';
+    m.onclick=function(e){if(e.target===m)closeModal('likeNoticeModal');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+    if(me.sndNotif!==false)try{beep(1100);}catch(e){}
+  }catch(e){}
+};
+var _saPL1=window.startAll;
+window.startAll=async function(){
+  var r=await _saPL1();
+  try{setTimeout(checkLikeNotices,2500);}catch(e){}
+  return r;
+};
+setInterval(function(){try{checkLikeNotices();}catch(e){}},25000);
+})();
