@@ -16743,3 +16743,105 @@ window.openGiftBadgeChat=async function(){
   return r;
 };
 })();
+/* ===== 🏅 الشارة المهدية تظهر دايماً + مزامنة فورية للمميزات ===== */
+(function(){
+if(window._badgeShowAll)return;window._badgeShowAll=true;
+
+/* 1) styleName جديد: أي شارة (هدية أو مشتراة) تظهر — الهدية الأول */
+var _snSA=window.styleName;
+window.styleName=function(u){
+  try{
+    if(u&&u.gift_badges&&u.gift_badges.length){
+      var now=Date.now(),live=null;
+      for(var i=u.gift_badges.length-1;i>=0;i--){
+        if(u.gift_badges[i]&&u.gift_badges[i].exp>now){live=u.gift_badges[i];break;}
+      }
+      if(live){
+        var base=_snSA?_snSA(u):escapeHtml(getDisplayName(u));
+        /* لو الاسم فيه شارة مشتراة — نشيلها ونحط الهدية مكانها */
+        if(u.active_badge_url){
+          var imgTag='<img src="'+u.active_badge_url+'"';
+          var idx=base.indexOf(imgTag);
+          if(idx>-1){
+            return base.substring(0,idx)
+            +'<img src="'+live.url+'" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:3px;filter:drop-shadow(0 0 4px rgba(255,215,0,.5))">'
+            +base.substring(idx+imgTag.length+base.substring(idx+imgTag.length).indexOf('>')+1);
+          }
+        }
+        return base+' <img src="'+live.url+'" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-right:3px;filter:drop-shadow(0 0 4px rgba(255,215,0,.5))">';
+      }
+    }
+  }catch(e){}
+  return _snSA?_snSA(u):'';
+};
+
+/* 2) مزامنة فورية كل 5 ثواني بدل الدقيقة */
+function syncFast(){
+  try{
+    if(!me)return;
+    /* من كاش المستخدمين (بيتحدث realtime) */
+    var u=usersCache[me.name];
+    if(!u)return;
+    /* الشارة المهدية */
+    if(u.gift_badges&&u.gift_badges.length&&(!me.gift_badges||JSON.stringify(me.gift_badges)!==JSON.stringify(u.gift_badges))){
+      me.gift_badges=u.gift_badges;
+    }
+    /* مميزات الشارة: من الإعدادات */
+    var needFetch=false;
+    if(me.active_badge){
+      var cur=Array.isArray(me.badge_perks)?me.badge_perks.sort().join():'';
+      var key='bp_sync_'+me.active_badge;
+      if(LS.getItem(key)!==cur){
+        needFetch=true;
+        LS.setItem(key,cur);
+      }
+    }
+    if(needFetch||u.badge_perks){
+      SDB.loadSettings().then(function(s){
+        var map=(s&&s.badge_perks)||{};
+        var list=(me.active_badge&&map[me.active_badge])||[];
+        var cl=Array.isArray(me.badge_perks)?me.badge_perks.sort().join():'';
+        var nl=list.slice().sort().join();
+        if(cl!==nl){
+          me.badge_perks=list;
+          toast('✨ مميزات شارتك اتحدثت');
+          try{updateProfile();}catch(e){}
+        }
+      }).catch(function(){});
+    }
+  }catch(e){}
+}
+setInterval(syncFast,5000);
+setTimeout(syncFast,1000);
+
+/* 3) بعد استلام إشعار الهدية: مزامنة فورية جداً */
+var _saBS=window.startAll;
+window.startAll=async function(){
+  var r=await _saBS();
+  try{
+    setTimeout(async function(){
+      try{
+        if(!me)return;
+        var u=await SDB.getUser(me.name);
+        if(u&&u.gift_badges&&u.gift_badges.length){
+          me.gift_badges=u.gift_badges;
+          if(usersCache[me.name])usersCache[me.name].gift_badges=u.gift_badges;
+          try{updateProfile();}catch(e){}
+          try{renderOnline();}catch(e){}
+        }
+        if(u&&u.badge_perks){me.badge_perks=u.badge_perks;}
+      }catch(e){}
+    },1500);
+  }catch(e){}
+  return r;
+};
+
+/* 4) إطار الصورة: افتح الحق فوراً لو الشارة معاها الميزة (بدون انتظار المزامنة) */
+var _cUF=window.canUseFrames;
+window.canUseFrames=function(){
+  try{
+    if(me&&me.active_badge&&Array.isArray(me.badge_perks)&&me.badge_perks.indexOf('frame')>-1)return true;
+  }catch(e){}
+  return _cUF?_cUF():false;
+};
+})();
