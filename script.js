@@ -15641,3 +15641,5 @@ window.openUserProfile=function(name){
   return r;
 };
 })();
+var self=(u.name===me.name);
+if(self)continue; /* عمرك انت ظاهر ليك دايماً */
