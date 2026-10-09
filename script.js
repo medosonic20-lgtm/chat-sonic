@@ -16514,3 +16514,232 @@ try{
   document.head.appendChild(st);
 }catch(e){}
 })();
+/* ===== 🏅 إهداء شارة من قايمة الشات — للإدارة (نظام الهدايا الموجود) ===== */
+(function(){
+if(window._giftBadgeChat)return;window._giftBadgeChat=true;
+
+/* 1) نافذة الإهداء: اختيار شارة + أيام */
+window.openGiftBadgeChat=async function(){
+  try{
+    if(!me||!isOwnerName(me.name)&&!isAdmin())return toast('ممنوع — للإدارة فقط');
+    if(!chat||chat.type!=='user')return toast('افتح محادثة خاصة أولاً');
+    var target=chat.id;
+    if(isOwnerName(target))return toast('👑 صاحب الموقع محتاج هدية؟ 😄');
+    var old=el('gbChatModal');if(old)old.remove();
+    window._gbcSel=null;
+    var m=document.createElement('div');m.id='gbChatModal';m.className='modal';
+    m.innerHTML='<div class="m-card2" style="width:330px;max-height:88vh;overflow-y:auto">'
+    +'<h3 style="color:#FFD700">🏅 إهداء شارة</h3>'
+    +'<p style="font-size:12.5px;text-align:center;color:var(--txt)">الهدية لـ: <b style="color:var(--acc)">'+escapeHtml(getMsgName(target))+'</b></p>'
+    +'<div style="font-size:12px;color:var(--mut);margin-bottom:6px">اختار الشارة:</div>'
+    +'<div id="gbcList" style="display:flex;gap:8px;overflow-x:auto;padding:6px 2px 10px"><div style="color:var(--mut);font-size:12px">جاري التحميل...</div></div>'
+    +'<div style="font-size:12px;color:var(--mut);margin-bottom:6px">عدد الأيام:</div>'
+    +'<input id="gbcDays" type="number" min="1" value="3" style="width:100%;padding:10px;background:var(--bg);border:2px solid #FFD700;color:var(--txt);border-radius:10px;font-size:16px;font-weight:900;text-align:center">'
+    +'<div style="display:flex;gap:6px;justify-content:center;margin:8px 0">'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0" onclick="el(\'gbcDays\').value=1">يوم</button>'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0" onclick="el(\'gbcDays\').value=3">3 أيام</button>'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0" onclick="el(\'gbcDays\').value=7">7 أيام</button>'
+    +'<button class="adm-btn" style="background:var(--card2);color:var(--txt);margin:0" onclick="el(\'gbcDays\').value=30">30 يوم</button>'
+    +'</div>'
+    +'<button style="background:var(--grn);color:#fff" onclick="doGiftBadgeChat(\''+String(target).replace(/'/g,"\\'")+'\')">🎁 تنفيذ الإهداء</button>'
+    +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'gbChatModal\')">إلغاء</button></div>';
+    m.onclick=function(e){if(e.target===m)closeModal('gbChatModal');};
+    document.body.appendChild(m);
+    m.classList.add('open');
+    /* تحميل الشارات */
+    var d=await sb.from('badges').select('*').order('id',{ascending:true});
+    window._gbcItems=(d.data||[]);
+    var list=el('gbcList');if(!list)return;
+    if(!window._gbcItems.length){list.innerHTML='<div style="color:var(--mut);font-size:12px">لا توجد شارات — أضفها من متجر الشارات أولاً</div>';return;}
+    var hh='';
+    window._gbcItems.forEach(function(b,i){
+      hh+='<div onclick="pickGbcBadge('+i+')" id="gbcItem'+i+'" style="min-width:84px;cursor:pointer;border:2px solid var(--line);border-radius:12px;padding:8px;text-align:center;background:var(--bg);flex-shrink:0">';
+      hh+='<img src="'+b.url+'" style="width:46px;height:46px;object-fit:contain"><div style="font-size:9.5px;font-weight:bold;color:var(--txt);margin-top:3px">'+escapeHtml(b.name||'شارة')+'</div></div>';
+    });
+    list.innerHTML=hh;
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+window.pickGbcBadge=function(i){
+  window._gbcSel=i;
+  var items=document.querySelectorAll('[id^="gbcItem"]');
+  for(var k=0;k<items.length;k++)items[k].style.borderColor='var(--line)';
+  var it=el('gbcItem'+i);
+  if(it)it.style.borderColor='#FFD700';
+};
+
+/* 2) تنفيذ الإهداء: نفس نظام الهدايا الموجود (gift_badges + إشعار) */
+window.doGiftBadgeChat=async function(target){
+  try{
+    if(!me||!(isOwnerName(me.name)||isAdmin()))return toast('ممنوع');
+    if(window._gbcSel===null||window._gbcSel===undefined)return toast('اختار الشارة الأول');
+    var b=window._gbcItems[window._gbcSel];if(!b)return toast('اختار الشارة الأول');
+    var days=parseInt(el('gbcDays').value);
+    if(isNaN(days)||days<1)return toast('اكتب عدد الأيام');
+    if(!confirm('إهداء شارة «'+(b.name||'')+'» لـ '+getMsgName(target)+' لمدة '+days+' يوم؟'))return;
+    var u=await SDB.getUser(target);
+    if(!u)return toast('العضو غير موجود');
+    var now=Date.now();
+    var arr=Array.isArray(u.gift_badges)?u.gift_badges:[];
+    arr.push({url:b.url,name:b.name||'شارة',exp:now+days*86400000,by:me.name,time:now});
+    await SDB.patchUser(target,{gift_badges:arr});
+    /* مزامنة مميزات الشارة لو معاها */
+    try{
+      var s=await SDB.loadSettings();
+      var map=(s&&s.badge_perks)||{};
+      var perks=map[b.id]||[];
+      if(perks.length){
+        var myP=Array.isArray(u.badge_perks)?u.badge_perks:[];
+        perks.forEach(function(p){if(myP.indexOf(p)===-1)myP.push(p);});
+        await SDB.patchUser(target,{badge_perks:myP});
+      }
+    }catch(e){}
+    /* إشعار التهنئة (نظام gb2_notices الموجود) */
+    try{
+      var s2=await SDB.loadSettings();
+      var notes=Array.isArray(s2.gb2_notices)?s2.gb2_notices:[];
+      notes.push({to:target,name:b.name||'شارة',url:b.url,days:days,from:me.name,time:now});
+      if(notes.length>200)notes=notes.slice(-200);
+      await SDB.saveSetting('gb2_notices',notes);
+    }catch(e){}
+    try{el('gbChatModal').remove();}catch(e){}
+    toast('🎁 تم إهداء الشارة لـ '+getMsgName(target)+' لمدة '+days+' يوم');
+    try{logActivity('gift_badge','إهداء شارة «'+(b.name||'')+'» لـ '+target+' لمدة '+days+' يوم');}catch(e){}
+    try{refreshUsers();}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* 3) إضافة الخيار في قايمة الشات — للإدارة فقط */
+var _tcGB=window.toggleChatMenu;
+window.toggleChatMenu=function(e){
+  try{
+    if(e)e.stopPropagation();
+    var menu=el('chatMenu');
+    if(!menu)return _tcGB?_tcGB(e):undefined;
+    if(chat&&chat.type==='user'&&(isOwnerName(me.name)||isAdmin())){
+      var target=String(chat.id).replace(/'/g,"\\'");
+      var _mm=(me&&me.allowMedia===false)?'<button onclick="toggleMediaPerm()" id="mediaPermBtn">🖼️ '+(me.mediaBlock&&me.mediaBlock[chat.id]?'السماح بالوسائط':'منع الوسائط')+'</button>':'';
+      menu.innerHTML=_mm
+      +'<button onclick="openGiftBadgeChat()">🏅 إهداء شارة</button>'
+      +'<button onclick="doAddLikesAdmin()">❤️ إضافة إعجابات</button>'
+      +'<button onclick="openReport()">🚨 إبلاغ الإدارة</button>'
+      +'<button onclick="toggleChatSearch()">🔍 بحث في المحادثة</button>'
+      +'<button onclick="delChat()">🗑️ حذف المحادثة</button>'
+      +'<button onclick="blockTarget()" id="chatBlockBtn">⛔ حظر المستخدم</button>';
+      menu.classList.toggle('open');
+      return;
+    }
+  }catch(err){}
+  return _tcGB?_tcGB(e):undefined;
+};
+})();
+/* ===== ↩️ سحب إهداء الشارة — زرار جوه نافذة الإهداء (للإدارة) ===== */
+(function(){
+if(window._revokeBadgeChat)return;window._revokeBadgeChat=true;
+
+function isAdmL(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+
+window.doRevokeBadgeChat=async function(){
+  try{
+    if(!chat||chat.type!=='user')return toast('افتح محادثة خاصة أولاً');
+    var target=chat.id;
+    if(isOwnerName(target))return toast('👑 صاحب الموقع؟ 😄');
+    var u=await SDB.getUser(target);
+    if(!u)return toast('العضو غير موجود');
+    var now=Date.now();
+    var live=Array.isArray(u.gift_badges)?u.gift_badges.filter(function(g){return g&&g.exp>now;}):[];
+    if(!live.length)return toast('ℹ️ '+getMsgName(target)+' معندوش شارات مهدية نشطة');
+    var names=[];
+    live.forEach(function(g){names.push(g.name||'شارة');});
+    if(!confirm('سحب الهدية من '+getMsgName(target)+'؟\n\nالشارات المهدية: '+names.join('، ')+'\n\nسيتم إزالة:\n• الشارة من جنب اسمه\n• مميزات الشارة (موسيقى/خلفية/إخفاء...)\n\n⚠️ فوراً ولا يمكن التراجع!'))return;
+    var patch={gift_badges:[]};
+    /* مميزات الشارة المهدية تتشال — بس اللي جاية من اشتراكات فلوس تفضل */
+    var keep=[];
+    try{
+      var s=await SDB.loadSettings();
+      var map=(s&&s.badge_perks)||{};
+      live.forEach(function(g){
+        /* نلاقي الشارة الأصلية بنفس الاسم في الجدول */
+        var bid=null;
+        try{var d=window._gbcItems||[];d.forEach(function(x){if((x.name||'')===g.name)bid=x.id;});}catch(e2){}
+        var perks=bid?(map[bid]||[]):[];
+        perks.forEach(function(p){
+          /* نحتفظ بيها بس لو معاه اشتراك فعال بنفسها */
+          var hasSub=false;
+          if(p==='music')hasSub=!!(u.musicExp&&u.musicExp>now);
+          else if(p==='anim')hasSub=!!(u.animBgExp&&u.animBgExp>now);
+          else if(p==='age')hasSub=!!(u.ageHideExp&&u.ageHideExp>now);
+          else if(p==='prime')hasSub=!!(u.primeExp&&u.primeExp>now);
+          else if(p==='frame')hasSub=!!(u.frameExp&&u.frameExp>now);
+          if(hasSub&&keep.indexOf(p)===-1)keep.push(p);
+        });
+      });
+    }catch(e){}
+    /* المميزات الباقية = اللي من اشتراكات فلوس بس — ولو مفيش نشيلها كلها */
+    var subAny=(u.musicExp&&u.musicExp>now)||(u.animBgExp&&u.animBgExp>now)||(u.ageHideExp&&u.ageHideExp>now)||(u.primeExp&&u.primeExp>now)||(u.frameExp&&u.frameExp>now);
+    if(!subAny)patch.badge_perks=[];
+    else if(keep.length)patch.badge_perks=keep;
+    else patch.badge_perks=[];
+    await SDB.patchUser(target,patch);
+    toast('↩️ تم سحب الهدية من '+getMsgName(target));
+    try{logActivity('revoke_badge','سحب شارة مهدية من '+target);}catch(e){}
+    try{el('gbChatModal').remove();}catch(e){}
+    try{refreshUsers();}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* نزرع الزرار في نافذة الإهداء بعد ما تترسم */
+var _ouG=window.openGiftBadgeChat;
+window.openGiftBadgeChat=async function(){
+  var r=_ouG?await _ouG():undefined;
+  try{
+    if(!isAdmL())return r;
+    setTimeout(function(){
+      try{
+        var m=el('gbChatModal');
+        if(!m||!m.classList.contains('open')||el('gbcRevoke'))return;
+        /* نلاقي زرار التنفيذ ونجيب والده */
+        var btns=m.querySelectorAll('button');
+        var exec=null;
+        for(var i=0;i<btns.length;i++){
+          if((btns[i].innerText||'').indexOf('تنفيذ الإهداء')>-1){exec=btns[i];break;}
+        }
+        if(!exec)return;
+        var rb=document.createElement('button');
+        rb.id='gbcRevoke';
+        rb.style.cssText='background:var(--red,#e64553);color:#fff;margin-top:8px';
+        rb.innerHTML='↩️ سحب الإهداء';
+        rb.onclick=function(){
+          try{m.remove();}catch(e){}
+          setTimeout(window.doRevokeBadgeChat,150);
+        };
+        exec.parentElement.insertBefore(rb,exec.nextSibling);
+      }catch(e){}
+    },80);
+    setTimeout(function(){
+      try{
+        var m=el('gbChatModal');
+        if(m&&m.classList.contains('open')&&!el('gbcRevoke')){
+          var btns=m.querySelectorAll('button');
+          var exec=null;
+          for(var i=0;i<btns.length;i++){
+            if((btns[i].innerText||'').indexOf('تنفيذ الإهداء')>-1){exec=btns[i];break;}
+          }
+          if(exec){
+            var rb=document.createElement('button');
+            rb.id='gbcRevoke';
+            rb.style.cssText='background:var(--red,#e64553);color:#fff;margin-top:8px';
+            rb.innerHTML='↩️ سحب الإهداء';
+            rb.onclick=function(){
+              try{m.remove();}catch(e){}
+              setTimeout(window.doRevokeBadgeChat,150);
+            };
+            exec.parentElement.insertBefore(rb,exec.nextSibling);
+          }
+        }
+      }catch(e){}
+    },350);
+  }catch(e){}
+  return r;
+};
+})();
