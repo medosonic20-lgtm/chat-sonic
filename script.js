@@ -15571,3 +15571,73 @@ window.startAll=async function(){
 };
 setInterval(function(){try{checkLikeNotices();}catch(e){}},25000);
 })();
+/* ===== 🙈 إخفاء العمر: يشمل الجميع — الإدارة تشوف الحقيقة في اللوحة بس ===== */
+(function(){
+if(window._ageMaskAll)return;window._ageMaskAll=true;
+
+function isHiddenAge(u){
+  try{return u&&u.ageHideExp&&u.ageHideExp>Date.now()&&u.ageHideOn!==false;}catch(e){return false;}
+}
+
+function maskAll(){
+  try{
+    if(!me)return;
+    var box=el('usersList');
+    if(!box)return;
+    var kids=box.querySelectorAll('.u-card');
+    for(var i=0;i<kids.length;i++){
+      var oc=kids[i].getAttribute('onclick')||'';
+      var m=oc.match(/openUser\('([^']+)'\)/);
+      if(!m)continue;
+      var u=usersCache[m[1]];
+      if(!u)continue;
+      var self=(u.name===me.name);
+      if(self)continue; /* عمرك انت ظاهر ليك دايماً */
+      var nm=kids[i].querySelector('.u-name');
+      if(!nm)continue;
+      var html=nm.innerHTML;
+      var hidden=isHiddenAge(u);
+      if(hidden){
+        if(html.indexOf('(<b')>-1)continue;
+        nm.innerHTML=html.replace(/\(\s*\d{1,3}\s*\)/,'(<b style="opacity:.6">--</b>)');
+      }else{
+        /* مش مخفي: رجّع الرقم لو كان متقنّع غلط */
+        if(html.indexOf('(<b')>-1)nm.innerHTML=html.replace(/\(<b[^>]*>--<\/b>\)/,'('+(u.age||'--')+')');
+      }
+    }
+  }catch(e){}
+}
+
+var _roMA=window.renderOnline;
+window.renderOnline=function(){
+  var r=_roMA.apply(this,arguments);
+  try{maskAll();}catch(e){}
+  return r;
+};
+setTimeout(maskAll,1000);
+setTimeout(maskAll,2500);
+
+/* البروفايل برضه: الإدارة تشوف (-- لغيرها) */
+var _ouMA=window.openUserProfile;
+window.openUserProfile=function(name){
+  var r=_ouMA(name);
+  try{
+    setTimeout(async function(){
+      try{
+        if(!me)return;
+        if(name===me.name)return; /* بروفايلك: عمرك ظاهر ليك */
+        var nm=el('upName');
+        if(!nm)return;
+        var u=await SDB.getUser(name);
+        var uu=usersCache[name]||{};
+        if(u&&isHiddenAge(u)){
+          nm.innerHTML=nm.innerHTML.replace(/\d+\s*سنة/,'-- سنة');
+        }else{
+          if(nm.innerHTML.indexOf('-- سنة')>-1)nm.innerHTML=nm.innerHTML.replace(/--\s*سنة/,(uu.age||'--')+' سنة');
+        }
+      }catch(e){}
+    },400);
+  }catch(e){}
+  return r;
+};
+})();
