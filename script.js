@@ -16845,3 +16845,41 @@ window.canUseFrames=function(){
   return _cUF?_cUF():false;
 };
 })();
+/* ===== 🟢 نظام الحضور الذكي: النشاط المحلي بدل مقارنة الساعات ===== */
+(function(){
+if(window._presenceAct)return;window._presenceAct=true;
+
+/* خريطة: مين بعتلنا أي إشارة حياة ومتى (بتوقيتنا إحنا) */
+var act={};
+
+/* 1) نشوف تحديثات المستخدمين الواصلة من السيرفر = إشارة حياة */
+try{
+  sb.channel('rt-activity-obs')
+  .on('postgres_changes',{event:'*',schema:'public',table:'users'},function(payload){
+    try{var row=payload.new;if(row&&row.name)act[row.name]=Date.now();}catch(e){}
+  }).subscribe();
+}catch(e){}
+
+/* 2) رسالة وصلت من حد = هو نشط دلوقتي أكيد */
+var _apPA=window.appendMsg;
+window.appendMsg=function(m){
+  try{if(m&&m.from&&m.from!==(me&&me.name))act[m.from]=Date.now();}catch(e){}
+  return _apPA(m);
+};
+
+/* 3) حد بيكتب في الشات = نشط */
+var _oTU=window.updateTypingUI;
+window.updateTypingUI=function(){
+  try{for(var k in typersSet){act[k]=Date.now();}}catch(e){}
+  return _oTU?_oTU():undefined;
+};
+
+/* 4) isOnline الجديد: نشاط حديث (60 ثانية) = نشط — بغض النظر عن ساعة أي جهاز */
+var _oldIO=window.isOnline;
+window.isOnline=function(u){
+  try{
+    if(u&&u.name&&act[u.name]&&(Date.now()-act[u.name])<60000)return true;
+  }catch(e){}
+  return _oldIO(u);
+};
+})();
