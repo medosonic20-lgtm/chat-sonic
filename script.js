@@ -16504,3 +16504,13 @@ window.renderCoinsHub=function(){
 
 try{if(el('s-coins')&&el('s-coins').classList.contains('active'))renderCoinsHub();}catch(e){}
 })();
+/* ===== 📌 إيقاف أنيميشن الفقاعات: مفيش ميلان ولا حركة — ثبات تام ===== */
+(function(){
+if(window._noBubAnim)return;window._noBubAnim=true;
+try{
+  var st=document.createElement('style');
+  st.id='noBubAnimCSS';
+  st.textContent='.bub,.bub *{animation:none!important;transition:none!important;transform:none!important}';
+  document.head.appendChild(st);
+}catch(e){}
+})();
