@@ -15678,3 +15678,83 @@ setInterval(function(){
   }catch(e){}
 },2000);
 })();
+
+/* ===== 🚀 شاشة البداية سونيك — بتستنى الصورة تحمل الأول ===== */
+(function(){
+if(window._sonicSplashY)return;window._sonicSplashY=true;
+
+var SPLASH_IMG='https://cdn.phototourl.com/member/2026-10-09-fde1176d-b0be-463a-b187-9dd3450cc9e4.jpg';
+
+/* 1) قتل القديمة المكسورة */
+function killOld(){
+  try{var s=el('splash-screen');if(s)s.remove();}catch(e){}
+}
+killOld();
+var _n=0;
+var _iv=setInterval(function(){
+  try{
+    var s=el('splash-screen');
+    if(s){s.remove();clearInterval(_iv);}
+    _n++;if(_n>80)clearInterval(_iv);
+  }catch(e){}
+},50);
+
+/* 2) الشاشة: المربع متوهج — الصورة بتتحمّل بره الأول */
+var sp=document.createElement('div');
+sp.id='sonicSplashY';
+sp.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;'
++'background:linear-gradient(160deg,#0a1030 0%,#0d1a4a 45%,#123a7a 100%);'
++'transition:opacity .6s ease,transform .6s ease';
+sp.innerHTML='<div id="splashBoxY" style="width:280px;height:280px;max-width:72vw;max-height:72vw;border-radius:26px;overflow:hidden;background:#05070f;box-shadow:0 0 40px rgba(236,72,153,.55),0 0 90px rgba(168,85,247,.45);border:1px solid rgba(168,85,247,.35)"></div>';
+try{document.body.appendChild(sp);}catch(e){}
+
+/* 3) أنيميشن التوهج */
+try{
+  var st=document.createElement('style');
+  st.textContent='@keyframes splashGlowY{0%{box-shadow:0 0 40px rgba(236,72,153,.55),0 0 90px rgba(168,85,247,.45)}100%{box-shadow:0 0 55px rgba(236,72,153,.75),0 0 120px rgba(168,85,247,.6)}}#splashBoxY{animation:splashGlowY 1.6s ease-in-out infinite alternate}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* 4) تحميل الصورة الأول — وبعدها العرض + العد */
+function hideSplash(){
+  try{
+    sp.style.opacity='0';
+    sp.style.transform='scale(1.1)';
+    setTimeout(function(){try{sp.remove();}catch(e){}},650);
+  }catch(e){}
+}
+var img=new Image();
+var done=false;
+img.onload=function(){
+  if(done)return;done=true;
+  try{
+    var box=el('splashBoxY');
+    if(box)box.innerHTML='<img src="'+SPLASH_IMG+'" style="width:100%;height:100%;object-fit:cover">';
+    /* الصورة ظهرت — دلوقتي نبدأ العد */
+    setTimeout(hideSplash,1300);
+  }catch(e){hideSplash();}
+};
+img.onerror=function(){
+  if(done)return;done=true;
+  /* المحاولة الثانية (مرة واحدة) */
+  var img2=new Image();
+  img2.onload=function(){
+    try{
+      var box=el('splashBoxY');
+      if(box)box.innerHTML='<img src="'+SPLASH_IMG+'?v=2" style="width:100%;height:100%;object-fit:cover">';
+      setTimeout(hideSplash,1300);
+    }catch(e){hideSplash();}
+  };
+  img2.onerror=function(){
+    /* الصورة مكسورة فعلاً — نشيل الشاشة ونكمل عادي */
+    hideSplash();
+  };
+  img2.src=SPLASH_IMG+'?v=2';
+};
+img.src=SPLASH_IMG;
+
+/* 5) حد أقصى للانتظار: 6 ثواني — لو أي حاجة اتلخبطت، نكمل */
+setTimeout(function(){
+  if(!done){done=true;hideSplash();}
+},6000);
+})();
