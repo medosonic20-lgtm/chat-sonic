@@ -16404,3 +16404,103 @@ setInterval(function(){
   }catch(e){}
 },2200);
 })();
+   /* ===== 💰 باقات صغيرة إضافية: من 35ج لـ 100 عملة — القديمة زي ما هي ===== */
+(function(){
+if(window._packsSmall)return;window._packsSmall=true;
+
+/* الباقات الصغيرة الجديدة: [العملة، السعر بالجنيه، الهدية] */
+var SMALL=[
+  [30,15,0],    /* 30 عملة — 15 ج */
+  [40,20,0],    /* 40 عملة — 20 ج */
+  [50,25,0],    /* 50 عملة — 25 ج */
+  [60,28,0],    /* 60 عملة — 28 ج */
+  [65,30,5],    /* 70 عملة — 30 ج */
+  [70,32,5],    /* 75 عملة — 32 ج */
+  [80,36,5],    /* 85 عملة — 36 ج */
+  [85,38,5],    /* 90 عملة — 38 ج */
+  [90,40,5],    /* 95 عملة — 40 ج */
+  [100,45,10]   /* 110 عملة — 45 ج */
+];
+
+/* نحطها في أول شاشة عملاتي (فوق الباقات الكبيرة) */
+var _rCH=window.renderCoinsHub;
+window.renderCoinsHub=function(){
+  var r=_rCH?_rCH():undefined;
+  try{
+    var box=el('coinsHubBody');
+    if(!box||!me)return r;
+    /* نشيل القسم الصغير القديم لو موجود */
+    var old=el('smallPacksSec');
+    if(old)old.remove();
+    var sec=document.createElement('div');
+    sec.id='smallPacksSec';
+    sec.setAttribute('data-small','1');
+    var h='<div style="font-size:14px;font-weight:bold;color:var(--txt);margin:4px 0 10px;padding:0 4px">⚡ باقات صغيرة — ابدأ ببساطة</div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+    SMALL.forEach(function(p){
+      var total=p[0]+p[2],price=p[1];
+      h+='<div onclick="openCoinsPay('+p[0]+','+price+','+p[2]+')" style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 8px;text-align:center;cursor:pointer">';
+      if(p[2]>0)h+='<div style="font-size:9px;color:var(--grn);font-weight:bold">🎁 +'+p[2]+'</div>';
+      else h+='<div style="font-size:9px;opacity:.4">—</div>';
+      h+='<div style="font-size:17px;font-weight:900;color:#FFD700">🪙 '+total+'</div>';
+      h+='<div style="font-size:14px;font-weight:900;color:var(--txt);margin-top:3px">'+price+' ج</div></div>';
+    });
+    h+='</div><div style="height:14px"></div>';
+    sec.innerHTML=h;
+    /* نحطها بعد رصيد العملات مباشرة (تاني عنصر في الشاشة) */
+    var kids=box.children;
+    if(kids.length>1)box.insertBefore(sec,kids[1]);
+    else box.appendChild(sec);
+  }catch(e){}
+  return r;
+};
+
+/* لو شاشة عملاتي مفتوحة دلوقتي — تتحدث فوراً */
+try{if(el('s-coins')&&el('s-coins').classList.contains('active'))renderCoinsHub();}catch(e){}
+})();
+/* ===== 💰 باقات صغيرة: بدون هدايا خالص — نظيفة ===== */
+(function(){
+if(window._packsSmall2)return;window._packsSmall2=true;
+
+/* [العملة، السعر بالجنيه] — مفيش هدايا نهائياً */
+var SMALL=[
+  [30,15],
+  [40,20],
+  [50,25],
+  [60,28],
+  [65,30],
+  [70,32],
+  [80,36],
+  [85,38],
+  [90,40],
+  [100,45]
+];
+
+var _rCH2=window.renderCoinsHub;
+window.renderCoinsHub=function(){
+  var r=_rCH2?_rCH2():undefined;
+  try{
+    var box=el('coinsHubBody');
+    if(!box||!me)return r;
+    var old=el('smallPacksSec');
+    if(old)old.remove();
+    var sec=document.createElement('div');
+    sec.id='smallPacksSec';
+    var h='<div style="font-size:14px;font-weight:bold;color:var(--txt);margin:4px 0 10px;padding:0 4px">⚡ باقات صغيرة — ابدأ ببساطة</div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+    SMALL.forEach(function(p){
+      h+='<div onclick="openCoinsPay('+p[0]+','+p[1]+',0)" style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 8px;text-align:center;cursor:pointer">';
+      h+='<div style="font-size:18px;font-weight:900;color:#FFD700">🪙 '+p[0]+'</div>';
+      h+='<div style="font-size:14px;font-weight:900;color:var(--txt);margin-top:4px">'+p[1]+' ج</div></div>';
+    });
+    h+='</div><div style="height:14px"></div>';
+    sec.innerHTML=h;
+    var kids=box.children;
+    if(kids.length>1)box.insertBefore(sec,kids[1]);
+    else box.appendChild(sec);
+  }catch(e){}
+  return r;
+};
+
+try{if(el('s-coins')&&el('s-coins').classList.contains('active'))renderCoinsHub();}catch(e){}
+})();
