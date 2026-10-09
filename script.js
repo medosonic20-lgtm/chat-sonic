@@ -15913,3 +15913,369 @@ setInterval(async function(){
   }catch(e){}
 },60000);
 })();
+/* ===== 🏅 مميزات الشارات: الإدارة تحدد مميزات كل شارة + صاحبها ياخدها ببلاش ===== */
+(function(){
+if(window._badgePerks)return;window._badgePerks=true;
+
+/* قايمة المميزات المتاحة للشارات */
+var PERKS=[
+ {k:'music',lbl:'🎵 موسيقى البروفايل'},
+ {k:'anim',lbl:'🖼️ خلفية متحركة'},
+ {k:'age',lbl:'🙈 إخفاء العمر'},
+ {k:'prime',lbl:'🔒 امتيازات برايفط'},
+ {k:'entry',lbl:'✨ تأثير الدخول الفخم'}
+];
+window._BADGE_PERKS=PERKS;
+
+/* هل معايا مميزة من الشارة النشطة؟ */
+window.badgeHasPerk=function(k){
+  try{return !!(me&&me.active_badge&&me.badge_perks&&me.badge_perks.indexOf(k)>-1);}catch(e){return false;}
+};
+
+/* ===== 1) نافذة التعديل المعززة: مربعات المميزات ===== */
+window.editBadgeNew=async function(id){
+  if(!isAdmin())return toast('ممنوع');
+  var d=await sb.from('badges').select('*').eq('id',id).limit(1);
+  var b=d.data&&d.data[0];
+  if(!b)return toast('الشارة غير موجودة');
+  /* المميزات المحفوظة حالياً */
+  var s=await SDB.loadSettings();
+  var map=(s&&s.badge_perks)||{};
+  var cur=Array.isArray(map[id])?map[id]:[];
+  window._epSel=cur.slice();
+  var old=el('editBadgeModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='editBadgeModal';m.className='modal';
+  var h='<div class="m-card2" style="width:330px;max-height:88vh;overflow-y:auto">'
+  +'<h3>✏️ تعديل الشارة</h3>'
+  +'<div style="text-align:center;margin-bottom:10px"><img src="'+b.url+'" style="width:64px;height:64px;object-fit:contain"></div>'
+  +'<div style="font-size:12px;color:var(--mut);margin-bottom:4px">اسم الشارة:</div>'
+  +'<input id="ebName" value="'+String(b.name||'').replace(/"/g,'&quot;')+'" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px;margin-bottom:10px">'
+  +'<div style="font-size:12px;color:var(--mut);margin-bottom:4px">الندرة:</div>'
+  +'<select id="ebRarity" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px;margin-bottom:10px">'
+  +['عادي','أسطوري','ملكي','ملكي VIP'].map(function(x){return '<option '+(b.rarity===x?'selected':'')+'>'+x+'</option>';}).join('')
+  +'</select>'
+  +'<div style="font-size:12px;color:var(--mut);margin-bottom:4px">السعر (بالعملات):</div>'
+  +'<input id="ebPrice" type="number" value="'+(b.price||0)+'" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:14px;font-weight:bold;margin-bottom:12px">'
+  /* قسم المميزات */
+  +'<div style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px">'
+  +'<div style="font-size:13px;font-weight:bold;color:var(--txt);margin-bottom:8px">✨ مميزات الشارة <span style="font-size:10px;color:var(--mut)">(صاحب الشارة ياخدها ببلاش)</span></div>';
+  PERKS.forEach(function(p){
+    var on=cur.indexOf(p.k)>-1;
+    h+='<label style="display:flex;align-items:center;gap:10px;padding:8px 6px;font-size:12.5px;color:var(--txt);cursor:pointer;border-bottom:1px solid var(--line)">'
+    +'<input type="checkbox" class="epChk" data-pk="'+p.k+'" '+(on?'checked':'')+' style="width:19px;height:19px;accent-color:var(--acc)">'
+    +'<span>'+p.lbl+'</span></label>';
+  });
+  h+='</div>'
+  +'<button style="background:var(--grn);color:#fff" onclick="saveBadgeEdit('+id+')">💾 حفظ التعديل</button>'
+  +'<button style="background:transparent;color:var(--mut);border:1px solid var(--line)!important" onclick="closeModal(\'editBadgeModal\')">إلغاء</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('editBadgeModal');};
+  document.body.appendChild(m);
+  m.classList.add('open');
+};
+
+/* حفظ التعديل + المميزات */
+window.saveBadgeEdit=async function(id){
+  try{
+    if(!isAdmin())return toast('ممنوع');
+    var name=el('ebName').value.trim();
+    var rar=el('ebRarity').value;
+    var price=parseInt(el('ebPrice').value);
+    if(!name)return toast('اكتب اسم الشارة');
+    if(isNaN(price)||price<0)return toast('اكتب سعر صحيح');
+    var perks=[];
+    var chks=document.querySelectorAll('.epChk');
+    for(var i=0;i<chks.length;i++){if(chks[i].checked)perks.push(chks[i].getAttribute('data-pk'));}
+    var r=await sb.from('badges').update({name:name,rarity:rar,price:price}).eq('id',id);
+    if(r&&r.error)return toast('خطأ: '+r.error.message);
+    /* حفظ المميزات في الإعدادات */
+    var s=await SDB.loadSettings();
+    var map=(s&&s.badge_perks)||{};
+    map[id]=perks;
+    await SDB.saveSetting('badge_perks',map);
+    closeModal('editBadgeModal');
+    toast(perks.length?('✅ تم الحفظ — الشارة معاها '+perks.length+' مميزة'):'✅ تم الحفظ');
+    renderBadgesNew();
+    try{logActivity('badge_edit','تعديل شارة «'+name+'» + '+perks.length+' مميزة');}catch(e){}
+    /* مزامنة فورية لو أنا معايا الشارة دي */
+    try{if(me&&me.active_badge===id){await updateMe({badge_perks:perks});me.badge_perks=perks;}}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* ===== 2) المزامنة: صاحب الشارة النشطة ياخد مميزاتها ===== */
+window.syncBadgePerks=async function(){
+  try{
+    if(!me)return;
+    if(me.active_badge){
+      var s=await SDB.loadSettings();
+      var map=(s&&s.badge_perks)||{};
+      var list=Array.isArray(map[me.active_badge])?map[me.active_badge]:[];
+      var cur=Array.isArray(me.badge_perks)?me.badge_perks.slice().sort():[];
+      var nl=list.slice().sort();
+      if(JSON.stringify(cur)!==JSON.stringify(nl)){
+        await updateMe({badge_perks:list});
+        me.badge_perks=list;
+      }
+    }else if(me.badge_perks&&me.badge_perks.length){
+      await updateMe({badge_perks:[]});
+      me.badge_perks=[];
+    }
+  }catch(e){}
+};
+var _saBP=window.startAll;
+window.startAll=async function(){
+  var r=await _saBP();
+  try{setTimeout(syncBadgePerks,2000);}catch(e){}
+  return r;
+};
+setInterval(function(){try{syncBadgePerks();}catch(e){}},60000);
+/* بعد التفعيل أو الشراء: مزامنة فورية */
+var _ebP=window.equipBadgeNew;
+window.equipBadgeNew=async function(id){
+  var r=_ebP?await _ebP(id):undefined;
+  try{setTimeout(syncBadgePerks,600);}catch(e){}
+  return r;
+};
+var _cbP=window.confirmBuyBadgeNew;
+window.confirmBuyBadgeNew=async function(id,price){
+  var r=_cbP?await _cbP(id,price):undefined;
+  try{setTimeout(syncBadgePerks,600);}catch(e){}
+  return r;
+};
+
+/* ===== 3) المميزة 🎵 موسيقى: بوابة موحدة ===== */
+var _pmG=window.pickProfMusic;
+window.pickProfMusic=function(e){
+  try{
+    if(me&&(isOwnerName(me.name)||isAdmin()||(me.musicExp&&me.musicExp>Date.now())||badgeHasPerk('music'))){
+      var f=e.target.files[0];
+      if(f){e.target.value='';return window.openMusicTrimmer?openMusicTrimmer(f):undefined;}
+      return;
+    }
+  }catch(err){}
+  return _pmG?_pmG(e):undefined;
+};
+
+/* ===== 4) المميزة 🖼️ خلفية متحركة: بوابة + رفع مباشر ===== */
+var _paG=window.uploadProfAnim;
+window.uploadProfAnim=function(e){
+  try{
+    if(me&&badgeHasPerk('anim')&&!(isOwnerName(me.name)||isAdmin())&&!(me.animBgExp&&me.animBgExp>Date.now())){
+      /* صاحب الشارة: رفع مباشر بتجاوز بوابة الاشتراك */
+      var f=e.target.files[0];if(!f)return;
+      if(f.size>8*1024*1024)return toast('⚠️ الملف كبير جداً (أقصى 8 ميجا)');
+      toast('⏳ جاري رفع الخلفية (عبر شارتك)...');
+      var ext='.gif';
+      if(f.type==='image/webp')ext='.webp';else if(f.type==='image/png')ext='.png';else if(f.type==='image/jpeg')ext='.jpg';
+      var fname='panim_'+Date.now()+'_'+Math.floor(Math.random()*999)+ext;
+      sb.storage.from('stories').upload(fname,f,{cacheControl:'31536000',upsert:false}).then(function(r){
+        if(r.error)return toast('فشل الرفع: '+r.error.message);
+        var pub=sb.storage.from('stories').getPublicUrl(fname).data.publicUrl;
+        updateMe({prof_bg_anim:pub}).then(function(){
+          toast('🖼️ خلفيتك اتفعلت عبر شارتك! 🎉');
+          try{renderProfAnim();}catch(e){}
+        });
+      });
+      e.target.value='';
+      return;
+    }
+  }catch(err){}
+  return _paG?_paG(e):undefined;
+};
+
+/* ===== 5) المميزة 🙈 إخفاء العمر: البوابة + التغطية ===== */
+var _iah=window.isAgeHidden;
+window.isAgeHidden=function(u){
+  try{
+    if(u&&u.ageHideOn===true&&Array.isArray(u.badge_perks)&&u.badge_perks.indexOf('age')>-1)return true;
+  }catch(e){}
+  return _iah?_iah(u):false;
+};
+var _sah=window.setAgeHide;
+window.setAgeHide=async function(hide){
+  try{
+    if(me&&badgeHasPerk('age')&&!(isOwnerName(me.name)||isAdmin())&&!(me.ageHideExp&&me.ageHideExp>Date.now())){
+      await updateMe({ageHideOn:hide});
+      me.ageHideOn=hide;
+      toast(hide?'🙈 عمرك مخفي عبر شارتك':'👀 عمرك ظاهر');
+      try{renderAgeHide();}catch(e){}
+      try{maskAgesFinal();}catch(e){}
+      return;
+    }
+  }catch(err){}
+  return _sah?_sah(hide):undefined;
+};
+
+/* ===== 6) المميزة 🔒 برايفط: hasPrime بتعترف بالشارة ===== */
+var _hpP=window.hasPrime;
+window.hasPrime=function(){
+  try{
+    if(me&&chat&&chat.type==='user'&&badgeHasPerk('prime'))return true;
+  }catch(e){}
+  return _hpP?_hpP():false;
+};
+
+/* ===== 7) المميزة ✨ تأثير الدخول: بانر خاص لأصحاب الشارات ===== */
+var _seoP=window.showEntryOnce;
+window.showEntryOnce=function(u){
+  try{
+    var qualified=false;
+    try{
+      qualified=isOwnerName(u.name)||isAdmin()||(u.role&&u.role.indexOf('سوبر')>-1)
+        ||(u.penColorExp&&u.penColorExp>Date.now())||(u.nameStyleExp&&u.nameStyleExp>Date.now())
+        ||(u.frameExp&&u.frameExp>Date.now())||(u.badgeExp&&u.badgeExp>Date.now())
+        ||(u.vipExp&&u.vipExp>Date.now())||u.welcome_pack_used===true
+        ||(u.gift_badges&&u.gift_badges.some&&u.gift_badges.some(function(g){return g&&g.exp>Date.now();}));
+    }catch(e){}
+    /* صاحب شارة نشطة معاها مميزة الدخول — ومش مؤهل من قبل */
+    if(!qualified&&u&&u.active_badge&&Array.isArray(u.badge_perks)&&u.badge_perks.indexOf('entry')>-1){
+      var now=Date.now();
+      if(window._lastEntryFx&&now-window._lastEntryFx<60000)return;
+      window._lastEntryFx=now;
+      var old=el('entryFxOnce');if(old)old.remove();
+      var host=document.body;
+      try{var c=el('s-chat');if(c&&c.classList.contains('active')){c.classList.add('entryFxHost');host=c;}}catch(e2){}
+      var banner=document.createElement('div');
+      banner.id='entryFxOnce';
+      banner.setAttribute('data-final','1');
+      banner.style.cssText='position:absolute;top:0;left:0;right:0;z-index:450;background:linear-gradient(90deg,#78350f,#b45309,#78350f);border-bottom:2px solid #FFD700;padding:12px 14px;display:flex;align-items:center;gap:10px;animation:entrySlideDown2 .6s ease forwards;overflow:hidden';
+      banner.innerHTML='<div style="font-size:22px;animation:wpBounce 1.2s infinite">🏅</div>'
+      +(window.getAvatarHTML?getAvatarHTML(u,38):'<div class="u-ava" style="width:38px;height:38px">👤</div>')
+      +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:900;color:#fff;text-shadow:0 1px 4px #000">✨ دخل الآن</div>'
+      +'<div style="font-size:12.5px;margin-top:2px">'+(window.styleName?styleName(u):escapeHtml(getMsgName(u.name)))+'</div></div>'
+      +'<span style="background:linear-gradient(135deg,#FFD700,#FF9800);color:#111;font-size:10px;font-weight:900;padding:4px 10px;border-radius:12px;flex-shrink:0">🏅 صاحب شارة</span>';
+      host.appendChild(banner);
+      if(me&&me.sndNotif!==false)try{beep(900);}catch(e3){}
+      setTimeout(function(){
+        try{banner.style.animation='entrySlideUp2 .5s ease forwards';}catch(e4){}
+        setTimeout(function(){try{banner.remove();}catch(e5){}},600);
+      },4000);
+      return;
+    }
+  }catch(e){}
+  return _seoP?_seoP(u):undefined;
+};
+
+/* ===== 8) عرض المميزات على كارت الشارة (للإدارة) ===== */
+var _rbp=window.renderBadgesNew;
+window.renderBadgesNew=async function(){
+  var r=_rbp?await _rbp():undefined;
+  try{
+    if(!me||!isAdmin())return r;
+    var s=await SDB.loadSettings();
+    var map=(s&&s.badge_perks)||{};
+    var grid=el('badgesGridNew');
+    if(!grid)return r;
+    var cards=grid.children;
+    for(var i=0;i<cards.length;i++){
+      var card=cards[i];
+      /* نجيب id الشارة من زرار الحذف */
+      var del=card.querySelector('[onclick*="delBadgeNew"]');
+      if(!del)continue;
+      var mm=del.getAttribute('onclick').match(/delBadgeNew\(([^)]+)\)/);
+      if(!mm)continue;
+      var bid=mm[1].trim();
+      var perks=map[bid]||[];
+      var title=card.querySelector('div[style*="font-weight:bold"]');
+      if(title&&!title.querySelector('.bpLine')){
+        var line='';
+        PERKS.forEach(function(p){if(perks.indexOf(p.k)>-1)line+=p.lbl.split(' ')[0]+' ';});
+        if(line){
+          var d=document.createElement('div');
+          d.className='bpLine';
+          d.style.cssText='font-size:9px;color:#7dd3fc;font-weight:bold;margin-top:2px';
+          d.innerText='✨ '+line.trim();
+          title.appendChild(d);
+        }
+      }
+    }
+  }catch(e){}
+  return r;
+};
+})();
+/* ===== 🔧 إصلاح نافذة تعديل الشارة: نافذة واحدة نضيفة في النص ===== */
+(function(){
+if(window._editBadgeFix)return;window._editBadgeFix=true;
+
+window.editBadgeNew=async function(id){
+  if(!isAdmin())return toast('ممنوع');
+  try{
+    var d=await sb.from('badges').select('*').eq('id',id).limit(1);
+    var b=d.data&&d.data[0];
+    if(!b)return toast('الشارة غير موجودة');
+    var s=await SDB.loadSettings();
+    var map=(s&&s.badge_perks)||{};
+    var cur=Array.isArray(map[id])?map[id]:[];
+
+    /* شيل أي نافذة قديمة بأي اسم */
+    ['editBadgeModal','editBadgeModal2','buyBadgeConfirm'].forEach(function(x){
+      try{var o=el(x);if(o)o.remove();}catch(e){}
+    });
+
+    var PERKS=window._BADGE_PERKS||[
+      {k:'music',lbl:'🎵 موسيقى البروفايل'},
+      {k:'anim',lbl:'🖼️ خلفية متحركة'},
+      {k:'age',lbl:'🙈 إخفاء العمر'},
+      {k:'prime',lbl:'🔒 امتيازات برايفط'},
+      {k:'entry',lbl:'✨ تأثير الدخول الفخم'}
+    ];
+
+    var m=document.createElement('div');
+    m.id='editBadgeModal2';
+    /* تنسيق صريح كامل — مش معتمدين على class الخارجي */
+    m.style.cssText='position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:14px';
+    var h='<div style="background:var(--card,#141a26);border:1px solid var(--line,#2a3444);border-radius:16px;padding:16px;width:330px;max-width:94vw;max-height:86vh;overflow-y:auto">'
+    +'<h3 style="text-align:center;color:#7dd3fc;margin:0 0 12px">✏️ تعديل الشارة</h3>'
+    +'<div style="text-align:center;margin-bottom:12px"><img src="'+b.url+'" style="width:64px;height:64px;object-fit:contain" onerror="this.style.display=\'none\'"></div>'
+    +'<div style="font-size:12px;color:var(--mut,#8b99a7);margin-bottom:4px">اسم الشارة:</div>'
+    +'<input id="ebName" value="'+String(b.name||'').replace(/"/g,'&quot;')+'" style="width:100%;box-sizing:border-box;padding:10px;background:var(--bg,#0d1117);border:1px solid var(--line,#2a3444);color:var(--txt,#fff);border-radius:8px;font-size:13px;margin-bottom:10px">'
+    +'<div style="font-size:12px;color:var(--mut,#8b99a7);margin-bottom:4px">الندرة:</div>'
+    +'<select id="ebRarity" style="width:100%;box-sizing:border-box;padding:10px;background:var(--bg,#0d1117);border:1px solid var(--line,#2a3444);color:var(--txt,#fff);border-radius:8px;font-size:13px;margin-bottom:10px">'
+    +['عادي','أسطوري','ملكي','ملكي VIP'].map(function(x){return '<option '+(b.rarity===x?'selected':'')+'>'+x+'</option>';}).join('')
+    +'</select>'
+    +'<div style="font-size:12px;color:var(--mut,#8b99a7);margin-bottom:4px">السعر (بالعملات):</div>'
+    +'<input id="ebPrice" type="number" value="'+(b.price||0)+'" style="width:100%;box-sizing:border-box;padding:10px;background:var(--bg,#0d1117);border:1px solid var(--line,#2a3444);color:var(--txt,#fff);border-radius:8px;font-size:14px;font-weight:bold;margin-bottom:12px">'
+    +'<div style="background:var(--bg,#0d1117);border:1px solid var(--line,#2a3444);border-radius:12px;padding:12px;margin-bottom:12px">'
+    +'<div style="font-size:13px;font-weight:bold;color:var(--txt,#fff);margin-bottom:8px">✨ مميزات الشارة <span style="font-size:10px;color:var(--mut,#8b99a7)">(صاحبها ياخدها ببلاش)</span></div>';
+    PERKS.forEach(function(p){
+      var on=cur.indexOf(p.k)>-1;
+      h+='<label style="display:flex;align-items:center;gap:10px;padding:9px 6px;font-size:12.5px;color:var(--txt,#fff);cursor:pointer;border-bottom:1px solid var(--line,#2a3444)">'
+      +'<input type="checkbox" class="epChk" data-pk="'+p.k+'" '+(on?'checked':'')+' style="width:19px;height:19px;accent-color:#a855f7">'
+      +'<span>'+p.lbl+'</span></label>';
+    });
+    h+='</div>'
+    +'<button id="ebSave" style="width:100%;padding:12px;background:var(--grn,#22c55e);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:bold;cursor:pointer;margin-bottom:8px">💾 حفظ التعديل</button>'
+    +'<button id="ebCancel" style="width:100%;padding:11px;background:transparent;color:var(--mut,#8b99a7);border:1px solid var(--line,#2a3444);border-radius:10px;font-size:13px;cursor:pointer">إلغاء</button>'
+    +'</div>';
+    m.innerHTML=h;
+
+    /* الأحداث بالجافاسكريبت — بدون onclick نصي */
+    m.addEventListener('click',function(e){if(e.target===m)m.remove();});
+    m.querySelector('#ebCancel').onclick=function(){m.remove();};
+    m.querySelector('#ebSave').onclick=async function(){
+      try{
+        if(!isAdmin())return toast('ممنوع');
+        var name=document.querySelector('#ebName').value.trim();
+        var rar=document.querySelector('#ebRarity').value;
+        var price=parseInt(document.querySelector('#ebPrice').value);
+        if(!name)return toast('اكتب اسم الشارة');
+        if(isNaN(price)||price<0)return toast('اكتب سعر صحيح');
+        var perks=[];
+        var chks=m.querySelectorAll('.epChk');
+        for(var i=0;i<chks.length;i++){if(chks[i].checked)perks.push(chks[i].getAttribute('data-pk'));}
+        var r=await sb.from('badges').update({name:name,rarity:rar,price:price}).eq('id',id);
+        if(r&&r.error)return toast('خطأ: '+r.error.message);
+        var s2=await SDB.loadSettings();
+        var map2=(s2&&s2.badge_perks)||{};
+        map2[id]=perks;
+        await SDB.saveSetting('badge_perks',map2);
+        m.remove();
+        toast(perks.length?('✅ تم الحفظ — الشارة معاها '+perks.length+' مميزة'):'✅ تم الحفظ');
+        try{renderBadgesNew();}catch(e){}
+        try{logActivity('badge_edit','تعديل شارة «'+name+'» + '+perks.length+' مميزة');}catch(e){}
+        try{if(me&&me.active_badge===id){await updateMe({badge_perks:perks});me.badge_perks=perks;}}catch(e){}
+      }catch(err){toast('خطأ: '+err.message);}
+    };
+    document.body.appendChild(m);
+  }catch(err){toast('خطأ في فتح النافذة: '+err.message);}
+};
+})();
