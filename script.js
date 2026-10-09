@@ -16279,3 +16279,128 @@ window.editBadgeNew=async function(id){
   }catch(err){toast('خطأ في فتح النافذة: '+err.message);}
 };
 })();
+/* ===== 🔧 إصلاح أزرار التعديل (كل زرار بشارته الصح) + مميزتين جداد ===== */
+(function(){
+if(window._badgePerksV2)return;window._badgePerksV2=true;
+
+/* 1) إضافة المميزتين لقايمة المميزات (هتظهروا في نافذة التعديل) */
+window._BADGE_PERKS=window._BADGE_PERKS||[];
+function addPerk(k,lbl){
+  for(var i=0;i<window._BADGE_PERKS.length;i++){
+    if(window._BADGE_PERKS[i].k===k)return;
+  }
+  window._BADGE_PERKS.push({k:k,lbl:lbl});
+}
+addPerk('music','🎵 موسيقى البروفايل');
+addPerk('anim','🖼️ خلفية متحركة');
+addPerk('age','🙈 إخفاء العمر');
+addPerk('prime','🔒 امتيازات برايفط');
+addPerk('entry','✨ تأثير الدخول الفخم');
+addPerk('name','👑 تميّز باسمك');
+addPerk('frame','🖼️ إطار الصورة');
+
+/* 2) إصلاح أزرار التعديل: نحدد الشارة من الكارت اللي فيها الزرار نفسه — مش من ID مخزن غلط */
+document.addEventListener('click',function(e){
+  try{
+    var btn=e.target&&e.target.closest?e.target.closest('button'):null;
+    if(!btn)return;
+    var grid=btn.closest('#badgesGridNew');
+    if(!grid)return;
+    var oc=btn.getAttribute('onclick')||'';
+    var txt=(btn.innerText||'').trim();
+    /* زرار التعديل ✏️؟ */
+    if(oc.indexOf('editBadgeNew')>-1||txt==='✏️'){
+      e.preventDefault();e.stopPropagation();
+      /* نطلع لفوق لحد الكارت المباشر تحت الشبكة */
+      var card=btn.parentElement;
+      while(card&&card.parentElement&&card.parentElement!==grid)card=card.parentElement;
+      if(!card||card===grid)return toast('مشكلة في تحديد الشارة');
+      var del=card.querySelector('[onclick*="delBadgeNew"]');
+      if(!del)return toast('مشكلة في تحديد الشارة');
+      var mm=del.getAttribute('onclick').match(/delBadgeNew\(([^)]+)\)/);
+      if(!mm)return toast('مشكلة في تحديد الشارة');
+      var bid=mm[1].trim();
+      window.editBadgeNew(bid);
+    }
+  }catch(err){}
+},true);
+
+/* 3) عرض المميزات على الكروت بتحديث للقايمة الكاملة (7 مميزات) */
+var _rbp2=window.renderBadgesNew;
+window.renderBadgesNew=async function(){
+  var r=_rbp2?await _rbp2():undefined;
+  try{
+    if(!me||!isAdmin())return r;
+    var s=await SDB.loadSettings();
+    var map=(s&&s.badge_perks)||{};
+    var grid=el('badgesGridNew');if(!grid)return r;
+    var cards=grid.children;
+    for(var i=0;i<cards.length;i++){
+      var card=cards[i];
+      var del=card.querySelector('[onclick*="delBadgeNew"]');
+      if(!del)continue;
+      var mm=del.getAttribute('onclick').match(/delBadgeNew\(([^)]+)\)/);
+      if(!mm)continue;
+      var bid=mm[1].trim();
+      var perks=map[bid]||[];
+      /* شيل السطر القديم وركب الجديد بالقايمة الكاملة */
+      var old=card.querySelector('.bpLine');
+      if(old)old.remove();
+      var line='';
+      window._BADGE_PERKS.forEach(function(p){
+        if(perks.indexOf(p.k)>-1)line+=(p.lbl.split(' ')[0])+' ';
+      });
+      if(line){
+        var title=card.querySelector('div[style*="font-weight:bold"]');
+        if(title){
+          var d=document.createElement('div');
+          d.className='bpLine';
+          d.style.cssText='font-size:9px;color:#7dd3fc;font-weight:bold;margin-top:2px';
+          d.innerText='✨ '+line.trim();
+          title.appendChild(d);
+        }
+      }
+    }
+  }catch(e){}
+  return r;
+};
+
+/* 4) المميزة 👑 تميّز باسمك: البوابة تعترف بالشارة */
+var _naP=window._nameActive;
+window._nameActive=function(){
+  try{
+    if(me&&me.active_badge&&Array.isArray(me.badge_perks)&&me.badge_perks.indexOf('name')>-1)return true;
+  }catch(e){}
+  return _naP?_naP():false;
+};
+
+/* 5) المميزة 🖼️ إطار الصورة: البوابات تعترف بالشارة */
+var _sfB=window.setFrame;
+window.setFrame=async function(url){
+  try{
+    var allowed=me&&(isOwnerName(me.name)||isAdmin()||(me.frameExp&&me.frameExp>Date.now())||hasGiftBadge(me)||badgeHasPerk('frame'));
+    if(!allowed)return toast('🔒 ميزة الإطار تتطلب اشتراك أو شارة');
+  }catch(e){}
+  return _sfB?_sfB(url):undefined;
+};
+
+var _pfaB=window.pickFrameAll;
+window.pickFrameAll=async function(i){
+  try{
+    var allowed=me&&(isOwnerName(me.name)||isAdmin()||(me.frameExp&&me.frameExp>Date.now())||hasGiftBadge(me)||badgeHasPerk('frame'));
+    if(!allowed){openFrameSub();return;}
+    var d=await sb.from('frames').select('*').order('id',{ascending:true});
+    var fr=(d.data||[])[i];
+    if(fr&&window.setFrame)setFrame(fr.url);
+  }catch(e){}
+};
+
+/* عنصر الإطار في الإعدادات يظهر لصاحب الشارة */
+setInterval(function(){
+  try{
+    if(!me)return;
+    var fm=el('frameMenuItem');
+    if(fm)fm.style.display=(isOwnerName(me.name)||isAdmin()||(me.frameExp&&me.frameExp>Date.now())||hasGiftBadge(me)||badgeHasPerk('frame'))?'flex':'none';
+  }catch(e){}
+},2200);
+})();
