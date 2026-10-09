@@ -15571,15 +15571,16 @@ window.startAll=async function(){
 };
 setInterval(function(){try{checkLikeNotices();}catch(e){}},25000);
 })();
-/* ===== 🙈 إخفاء العمر: يشمل الجميع — الإدارة تشوف الحقيقة في اللوحة بس ===== */
+/* ===== 🙈 إخفاء العمر مطلق نهائي — محدش يشوف العمر المخفي، حتى صاحب الموقع والإدارة ===== */
 (function(){
-if(window._ageMaskAll)return;window._ageMaskAll=true;
+if(window._ageMaskFinal)return;window._ageMaskFinal=true;
 
 function isHiddenAge(u){
   try{return u&&u.ageHideExp&&u.ageHideExp>Date.now()&&u.ageHideOn!==false;}catch(e){return false;}
 }
 
-function maskAll(){
+/* 1) قايمة المتصلين: المخفي (-- للكل بلا استثناء */
+function maskFinal(){
   try{
     if(!me)return;
     var box=el('usersList');
@@ -15591,55 +15592,90 @@ function maskAll(){
       if(!m)continue;
       var u=usersCache[m[1]];
       if(!u)continue;
-      var self=(u.name===me.name);
-      if(self)continue; /* عمرك انت ظاهر ليك دايماً */
       var nm=kids[i].querySelector('.u-name');
       if(!nm)continue;
       var html=nm.innerHTML;
-      var hidden=isHiddenAge(u);
-      if(hidden){
+      if(isHiddenAge(u)){
         if(html.indexOf('(<b')>-1)continue;
         nm.innerHTML=html.replace(/\(\s*\d{1,3}\s*\)/,'(<b style="opacity:.6">--</b>)');
       }else{
-        /* مش مخفي: رجّع الرقم لو كان متقنّع غلط */
         if(html.indexOf('(<b')>-1)nm.innerHTML=html.replace(/\(<b[^>]*>--<\/b>\)/,'('+(u.age||'--')+')');
       }
     }
   }catch(e){}
 }
 
-var _roMA=window.renderOnline;
+var _roMF=window.renderOnline;
 window.renderOnline=function(){
-  var r=_roMA.apply(this,arguments);
-  try{maskAll();}catch(e){}
+  var r=_roMF.apply(this,arguments);
+  try{maskFinal();}catch(e){}
   return r;
 };
-setTimeout(maskAll,1000);
-setTimeout(maskAll,2500);
+setTimeout(maskFinal,800);
+setTimeout(maskFinal,2000);
+setInterval(maskFinal,5000);
 
-/* البروفايل برضه: الإدارة تشوف (-- لغيرها) */
-var _ouMA=window.openUserProfile;
+/* 2) البروفايل: المخفي -- سنة للجميع بلا استثناء — حتى لو صاحبه هو */
+var _ouMF=window.openUserProfile;
 window.openUserProfile=function(name){
-  var r=_ouMA(name);
+  var r=_ouMF(name);
   try{
     setTimeout(async function(){
       try{
-        if(!me)return;
-        if(name===me.name)return; /* بروفايلك: عمرك ظاهر ليك */
         var nm=el('upName');
         if(!nm)return;
         var u=await SDB.getUser(name);
-        var uu=usersCache[name]||{};
         if(u&&isHiddenAge(u)){
           nm.innerHTML=nm.innerHTML.replace(/\d+\s*سنة/,'-- سنة');
         }else{
+          var uu=usersCache[name]||{};
           if(nm.innerHTML.indexOf('-- سنة')>-1)nm.innerHTML=nm.innerHTML.replace(/--\s*سنة/,(uu.age||'--')+' سنة');
         }
       }catch(e){}
-    },400);
+    },350);
+    setTimeout(async function(){
+      try{
+        var nm=el('upName');
+        if(!nm)return;
+        var u=await SDB.getUser(name);
+        if(u&&isHiddenAge(u)&&nm.innerHTML.indexOf('--')===-1){
+          nm.innerHTML=nm.innerHTML.replace(/\d+\s*سنة/,'-- سنة');
+        }
+      }catch(e){}
+    },1000);
   }catch(e){}
   return r;
 };
+
+/* 3) زرار الاختيار: توهج فوري + تحديث القايمة فوراً */
+window.setAgeHide=async function(hide){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    var isAdminU=(isOwnerName(me.name)||isAdmin());
+    if(!isAdminU&&!(me.ageHideExp&&me.ageHideExp>Date.now()))return toast('🔒 اشترك الأول');
+    /* التوهج الفوري قبل الحفظ */
+    window._ageGlow=hide?'hide':'show';
+    _glowNow();
+    await updateMe({ageHideOn:hide});
+    me.ageHideOn=hide;
+    toast(hide?'🙈 عمرك بقى مخفي عن الجميع — حتى عنك في القايمة':'👀 عمرك بقى ظاهر للجميع');
+    /* تحديث فوري لكل مكان */
+    try{maskFinal();}catch(e){}
+    try{renderAgeHide();}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* التوهج الفوري للزرارين */
+function _glowNow(){
+  try{
+    var cards=document.querySelectorAll('#ageHideBody [onclick^="setAgeHide"]');
+    for(var i=0;i<cards.length;i++){
+      var t=cards[i].innerText||'';
+      var isHideBtn=(t.indexOf('إخفاء')>-1);
+      var on=(window._ageGlow==='hide'&&isHideBtn)||(window._ageGlow==='show'&&!isHideBtn);
+      cards[i].style.border='2px solid '+(on?'var(--grn)':'var(--line)');
+      cards[i].style.boxShadow=on?'0 0 14px rgba(34,197,94,.35)':'none';
+    }
+  }catch(e){}
+}
 })();
-var self=(u.name===me.name);
-if(self)continue; /* عمرك انت ظاهر ليك دايماً */
