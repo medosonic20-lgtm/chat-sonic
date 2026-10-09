@@ -3991,7 +3991,7 @@ window.stMsg=function(au){
 })();
 
 /* ===== إصلاح نهائي للصور الافتراضية والمكسورة (النسخة الأخيرة) ===== */
-window.FB_F='https://cdn.phototourl.com/member/2026-10-02-330f538a-e915-45b9-8239-f68ff6c1ea2f.jpg';
+window.FB_F='https://cdn.phototourl.com/member/2026-10-09-d4ae25fd-3a65-4491-93e5-a341fc783fdc.jpg';
 window.FB_M='https://cdn.phototourl.com/member/2026-10-02-9c355082-4f44-4bd8-88aa-e43864431e90.jpg';
 window._defAva=function(u){return (u&&u.gender==='أنثى')?FB_F:FB_M;};
 window.getAvatar=function(u){var _d=_defAva(u);if(u&&u.avatar&&String(u.avatar).length>50)return'<img src="'+u.avatar+'" data-df="'+_d+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-df\')" style="width:100%;height:100%;object-fit:cover">';return'<img src="'+_d+'" style="width:100%;height:100%;object-fit:cover">';};
@@ -15570,4 +15570,111 @@ window.startAll=async function(){
   return r;
 };
 setInterval(function(){try{checkLikeNotices();}catch(e){}},25000);
+})();
+/* ===== 🚀 شاشة البداية سونيك: المربع المتوهج في النص ===== */
+(function(){
+if(window._sonicSplashX)return;window._sonicSplashX=true;
+
+var SPLASH_IMG='https://cdn.phototourl.com/member/2026-10-09-db772054-dbf2-49b3-922b-8d78bb167552.jpg';
+
+/* 1) قتل شاشة البداية القديمة المكسورة (المربعة الفاضية) */
+function killOld(){
+  try{
+    var s=el('splash-screen');
+    if(s)s.remove();
+  }catch(e){}
+}
+killOld();
+var _n=0;
+var _iv=setInterval(function(){
+  try{
+    var s=el('splash-screen');
+    if(s){s.remove();clearInterval(_iv);}
+    _n++;if(_n>80)clearInterval(_iv);
+  }catch(e){}
+},50);
+
+/* 2) الشاشة الجديدة: خلفية متدرجة + المربع المتوهج في النص */
+var sp=document.createElement('div');
+sp.id='sonicSplashX';
+sp.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;'
++'background:linear-gradient(160deg,#0a1030 0%,#0d1a4a 45%,#123a7a 100%);'
++'transition:opacity .6s ease,transform .6s ease';
+sp.innerHTML='<div style="width:280px;height:280px;max-width:72vw;max-height:72vw;border-radius:26px;overflow:hidden;background:#05070f;box-shadow:0 0 40px rgba(236,72,153,.55),0 0 90px rgba(168,85,247,.45),inset 0 0 30px rgba(0,0,0,.6);border:1px solid rgba(168,85,247,.35);animation:splashGlow 1.6s ease-in-out infinite alternate">'
++'<img src="'+SPLASH_IMG+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"></div>';
+try{document.body.appendChild(sp);}catch(e){}
+
+/* 3) أنيميشن التوهج النابض */
+try{
+  var st=document.createElement('style');
+  st.textContent='@keyframes splashGlow{0%{box-shadow:0 0 40px rgba(236,72,153,.55),0 0 90px rgba(168,85,247,.45),inset 0 0 30px rgba(0,0,0,.6)}100%{box-shadow:0 0 55px rgba(236,72,153,.75),0 0 120px rgba(168,85,247,.6),inset 0 0 30px rgba(0,0,0,.6)}}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* 4) الاختفاء بسلاسة بعد ثانية وثلث */
+setTimeout(function(){
+  try{
+    sp.style.opacity='0';
+    sp.style.transform='scale(1.1)';
+    setTimeout(function(){try{sp.remove();}catch(e){}},650);
+  }catch(e){}
+},1300);
+})();
+/* ===== 👩 الصورة الافتراضية للبنات: الجديدة + إصلاح أي مكسورة ===== */
+(function(){
+if(window._fbFixGirl)return;window._fbFixGirl=true;
+var NEW_F='https://cdn.phototourl.com/member/2026-10-09-d4ae25fd-3a65-4491-93e5-a341fc783fdc.jpg';
+
+/* 1) نعدل دالة الصورة الافتراضية نفسها */
+window.FB_F=NEW_F;
+window._defAva=function(u){return (u&&u.gender==='أنثى')?FB_F:FB_M;};
+window.getAvatar=function(u){
+  var _d=(u&&u.gender==='أنثى')?FB_F:FB_M;
+  if(u&&u.avatar&&String(u.avatar).length>50)return'<img src="'+u.avatar+'" data-df="'+_d+'" onerror="this.onerror=null;this.src=this.getAttribute(\'data-df\')" style="width:100%;height:100%;object-fit:cover">';
+  return'<img src="'+_d+'" style="width:100%;height:100%;object-fit:cover">';
+};
+
+/* 2) حارس: أي صورة مكسورة في أفاتار → البديل الجديد */
+function guessG(img){
+  try{
+    var card=img.closest('.u-card,[onclick*="openUser"],[onclick*="openUserProfile"],.m-card');
+    if(card){
+      var oc=card.getAttribute('onclick')||'';
+      var m=oc.match(/openUser(?:Profile)?\('([^']+)'\)/);
+      if(m){
+        var u=usersCache[m[1]];
+        if(u&&u.gender==='أنثى')return FB_F;
+      }
+    }
+    /* لو العنصر نفسه في سياق بنات (شارة أنثى ♀) */
+    var par=img.closest('.u-card,.m-card,.u-ava');
+    if(par&&(par.innerText||'').indexOf('♀')>-1)return FB_F;
+  }catch(e){}
+  return null;
+}
+
+document.addEventListener('error',function(e){
+  var t=e.target;
+  if(!t||t.tagName!=='IMG')return;
+  if(t.dataset.fbf)return;
+  var c=t.closest&&(t.closest('.u-ava')||t.closest('.ava')||t.closest('.p-ava')||t.closest('.w-ava')||t.closest('#upAvaWrap')||t.closest('#chatAva'));
+  if(!c)return;
+  t.dataset.fbf='1';
+  var g=guessG(t);
+  t.onerror=null;
+  t.src=g||FB_F;
+},true);
+
+/* 3) تنظيف دوري: أي صورة أفاتار مكسورة = تستبدل */
+setInterval(function(){
+  try{
+    document.querySelectorAll('.u-ava img,.ava img,.p-ava img,.w-ava img,#chatAva img').forEach(function(im){
+      if(im.complete&&im.naturalWidth===0&&!im.dataset.fbf){
+        im.dataset.fbf='1';
+        im.onerror=null;
+        im.src=guessG(im)||FB_F;
+      }
+    });
+  }catch(e){}
+},2000);
 })();
