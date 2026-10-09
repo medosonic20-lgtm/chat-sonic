@@ -15571,16 +15571,16 @@ window.startAll=async function(){
 };
 setInterval(function(){try{checkLikeNotices();}catch(e){}},25000);
 })();
-/* ===== 🙈 إخفاء العمر مطلق نهائي — محدش يشوف العمر المخفي، حتى صاحب الموقع والإدارة ===== */
+/* ===== 🙈 إخفاء العمر مطلق — نسخة خفيفة ومضمونة ===== */
 (function(){
-if(window._ageMaskFinal)return;window._ageMaskFinal=true;
+if(window._ageMaskLite)return;window._ageMaskLite=true;
 
 function isHiddenAge(u){
   try{return u&&u.ageHideExp&&u.ageHideExp>Date.now()&&u.ageHideOn!==false;}catch(e){return false;}
 }
 
-/* 1) قايمة المتصلين: المخفي (-- للكل بلا استثناء */
-function maskFinal(){
+/* قايمة المتصلين: المخفي (-- للكل */
+function maskLite(){
   try{
     if(!me)return;
     var box=el('usersList');
@@ -15596,29 +15596,27 @@ function maskFinal(){
       if(!nm)continue;
       var html=nm.innerHTML;
       if(isHiddenAge(u)){
-        if(html.indexOf('(<b')>-1)continue;
-        nm.innerHTML=html.replace(/\(\s*\d{1,3}\s*\)/,'(<b style="opacity:.6">--</b>)');
+        if(html.indexOf('(--')>-1)continue;
+        nm.innerHTML=html.replace(/\(\s*\d{1,3}\s*\)/,'(--)');
       }else{
-        if(html.indexOf('(<b')>-1)nm.innerHTML=html.replace(/\(<b[^>]*>--<\/b>\)/,'('+(u.age||'--')+')');
+        if(html.indexOf('(--')>-1)nm.innerHTML=html.replace(/\(--\)/,'('+(u.age||'--')+')');
       }
     }
   }catch(e){}
 }
 
-var _roMF=window.renderOnline;
+var _roLite=window.renderOnline;
 window.renderOnline=function(){
-  var r=_roMF.apply(this,arguments);
-  try{maskFinal();}catch(e){}
+  var r=_roLite.apply(this,arguments);
+  try{maskLite();}catch(e){}
   return r;
 };
-setTimeout(maskFinal,800);
-setTimeout(maskFinal,2000);
-setInterval(maskFinal,5000);
+setTimeout(maskLite,1000);
 
-/* 2) البروفايل: المخفي -- سنة للجميع بلا استثناء — حتى لو صاحبه هو */
-var _ouMF=window.openUserProfile;
+/* البروفايل: المخفي -- سنة للكل */
+var _ouLite=window.openUserProfile;
 window.openUserProfile=function(name){
-  var r=_ouMF(name);
+  var r=_ouLite(name);
   try{
     setTimeout(async function(){
       try{
@@ -15627,55 +15625,10 @@ window.openUserProfile=function(name){
         var u=await SDB.getUser(name);
         if(u&&isHiddenAge(u)){
           nm.innerHTML=nm.innerHTML.replace(/\d+\s*سنة/,'-- سنة');
-        }else{
-          var uu=usersCache[name]||{};
-          if(nm.innerHTML.indexOf('-- سنة')>-1)nm.innerHTML=nm.innerHTML.replace(/--\s*سنة/,(uu.age||'--')+' سنة');
         }
       }catch(e){}
-    },350);
-    setTimeout(async function(){
-      try{
-        var nm=el('upName');
-        if(!nm)return;
-        var u=await SDB.getUser(name);
-        if(u&&isHiddenAge(u)&&nm.innerHTML.indexOf('--')===-1){
-          nm.innerHTML=nm.innerHTML.replace(/\d+\s*سنة/,'-- سنة');
-        }
-      }catch(e){}
-    },1000);
+    },400);
   }catch(e){}
   return r;
 };
-
-/* 3) زرار الاختيار: توهج فوري + تحديث القايمة فوراً */
-window.setAgeHide=async function(hide){
-  try{
-    if(!me)return toast('سجل دخولك أولاً');
-    var isAdminU=(isOwnerName(me.name)||isAdmin());
-    if(!isAdminU&&!(me.ageHideExp&&me.ageHideExp>Date.now()))return toast('🔒 اشترك الأول');
-    /* التوهج الفوري قبل الحفظ */
-    window._ageGlow=hide?'hide':'show';
-    _glowNow();
-    await updateMe({ageHideOn:hide});
-    me.ageHideOn=hide;
-    toast(hide?'🙈 عمرك بقى مخفي عن الجميع — حتى عنك في القايمة':'👀 عمرك بقى ظاهر للجميع');
-    /* تحديث فوري لكل مكان */
-    try{maskFinal();}catch(e){}
-    try{renderAgeHide();}catch(e){}
-  }catch(e){toast('خطأ: '+e.message);}
-};
-
-/* التوهج الفوري للزرارين */
-function _glowNow(){
-  try{
-    var cards=document.querySelectorAll('#ageHideBody [onclick^="setAgeHide"]');
-    for(var i=0;i<cards.length;i++){
-      var t=cards[i].innerText||'';
-      var isHideBtn=(t.indexOf('إخفاء')>-1);
-      var on=(window._ageGlow==='hide'&&isHideBtn)||(window._ageGlow==='show'&&!isHideBtn);
-      cards[i].style.border='2px solid '+(on?'var(--grn)':'var(--line)');
-      cards[i].style.boxShadow=on?'0 0 14px rgba(34,197,94,.35)':'none';
-    }
-  }catch(e){}
-}
 })();
