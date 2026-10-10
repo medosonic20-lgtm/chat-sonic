@@ -17463,3 +17463,192 @@ setInterval(async function(){
   }catch(e){}
 },60000);
 })();
+/* ============================================================
+   ⚡ باتش أداء شامل — شات سونيك (سريع بدون لاج)
+   حطه في آخر script.js
+   ============================================================ */
+(function(){
+  if (window._sonicPerfV2) return;
+  window._sonicPerfV2 = true;
+
+  // ========== 1. خنق الحلقات الثقيلة ==========
+  var HEAVY = [
+    'renderOnline','renderMsgs','renderMembers','renderRooms',
+    'paintOnce','paintAll','stylePenBar','paintPenImages',
+    'updateTransBadge','ensureDot','ensureField','ensureItem',
+    'showEntryEffect','updateUpdatesBadge','renderWallet'
+  ];
+
+  var _origSI = window.setInterval;
+  window.setInterval = function(fn, delay) {
+    try {
+      var src = '';
+      try { src = String(fn); } catch(e){}
+      var isHeavy = false;
+      for (var i = 0; i < HEAVY.length; i++) {
+        if (src.indexOf(HEAVY[i]) > -1) { isHeavy = true; break; }
+      }
+      // الحلقات الثقيلة ما تقلش عن 8 ثواني
+      if (isHeavy && delay < 8000) delay = 8000 + Math.floor(Math.random() * 2000);
+      // لو التاب في الخلفية → متشتغلش
+      if (delay >= 3000) {
+        var orig = fn;
+        fn = function() {
+          if (document.hidden) return;
+          return orig.apply(this, arguments);
+        };
+      }
+    } catch(e){}
+    return _origSI.call(this, fn, delay);
+  };
+
+  // ========== 2. تسريع renderOnline (قائمة المتصلين) ==========
+  var _roTimer = 0, _roPending = false;
+  var _origRO = window.renderOnline;
+  if (typeof _origRO === 'function') {
+    window.renderOnline = function() {
+      var now = Date.now();
+      if (now - _roTimer < 700) {
+        if (!_roPending) {
+          _roPending = true;
+          setTimeout(function() {
+            _roPending = false;
+            try { _origRO(); } catch(e){}
+          }, 750);
+        }
+        return;
+      }
+      _roTimer = now;
+      return _origRO();
+    };
+  }
+
+  // ========== 3. تسريع إضافة الرسائل (أهم جزء) ==========
+  var _frag = document.createDocumentFragment();
+  var _origAppend = window.appendMsg;
+
+  if (typeof _origAppend === 'function') {
+    window.appendMsg = function(m) {
+      // استخدم DocumentFragment + requestAnimationFrame
+      var result;
+      try {
+        result = _origAppend(m);
+      } catch(e) {
+        return;
+      }
+
+      // سكرول سلس بدون إجبار
+      try {
+        var box = el('chatBox');
+        if (box && !userScrolledUp) {
+          requestAnimationFrame(function() {
+            box.scrollTop = box.scrollHeight;
+          });
+        }
+      } catch(e){}
+
+      return result;
+    };
+  }
+
+  // ========== 4. تحسين subMsgs (تحميل الرسائل) ==========
+  var _origSub = window.subMsgs;
+  if (typeof _origSub === 'function') {
+    window.subMsgs = async function() {
+      var r = await _origSub();
+      // بعد التحميل: سكرول مرة واحدة فقط
+      try {
+        requestAnimationFrame(function() {
+          var box = el('chatBox');
+          if (box && !userScrolledUp) {
+            box.scrollTop = box.scrollHeight;
+          }
+        });
+      } catch(e){}
+      return r;
+    };
+  }
+
+  // ========== 5. منع إعادة الرسم القسرية ==========
+  var _origScrollChat = window.scrollChat;
+  window.scrollChat = function() {
+    try {
+      var box = el('chatBox');
+      if (!box || userScrolledUp) return;
+      box.scrollTop = box.scrollHeight;
+    } catch(e){}
+  };
+
+  // ========== 6. حد أقصى لعدد الرسائل في الـ DOM (مهم جدًا) ==========
+  function limitChatMessages(max) {
+    max = max || 180;
+    try {
+      var box = el('chatBox');
+      if (!box) return;
+      var bubs = box.querySelectorAll('.bub');
+      if (bubs.length > max) {
+        var removeCount = bubs.length - max;
+        for (var i = 0; i < removeCount; i++) {
+          if (bubs[i] && bubs[i].parentNode) bubs[i].remove();
+        }
+      }
+    } catch(e){}
+  }
+
+  // نطبق الحد بعد كل تحميل رسائل
+  var _subLimit = window.subMsgs;
+  window.subMsgs = async function() {
+    var r = await _subLimit();
+    setTimeout(function(){ limitChatMessages(180); }, 800);
+    return r;
+  };
+
+  // ========== 7. تقليل تأثيرات الدخول (Entry Effect) ==========
+  var _lastEntry = 0;
+  var _origEntry = window.showEntryEffect;
+  if (typeof _origEntry === 'function') {
+    window.showEntryEffect = function(u) {
+      var now = Date.now();
+      if (now - _lastEntry < 2500) return; // ما يظهرش أكتر من مرة كل 2.5 ثانية
+      _lastEntry = now;
+      return _origEntry(u);
+    };
+  }
+
+  // ========== 8. CSS أداء (يُحقن مرة واحدة) ==========
+  try {
+    var st = document.createElement('style');
+    st.id = 'sonic-perf-css';
+    st.textContent = `
+      .bub, .u-card, .m-card, .r-card {
+        contain: layout style;
+        content-visibility: auto;
+      }
+      .chat-box {
+        contain: strict;
+        overflow-anchor: none;
+      }
+      .bub img, .u-ava img {
+        content-visibility: auto;
+      }
+      /* تقليل الأنيميشن على الأجهزة الضعيفة */
+      @media (prefers-reduced-motion: reduce) {
+        * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      }
+    `;
+    document.head.appendChild(st);
+  } catch(e){}
+
+  // ========== 9. تنظيف مؤقتات قديمة كل فترة ==========
+  setInterval(function() {
+    try {
+      // تنظيف أي عناصر entryFx قديمة
+      var old = document.querySelectorAll('#entryFx');
+      if (old.length > 1) {
+        for (var i = 0; i < old.length - 1; i++) old[i].remove();
+      }
+    } catch(e){}
+  }, 15000);
+
+  console.log('%c⚡ شات سونيك — باتش الأداء مُفعّل', 'color:#22c55e;font-weight:bold');
+})();
