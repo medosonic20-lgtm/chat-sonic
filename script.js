@@ -18300,3 +18300,41 @@ el('chatBox').addEventListener('scroll',function(){
   }catch(e){}
 },{passive:true});
 })();
+/* ================================================================
+   🩹 باتش 9 — وضع الرسم الصاروخي: كل الحركة على الـ GPU
+   ================================================================ */
+(function(){
+if(window._gpuMode)return;window._gpuMode=true;
+try{
+  var st=document.createElement('style');
+  st.textContent=
+  /* 1) الشات: طبقة رسم مستقلة — التمرير بيروح لكارت الرسوميات مباشرة */
+  '.chat-box{will-change:scroll-position;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}'
+  /* 2) الشاشات الأساسية: نفس المعاملة */
+  +'.content,#usersList,#wallFeed,#storiesBar{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}'
+  /* 3) توهج الإطارات: ثابت بدل متحرك — أكبر وفر في الرسم */
+  +'.ava-frame-wrap .frame-img{animation:none!important;filter:drop-shadow(0 0 8px rgba(230,92,0,.8))!important}'
+  /* 4) نبضة اللوجو: scale بس (GPU) — من غير الفلتر المتحرك */
+  +'@keyframes sonicPulse{0%{transform:scale(1)}100%{transform:scale(1.06)}}'
+  /* 5) توهج بانر الدخول: بيتحرك على الفاضي — نخليه ثابت */
+  +'@keyframes entryGlowF{0%,100%{box-shadow:0 4px 20px rgba(0,0,0,.5)}}'
+  +'@keyframes entryGlow2{0%,100%{box-shadow:0 4px 20px rgba(0,0,0,.5)}}'
+  /* 6) اللمس: استجابة فورية — بدون توهج النقر وتأخير الضغط المزدوج */
+  +'*{-webkit-tap-highlight-color:transparent;touch-action:manipulation}'
+  /* 7) نصوص الشات: أسرع وضع رسم */
+  +'.bub,.u-name{text-rendering:optimizeSpeed}'
+  /* 8) البلور التقيل: مخفف نص — نفس الشكل تقريبا بثلث التكلفة */
+  +'#loginModal .login-card{backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* 9) مقياس السرعة: اكتب _fps() في الكونسول وشوف رقمك */
+window._fps=function(){
+  var f=0,t0=performance.now();
+  (function loop(){
+    f++;
+    if(performance.now()-t0<1000)requestAnimationFrame(loop);
+    else console.log('%c⚡ FPS: '+f,'color:#22c55e;font-weight:bold;font-size:16px');
+  })();
+};
+})();
