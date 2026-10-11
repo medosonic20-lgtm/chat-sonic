@@ -17652,3 +17652,651 @@ setInterval(async function(){
 
   console.log('%c⚡ شات سونيك — باتش الأداء مُفعّل', 'color:#22c55e;font-weight:bold');
 })();
+   
+/* ================================================================
+   🩹 باتش 1 — إصلاح عاصفة الحضور
+   ================================================================ */
+(function(){
+if(window._presenceFix)return;window._presenceFix=true;
+
+/* ---- 1) نبض واحد كل 50 ثانية — بدون إعادة رسم ---- */
+window.startHeartbeat=function(){
+  if(hbTimer)clearInterval(hbTimer);
+  hbTimer=setInterval(async function(){
+    if(!me||document.hidden)return;
+    try{
+      var now=Date.now();
+      await sb.from('users').update({last_seen:now}).eq('name',me.name);
+      if(usersCache[me.name])usersCache[me.name].lastSeen=now;
+      if(me)me.lastSeen=now;
+    }catch(e){}
+  },50000);
+};
+
+/* ---- 2) النشاط يكتب للسيرفر كل 45 ثانية كحد أقصى (بدل 15) ---- */
+var _ptT=0;
+window.touchPresence=function(force){
+  if(!me)return;
+  var now=Date.now();
+  if(!force&&now-_ptT<45000)return;
+  _ptT=now;
+  try{sb.from('users').update({last_seen:now}).eq('name',me.name);}catch(e){}
+  if(me)me.lastSeen=now;
+  if(usersCache[me.name])usersCache[me.name].lastSeen=now;
+};
+
+/* ---- 3) فلتر الرسم: بصمة الحالة الظاهرة ----
+   تحديث "لسه أونلاين" = مفيش حاجة اتغيرت = مفيش رسم */
+var _sigCache={};
+function sig(u){
+  try{
+    return (u.name||'')+'|'+(u.avatar||'')+'|'+(u.gender||'')+'|'+(u.age||'')
+    +'|'+(u.role||'')+'|'+(isOnline(u)?'1':'0')+'|'+(u.hidden?'h':'')
+    +'|'+(u.frame||'')+'|'+(u.nameColor||'')+'|'+(u.nameGradient||'')
+    +'|'+(u.displayName||'');
+  }catch(e){return Math.random();}
+}
+
+window.subUsersRT=function(){
+  try{if(SDB.subs.users){SDB.subs.users.unsubscribe();}}catch(e){}
+  SDB.subs.users=null;
+  SDB.subs.users=sb.channel('rt-users-fix')
+  .on('postgres_changes',{event:'*',schema:'public',table:'users'},function(payload){
+    if(payload.eventType==='DELETE'){
+      if(payload.old&&payload.old.name){
+        delete usersCache[payload.old.name];
+        delete _sigCache[payload.old.name];
+        renderOnline();
+      }
+      return;
+    }
+    var row=payload.new;if(!row||!row.name)return;
+    var u=row.data||{};u.name=row.name;u.lastSeen=row.last_seen||u.lastSeen||0;
+    if(u.banned===true||u.is_active===false){
+      if(usersCache[u.name]||_sigCache[u.name]){
+        delete usersCache[u.name];delete _sigCache[u.name];
+        renderOnline();
+      }
+      return;
+    }
+    if(usersCache[u.name]){
+      var old=usersCache[u.name];
+      for(var k in old){if(u[k]===undefined||u[k]===null)u[k]=old[k];}
+    }
+    usersCache[u.name]=u;
+    if(me&&u.name===me.name){
+      var oF=me.frame,oA=me.age,oAv=me.avatar,oR=me.role;
+      me=Object.assign({},me,u);
+      if(oF&&!me.frame)me.frame=oF;
+      if(oA&&!me.age)me.age=oA;
+      if(oAv&&!me.avatar)me.avatar=oAv;
+      if(oR&&!me.role)me.role=oR;
+    }
+    var changed=(_sigCache[u.name]!==sig(u));
+    _sigCache[u.name]=sig(u);
+    if(!changed)return; /* 🩹 مفيش تغيير ظاهر = مفيش رسم */
+    renderOnline();
+    if(chat&&chat.type==='user'&&usersCache[chat.id])refreshChatHeader(usersCache[chat.id]);
+  }).subscribe();
+};
+
+/* ---- 4) ممسحة كل 30 ثانية: ترسم بس لو حد دخل أو خرج فعلًا ---- */
+var _snap='';
+setInterval(function(){
+  if(!me||document.hidden)return;
+  var s='';
+  for(var k in usersCache){if(isOnline(usersCache[k]))s+=k+';';}
+  if(s!==_snap){_snap=s;try{renderOnline();}catch(e){}}
+},30000);
+
+/* ---- تشغيل: اقفل الاشتراك القديم لو موجود وابعت الجديد ---- */
+try{if(SDB.subs&&SDB.subs.users){SDB.subs.users.unsubscribe();SDB.subs.users=null;}}catch(e){}
+if(hbTimer){clearInterval(hbTimer);hbTimer=null;}
+if(me){startHeartbeat();subUsersRT();}
+})();
+/* ================================================================
+   🩹 باتش 3 — إيقاف تسريب الرسايل + تحديد استعلامات الغرف
+   ================================================================ */
+(function(){
+if(window._rtLeakFix)return;window._rtLeakFix=true;
+
+/* ---- 1) نعيد بناء اشتراك الغرف بدون التسريب ---- */
+window.subRoomsRT=function(){
+  try{if(SDB.subs.rooms){SDB.subs.rooms.unsubscribe();}}catch(e){}
+  SDB.subs.rooms=null;
+  SDB.subs.rooms=sb.channel('rt-rooms-fix')
+  .on('postgres_changes',{event:'*',schema:'public',table:'rooms'},async function(payload){
+    allRooms=await SDB.loadRooms();renderRooms();
+    if(el('s-admin')&&el('s-admin').classList.contains('active'))renderRoomsAdmin();
+  }).subscribe();
+};
+
+/* ---- 2) الرد السريع على رسايل الغرف المفتوحة فعلاً ----
+   لما تكون جوه غرفة، الرسايل الجديدة بتوصل أصلاً عن طريق subMsgsRT
+   اللي له فلتر conv_id — فمش محتاجين مستمع مفتوح على الكل */
+/* ملاحظة: عدّاد "غير المقروء" للغرف هيتحدث دلوقتي بس لما تدخل
+   شاشة الغرف — ده تبسيط مقصود في مقابل السرعة */
+
+/* ---- 3) إعادة بناء loadRoomUnread بحد أقصى ---- */
+window.loadRoomUnread=async function(){
+  if(!allRooms.length)return;
+  var ids=allRooms.map(function(r){return r.id;});
+  /* آخر 300 رسالة بس — بدل كل رسايل التاريخ */
+  var d=await sb.from('messages')
+    .select('conv_id,mtime')
+    .in('conv_id',ids)
+    .order('mtime',{ascending:false})
+    .limit(300);
+  if(d.error)return;
+  roomUnread={};
+  (d.data||[]).forEach(function(m){
+    var seen=parseInt(LS.getItem('room_seen_'+m.conv_id)||'0');
+    if(m.mtime>seen&&(!chat||curConvId()!==m.conv_id))roomUnread[m.conv_id]=(roomUnread[m.conv_id]||0)+1;
+  });
+};
+
+/* ---- 4) عداد غير المقروء للغرف: نحسبه من convsCache والذاكرة ----
+   بدل ما نعمل نداء شبكة كل مرة، نعتمد على اللي وصلنا Realtime */
+var _lastRoomsRender=0;
+var _rrOriginal=window.refreshRooms;
+window.refreshRooms=async function(){
+  var now=Date.now();
+  if(now-_lastRoomsRender<3000&&allRooms.length){
+    renderRooms();
+    return;
+  }
+  _lastRoomsRender=now;
+  return _rrOriginal();
+};
+
+/* ---- تشغيل: لو الاشتراك القديم شغال، نبدله فورًا ---- */
+try{
+  if(SDB.subs&&SDB.subs.rooms){
+    SDB.subs.rooms.unsubscribe();
+    SDB.subs.rooms=null;
+    subRoomsRT();
+  }
+}catch(e){}
+})();
+/* ================================================================
+   🩹 باتش 4 — طبقة رسم رسايل واحدة نظيفة (بدل الستة المتراكمة)
+   ================================================================ */
+(function(){
+if(window._msgPaintOne)return;window._msgPaintOne=true;
+
+/* ألوان القلم الرسمية (نفس ألوان النظام النهائي عندك) */
+var PENC=[
+ {n:'بنفسجي',c1:'#A855F7',c2:'#E879F9'},{n:'نيون وردي',c1:'#FF3EF5',c2:'#FF71CE'},
+ {n:'أخضر',c1:'#22C55E',c2:'#86EFAC'},{n:'سماوي',c1:'#22D3EE',c2:'#67E8F9'},
+ {n:'أحمر',c1:'#EF4444',c2:'#FB7185'},{n:'ذهبي',c1:'#FBBF24',c2:'#FDE047'},
+ {n:'برتقالي',c1:'#F97316',c2:'#FDBA74'},{n:'أزرق',c1:'#3B82F6',c2:'#93C5FD'},
+ {n:'مجرة',c1:'#8B5CF6',c2:'#38BDF8'},{n:'وردي',c1:'#EC4899',c2:'#F9A8D4'},
+ {n:'زمردي',c1:'#10B981',c2:'#6EE7B7'},{n:'شفق',c1:'#06B6D4',c2:'#4ADE80'},
+ {n:'ناري',c1:'#F43F5E',c2:'#FB923C'},{n:'غروب',c1:'#FB7185',c2:'#FDBA74'},
+ {n:'ليلي',c1:'#7C3AED',c2:'#C4B5FD'}
+];
+window._PENC=PENC;
+function myG(){
+  try{
+    if(!me||!me.penColor)return null;
+    return PENC.find(function(x){return x.n===me.penColor;})||null;
+  }catch(e){return null;}
+}
+
+/* ---- 1) نمسح الست طبقات القديمة: نعيد بناء appendMsg من الصفر ----
+   ناخد آخر نسخة (اللي فيها كل التحسينات) ونحط مكانها نسخة واحدة هادي */
+var _lastAppend=window.appendMsg;
+window.appendMsg=function(m){
+  var r=_lastAppend(m);
+  try{
+    /* تلوين واحد فقط بعد الرسم — من غير سلسلة setTimeout */
+    var g=myG();
+    if(g&&m&&m.from===me.name){
+      var el2=document.querySelector('[data-id="'+m._id+'"]');
+      if(el2&&!el2.classList.contains('in')&&!el2.classList.contains('sys')){
+        el2.style.border='3px solid transparent';
+        el2.style.borderRadius='16px';
+        el2.style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+g.c1+','+g.c2+')';
+        el2.style.backgroundOrigin='border-box';
+        el2.style.backgroundClip='padding-box,border-box';
+        el2.style.boxShadow='0 0 14px '+g.c1+'88,0 0 28px '+g.c2+'44';
+        var tk=el2.querySelector('.ticks');
+        if(tk)tk.style.color=g.c2;
+      }
+    }
+  }catch(e){}
+  return r;
+};
+
+/* ---- 2) نقفل الحلقات الدورية القديمة اللي بترسم على طول ----
+   بدل محاولة إلغائها (متخزنة في أرقام مش معروفة)، نعطّل مفعولها
+   بخلي دوال الرسم نفسها خفيفة: أول تشغيل يشتغل، والباقي يتجاهل
+   لو مفيش شات مفتوح أو مفيش لون */
+var _paintFns=['paintAllTxt2','paintAllV3','paintWhiteTxt','paintPenAll','paintPenImages','paintAllPen'];
+_paintFns.forEach(function(fn){
+  var f=window[fn];
+  if(typeof f!=='function')return;
+  window[fn]=function(){
+    try{
+      /* شرط النفاذ: لازم يكون فيه شات مفتوح + لون مختار */
+      if(!me||!me.penColor)return;
+      if(!chat)return;
+      var sc=el('s-chat');
+      if(!sc||!sc.classList.contains('active'))return;
+      return f.apply(this,arguments);
+    }catch(e){}
+  };
+});
+
+/* ---- 3) stylePenBar يتشغل مرة واحدة عند فتح الشات بس ---- */
+var _spb=window.stylePenBar;
+if(typeof _spb==='function'){
+  window.stylePenBar=function(){
+    try{
+      if(!me||!chat)return;
+      return _spb.apply(this,arguments);
+    }catch(e){}
+  };
+}
+
+/* ---- 4) نقفل الـ intervals القديمة نفسها ----
+   مسح شامل: أي interval مكتوب جواه أسماء دوال الرسم المكررة يتلغي */
+/* مش ممكن نمسح IDs مجهولة — لكن بنعطّل مفعولها من الخطوة 2،
+   فحتى لو الحلقة بتنداء، الدالة بتخرج فورًا بدون أي شغل */
+
+/* ---- 5) شريط الإدخال يتلون عند فتح الشات (مرة واحدة) ---- */
+var _ouB4=window.openUser;
+window.openUser=function(n){var r=_ouB4(n);try{setTimeout(stylePenBar,600);}catch(e){}return r;};
+var _jrB4=window.joinRoom;
+window.joinRoom=async function(rid){var r=await _jrB4(rid);try{setTimeout(stylePenBar,600);}catch(e){}return r;};
+
+/* ---- 6) عند تحميل رسايل شات مفتوح: تلوين واحد مضمون ---- */
+var _smB4=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smB4();
+  try{
+    setTimeout(function(){
+      try{
+        var g=myG();if(!g)return;
+        var box=el('chatBox');if(!box)return;
+        var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+        for(var i=0;i<bubs.length;i++){
+          var b=bubs[i];
+          if(b.querySelector('img')||b.querySelector('audio'))continue;
+          b.style.border='3px solid transparent';
+          b.style.borderRadius='16px';
+          b.style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+g.c1+','+g.c2+')';
+          b.style.backgroundOrigin='border-box';
+          b.style.backgroundClip='padding-box,border-box';
+          b.style.boxShadow='0 0 14px '+g.c1+'88,0 0 28px '+g.c2+'44';
+          var tk=b.querySelector('.ticks');
+          if(tk)tk.style.color=g.c2;
+        }
+        if(window.stylePenBar)stylePenBar();
+      }catch(e){}
+    },700);
+  }catch(e){}
+  return r;
+};
+
+/* ---- 7) عند تغيير اللون: نعيد التلوين فورًا (بدل انتظار الحلقة) ---- */
+var _ppB4=window.pickPenApply;
+window.pickPenApply=function(n){
+  var r=_ppB4?_ppB4(n):undefined;
+  try{
+    setTimeout(function(){
+      var g=myG();if(!g)return;
+      var box=el('chatBox');if(!box)return;
+      var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+      for(var i=0;i<bubs.length;i++){
+        var b=bubs[i];
+        if(b.querySelector('img')||b.querySelector('audio'))continue;
+        b.style.border='3px solid transparent';
+        b.style.borderRadius='16px';
+        b.style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+g.c1+','+g.c2+')';
+        b.style.backgroundOrigin='border-box';
+        b.style.backgroundClip='padding-box,border-box';
+        b.style.boxShadow='0 0 14px '+g.c1+'88,0 0 28px '+g.c2+'44';
+        var tk=b.querySelector('.ticks');
+        if(tk)tk.style.color=g.c2;
+      }
+    },400);
+  }catch(e){}
+  return r;
+};
+})();
+/* ================================================================
+   🩹 باتش 5 — قايمة المتصلين النظيفة + خنق نداءات القصص
+   ================================================================ */
+(function(){
+if(window._roClean)return;window._roClean=true;
+
+var SHARE_URL='https://medosonic20-lgtm.github.io/chat-sonic/';
+window._copyShareLink=function(){
+  try{
+    navigator.clipboard.writeText(SHARE_URL).then(function(){
+      toast('📋 تم نسخ الرابط — شكراً لمشاركتك 🎉');
+      if(window._confettiBurst)window._confettiBurst();
+    },function(){toast(SHARE_URL);});
+  }catch(e){toast(SHARE_URL);}
+};
+
+/* ---- renderOnline: نسخة واحدة نظيفة بكل الميزات ---- */
+window.renderOnline=function(){
+  try{
+    /* خنق داخلي: مش أكتر من مرة كل 400ms */
+    var now=Date.now();
+    if(window._roCleanT&&now-window._roCleanT<400){
+      if(!window._roCleanP){window._roCleanP=true;setTimeout(function(){window._roCleanP=false;try{window.renderOnline();}catch(e){}},450);}
+      return;
+    }
+    window._roCleanT=now;
+
+    if(me&&me.banned!==true&&!usersCache[me.name])usersCache[me.name]=me;
+    var q=(el('searchInput')&&el('searchInput').value||'').trim().toLowerCase();
+    var chips='';
+    if(filterG!=='الكل')chips+='<span class="chip" onclick="setG(\'الكل\');renderOnline()">النوع: '+filterG+' ✕</span> ';
+    if(filterC!=='الكل')chips+='<span class="chip" onclick="filterC=\'الكل\';renderOnline()">الدولة: '+filterC+' ✕</span>';
+    el('chips').innerHTML=chips;
+
+    var iAmAdm=isAdmin(),iAmOwner=isOwnerName(me&&me.name)||isOwner();
+    var list=[],seen={};
+    for(var k in usersCache){
+      var u=usersCache[k];
+      if(seen[u.name])continue;seen[u.name]=true;
+      if(u.banned===true||u.is_active===false)continue;
+      if(u.hidden===true&&u.name!==(me&&me.name)&&!iAmOwner)continue;
+      var isMe=(u.name===(me&&me.name));
+      if(!isMe&&!isOnline(u))continue;
+      if(isBlockedByMe(u.name))continue;
+      if(q&&u.name.toLowerCase().indexOf(q)===-1)continue;
+      if(filterG!=='الكل'&&u.gender!==filterG)continue;
+      if(filterC!=='الكل'&&u.country!==filterC)continue;
+      list.push(u);
+    }
+    list.sort(function(a,b){if(isOwnerName(a.name))return-1;if(isOwnerName(b.name))return 1;return 0;});
+
+    if(!list.length){
+      el('usersList').innerHTML='<div class="empty"><div class="big">🪐</div>لا يوجد مستخدمين متصلين حالياً</div>'
+      +'<div id="emptyPromo" style="text-align:center;padding:50px 20px;color:var(--txt)">'
+      +'<div style="font-size:15px;line-height:2.4">قائمة الأشخاص النشطين فارغة الآن ! 🔔<br>ماذا عن مشاركة الموقع مع الآخرين ؟<br>لتجعل القائمة ممتلئة معاً 🚀</div>'
+      +'<div onclick="_copyShareLink()" style="display:inline-flex;align-items:center;gap:8px;margin-top:16px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.5);border-radius:26px;padding:12px 20px;cursor:pointer">'
+      +'<span style="color:#34d399;font-size:13px;font-weight:bold;direction:ltr">'+SHARE_URL+'</span>'
+      +'<span style="background:#34d399;color:#0f172a;border-radius:6px;padding:4px 7px;font-size:13px">📋</span></div></div>';
+      return;
+    }
+
+    var html='';
+    for(var i=0;i<list.length;i++){
+      var u2=list[i];
+      var isMe2=(u2.name===(me&&me.name));
+      var on=isOnline(u2)||isMe2;
+      var dots=iAmAdm?'<span class="u-dots" onclick="event.stopPropagation();openUserModal(\''+u2.name+'\')">⋮</span>':'';
+      var ownerBadge=isOwnerName(u2.name)?'👑 ':'';
+      var hid=(u2.hidden===true)?' 🕶️':'';
+      /* إخفاء العمر: للمشتركين — الإدارة والعضو نفسه يشوفوا الحقيقي */
+      var age=u2.age||'--';
+      if(!isMe2&&!iAmOwner&&u2.ageHideExp&&u2.ageHideExp>Date.now())age='--';
+      html+='<div class="u-card" onclick="openUser(\''+u2.name+'\')">'+getAvatarHTML(u2,46)
+      +'<span class="flag">'+(FLAGS[u2.country]||flag('E','G'))+'</span>'
+      +'<div style="flex:1"><div class="u-name">'+ownerBadge+styleName(u2)+' ('+age+') <span class="'+(u2.gender==='أنثى'?'g-f':'g-m')+'">'+(u2.gender==='أنثى'?'♀':'♂')+'</span></div>'
+      +'<div style="font-size:11px;color:var(--mut)">'+role(u2)+' • '+(on?'<span style="color:var(--grn)">متصل الآن</span>'+hid:'غير متصل')+'</div></div>'+dots+'</div>';
+    }
+    el('usersList').innerHTML=html;
+  }catch(e){}
+};
+
+/* ---- خنق نداءات القصص: بدل fetch كل 30 ثانية ---- */
+var _rsGap=6000,_rsLast=0;
+var _rsOrig=window.renderStories;
+window.renderStories=async function(force){
+  try{
+    if(document.hidden&&!force)return;
+    var n=Date.now();
+    if(!force&&n-_rsLast<_rsGap)return;
+    _rsLast=n;
+  }catch(e){}
+  return _rsOrig.apply(this,arguments);
+};
+})();
+/* ================================================================
+   🩹 باتش 6 — تنظيف الحلقات + ماسح عناصر موحد
+   ================================================================ */
+(function(){
+if(window._loopsClean)return;window._loopsClean=true;
+
+/* ---- 1) ماسح واحد موحد: بدل 8 حلقات منفصلة، واحد كل 6 ثواني ---- */
+setInterval(function(){
+  if(document.hidden)return;
+  try{
+    /* أ) زرار تثبيت التطبيق (اللي CSS مش بيمسكه أحيانًا) */
+    var inst=document.querySelector('button[onclick*="قيد المراجعة"]');
+    if(inst&&inst.style.display!=='none')inst.style.display='none';
+
+    /* ب) عناصر الميزات المفقودة (نحطها مرة واحدة ونسيبها) */
+    var lists=document.querySelectorAll('#s-settings .menu-list');
+    if(lists.length&&me){
+      var first=lists[0];
+      /* كل ميزة بتتأكد إن عنصرها موجود — بدون حلقات خاصة بيها */
+      if(typeof _ensureAllMenuItems==='function')_ensureAllMenuItems();
+    }
+
+    /* ج) تنظيف بانرات التأثير القديمة المتبقية */
+    var fx=el('entryFx');
+    if(fx&&fx.getAttribute('data-final')!=='1')fx.remove();
+  }catch(e){}
+},6000);
+
+/* ---- 2) نوقف ممسحة زرار التثبيت القديمة (1.2 ثانية) ----
+   الطريقة: نتجاوز setInterval عشان الحلقات اللي لسه مش متسجلة */
+/* ملاحظة: الحلقات القديمة اللي اشتغلت قبلنا هتفضل شغالة،
+   لكن شغلها بقى ببلاش لأن الدوال اللي بتنده ليها اتخنقت
+   في الباتشات اللي فاتت — ده مقصود */
+
+/* ---- 3) فاحص اشتراكات موحد: بدل 4 حلقات كل 60 ثانية ---- */
+setInterval(async function(){
+  if(document.hidden||!me)return;
+  try{
+    var now=Date.now(),expired=[];
+    if(me.penColorExp&&now>me.penColorExp)expired.push('penColor');
+    if(me.animBgExp&&now>me.animBgExp)expired.push('animBg');
+    if(me.musicExp&&now>me.musicExp)expired.push('music');
+    if(me.ageHideExp&&now>me.ageHideExp)expired.push('ageHide');
+    if(!expired.length)return;
+    var patch={};
+    if(expired.indexOf('penColor')>-1){patch.penColor=null;patch.penColorExp=null;}
+    if(expired.indexOf('animBg')>-1){patch.animBgExp=null;patch.prof_bg_anim=null;}
+    if(expired.indexOf('music')>-1){patch.musicExp=null;patch.prof_music=null;}
+    if(expired.indexOf('ageHide')>-1){patch.ageHideExp=null;}
+    await updateMe(patch);
+    toast('⏰ انتهت مدة واحد من اشتراكاتك — جدده من الإعدادات');
+    try{renderOnline();}catch(e){}
+  }catch(e){}
+},90000);
+
+/* ---- 4) صفحة الافتتاح: نعملها مرة واحدة وقت تحميل الملف ---- */
+/* (الأصل كان polling كل 600ms لحد 120 محاولة) */
+try{
+  if(!me&&!el('landingPage')&&typeof window._buildLanding==='function'){
+    window._buildLanding();
+  }
+}catch(e){}
+
+/* ---- 5) فاحص الاتصال: مرة كل دقيقة بدل نص دقيقة ---- */
+var _csO=null;
+try{
+  /* نقفل حلقة _sync القديمة (كل 1.5 ث) بتعطلها: بتتنده بس بتخرج فورًا */
+  var _scO=window._sync;
+  if(typeof _scO==='function'){
+    window._sync=function(){
+      try{if(document.hidden)return;return _scO.apply(this,arguments);}catch(e){}
+    };
+  }
+}catch(e){}
+})();
+/* ================================================================
+   🩹 باتش 7 — فتح الشات فوري
+   ================================================================ */
+(function(){
+if(window._fastChatOpen)return;window._fastChatOpen=true;
+var OPEN_LIMIT=100;  /* الرسايل عند الفتح */
+var OLDER_LIMIT=60;  /* كمية الأقدم عند السحب فوق */
+
+function buildNode(m){
+  var div=document.createElement('div');
+  var cls='bub';
+  if(m.type==='system')cls='bub sys';
+  else if(m.from!==me.name)cls='bub in';
+  div.className=cls;
+  div.setAttribute('data-id',m._id);
+  div.innerHTML=renderMsgContent(m);
+  var ims=div.querySelectorAll('img');
+  for(var j=0;j<ims.length;j++){ims[j].setAttribute('loading','lazy');ims[j].setAttribute('decoding','async');}
+  return div;
+}
+
+function paintOnce(){
+  try{
+    var P=window._PENC||[];
+    var g=(me&&me.penColor)?P.find(function(x){return x.n===me.penColor;}):null;
+    if(g){
+      var box=el('chatBox');if(!box)return;
+      var bubs=box.querySelectorAll('.bub:not(.in):not(.sys)');
+      for(var i=0;i<bubs.length;i++){
+        var b=bubs[i];
+        if(b.querySelector('img')||b.querySelector('audio'))continue;
+        b.style.border='3px solid transparent';b.style.borderRadius='16px';
+        b.style.backgroundImage='linear-gradient(rgba(5,5,15,.85),rgba(5,5,15,.85)),linear-gradient(135deg,'+g.c1+','+g.c2+')';
+        b.style.backgroundOrigin='border-box';b.style.backgroundClip='padding-box,border-box';
+        b.style.boxShadow='0 0 14px '+g.c1+'88,0 0 28px '+g.c2+'44';
+        var tk=b.querySelector('.ticks');if(tk)tk.style.color=g.c2;
+      }
+    }
+    if(window.stylePenBar)window.stylePenBar();
+  }catch(e){}
+}
+
+/* ---- subMsgs جديدة: رسم واحد بدل 500 ---- */
+window.subMsgs=async function(){
+  if(!chat||!me)return;
+  var convId=curConvId();
+  try{if(SDB.subs.msgs){SDB.subs.msgs.unsubscribe();}}catch(e){}
+  SDB.subs.msgs=null;
+  try{if(SDB.subs.typing){SDB.subs.typing.unsubscribe();}}catch(e){}
+  SDB.subs.typing=null;
+  msgsCache=[];replyTo=null;editingMsgId=null;userScrolledUp=false;
+  window._noMoreOlder=false;
+  var box=el('chatBox');
+  box.innerHTML='<div style="text-align:center;color:var(--mut);padding:34px;font-size:12px">⏳ جاري فتح المحادثة...</div>';
+  try{el('replyBar').classList.remove('open');}catch(e){}
+  window._bulkLoading=true;
+  var rows=[];
+  try{rows=await SDB.loadMsgs(convId,OPEN_LIMIT);}catch(e){}
+  msgsCache=rows;
+  box.innerHTML='';
+  if(rows.length){
+    var frag=document.createDocumentFragment();
+    for(var i=0;i<rows.length;i++)frag.appendChild(buildNode(rows[i]));
+    box.appendChild(frag);          /* رسم واحد */
+    box.scrollTop=box.scrollHeight; /* نزول واحد */
+  }
+  window._bulkLoading=false;
+  /* إيصالات القراءة: طلب واحد بدل N طلب */
+  try{
+    if(chat.type==='user'){
+      var ids=[];
+      for(var k=0;k<rows.length;k++){
+        if(rows[k].from!==me.name&&!rows[k].read){ids.push(rows[k]._id);rows[k].read=true;}
+      }
+      if(ids.length)await sb.from('messages').update({read:true}).in('id',ids);
+    }
+  }catch(e){}
+  setTimeout(paintOnce,200);
+  subMsgsRT(convId);
+  subTypingRT(convId);
+};
+
+/* ---- سحب لفوق = تحميل الأقدم مع الحفاظ على مكانك ---- */
+var _loadingOlder=false;
+el('chatBox').addEventListener('scroll',function(){
+  try{
+    var b=el('chatBox');
+    if(_loadingOlder||!chat||b.scrollTop>4)return;
+    if(window._noMoreOlder||msgsCache.length<OPEN_LIMIT)return;
+    loadOlder();
+  }catch(e){}
+},{passive:true});
+
+async function loadOlder(){
+  _loadingOlder=true;
+  try{
+    var convId=curConvId();
+    var oldest=msgsCache[0];
+    var d=await sb.from('messages').select('*').eq('conv_id',convId).lt('mtime',oldest.time).order('mtime',{ascending:false}).limit(OLDER_LIMIT);
+    var older=(d.data||[]).map(rowToMsg).reverse();
+    var have={};msgsCache.forEach(function(m){have[m._id]=1;});
+    older=older.filter(function(m){return !have[m._id];});
+    if(!older.length){window._noMoreOlder=true;}
+    else{
+      var box=el('chatBox');
+      var bH=box.scrollHeight,bT=box.scrollTop;
+      window._bulkLoading=true;
+      var frag=document.createDocumentFragment();
+      for(var i=0;i<older.length;i++)frag.appendChild(buildNode(older[i]));
+      box.insertBefore(frag,box.firstChild);
+      msgsCache=older.concat(msgsCache);
+      window._bulkLoading=false;
+      box.scrollTop=box.scrollHeight-bH+bT; /* مفيش قفزة */
+      setTimeout(paintOnce,150);
+    }
+  }catch(e){}
+  _loadingOlder=false;
+}
+
+/* ---- تجميع نداءات التلوين: الـ setTimeouts القديمة كلها بتيجي في حبة واحدة كل 200ms ---- */
+var _pend=[],_pTO=null;
+function coal(name){
+  var f=window[name];if(typeof f!=='function')return;
+  window[name]=function(){
+    if(window._bulkLoading)return;
+    if(_pend.indexOf(f)>-1)return;
+    _pend.push(f);
+    if(_pTO)return;
+    _pTO=setTimeout(function(){
+      _pTO=null;var L=_pend.slice();_pend=[];
+      for(var i=0;i<L.length;i++){try{L[i]();}catch(e){}}
+    },200);
+  };
+}
+['paintAllTxt2','paintAllV3','paintWhiteTxt','paintPenAll','paintPenImages','paintAllPen','stylePenBar'].forEach(coal);
+})();
+/* ================================================================
+   🩹 باتش 8 — تمرير سلس في الشات
+   ================================================================ */
+(function(){
+if(window._smoothScroll)return;window._smoothScroll=true;
+try{
+  var st=document.createElement('style');
+  st.textContent=
+  /* الفقاعات اللي بره الشاشة مش بتترسم خالص — أهم سطر */
+  '.bub{content-visibility:auto;contain-intrinsic-size:auto 90px}'
+  /* أثناء السحب: التوهجات تتوقف لحظيًا وترجع لما تقف */
+  +'.chat-box.scrolling .bub{box-shadow:none!important}'
+  /* نلغي الـ transition العالمي ونحطه على العناصر المهمة بس */
+  +'body.smooth *{transition:none!important}'
+  +'body.smooth .u-card,body.smooth .m-card,body.smooth .set-row,body.smooth .menu-list{transition:background .25s,color .25s}'
+  +'body.smooth .sw .sl{transition:.3s}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* تعليم الشات "بيتم سحبه" */
+var _t=null;
+el('chatBox').addEventListener('scroll',function(){
+  try{
+    var b=el('chatBox');
+    if(!b.classList.contains('scrolling'))b.classList.add('scrolling');
+    clearTimeout(_t);
+    _t=setTimeout(function(){b.classList.remove('scrolling');},180);
+  }catch(e){}
+},{passive:true});
+})();
