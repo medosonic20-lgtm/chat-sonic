@@ -22190,6 +22190,84 @@ try{
 console.log('%c⚡ الإرسال الفوري + منع التكرار: مُفعّل','color:#22c55e;font-weight:bold');
 })();
    </script>
+   <!-- ===== 💰 باتش توفير الحصة: حضور اقتصادي ===== -->
+<script>
+(function(){
+if(window._quotaSaver)return;window._quotaSaver=true;
+
+/* 1) مهلة أوفلاين 3 دقايق — والنبضة كل 60 ثانية = هامش أمان 3 أضعاف */
+window.ONLINE_TIMEOUT=180000;
+
+/* 2) نبضة واحدة بس كل 60 ثانية — تقفل كل النبضات القديمة */
+window.startHeartbeat=function(){
+  if(hbTimer)clearInterval(hbTimer);
+  hbTimer=setInterval(async function(){
+    if(!me)return;
+    try{
+      var now=Date.now();
+      await sb.from('users').update({last_seen:now}).eq('name',me.name);
+      if(usersCache[me.name])usersCache[me.name].lastSeen=now;
+      if(me)me.lastSeen=now;
+    }catch(e){}
+  },60000);
+};
+if(hbTimer){clearInterval(hbTimer);hbTimer=null;}
+if(me){
+  startHeartbeat();
+  try{sb.from('users').update({last_seen:Date.now()}).eq('name',me.name);}catch(e){}
+}
+
+/* 3) نقفل كل مستمعات النشاط اللي كانت بتبعت نبضات كتير
+   (click/touch/keydown كانت نبضة كل 10-15 ثانية — دي اتشالت) */
+window.touchPresence=function(){};
+window._markGone=function(){};
+window._markBack=function(){
+  if(!me)return;
+  try{sb.from('users').update({last_seen:Date.now()}).eq('name',me.name);}catch(e){}
+  if(me)me.lastSeen=Date.now();
+};
+
+/* 4) الكتابة: نبضة كل 30 ثانية بدل 8 (العضو يفضل نشط بدون رعشة رسايل) */
+var _tpQ=0;
+window.handleTyping=function(){
+  try{
+    if(me){
+      var now=Date.now();
+      if(now-_tpQ>30000){
+        _tpQ=now;
+        try{sb.from('users').update({last_seen:now}).eq('name',me.name);}catch(e){}
+        if(me)me.lastSeen=now;
+      }
+    }
+  }catch(e){}
+  try{if(window._htOrig)window._htOrig();}catch(e){}
+};
+
+/* 5) الرسايل: نبضة واحدة مع كل إرسال (مهمة — بتفعّل العضو فعليًا) */
+var _smQ=window.sendMsg;
+window.sendMsg=async function(){
+  try{
+    if(me){
+      var now=Date.now();
+      try{sb.from('users').update({last_seen:now}).eq('name',me.name);}catch(e){}
+      me.lastSeen=now;
+      if(usersCache[me.name])usersCache[me.name].lastSeen=now;
+    }
+  }catch(e){}
+  return _smQ.apply(this,arguments);
+};
+
+/* 6) الرجوع للتاب = نبضة فورية (مرة واحدة، مش متكررة) */
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'&&me){
+    try{sb.from('users').update({last_seen:Date.now()}).eq('name',me.name);}catch(e){}
+    if(me)me.lastSeen=Date.now();
+  }
+});
+
+console.log('%c💰 وضع توفير الحصة: النبضة كل 60 ثانية — Realtime هينقص 70%','color:#22c55e;font-weight:bold');
+})();
+   </script>
    
 </body>
 </html>
