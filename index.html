@@ -21965,6 +21965,57 @@ window.styleName=function(u){
 };
 })();
 </script>
+<!-- ===== 💬 الكابشن ملزوق بالصورة في نفس الفقاعة (زي تليجرام) ===== -->
+<script>
+(function(){
+if(window._imgCapAttach)return;window._imgCapAttach=true;
 
+/* ===== 1) confirmImage: النص يتحط جوه رسالة الصورة نفسها ===== */
+window.confirmImage=async function(){
+  if(!pendingImg||!chat)return;
+  var caption=(el('imgCaption')?el('imgCaption').value.trim():'');
+  var convId=curConvId();
+  /* رسالة واحدة: الصورة + النص في meta.cap */
+  var m={_id:'m'+Date.now()+'i'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:pendingImg,type:'image',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{},meta:caption?{cap:caption}:null};
+  msgsCache.push(m);appendMsg(m);scrollChat();
+  await SDB.addMsg(m);
+  pendingImg=null;
+  if(el('imgCaption'))el('imgCaption').value='';
+  closeModal('imgModal');
+  if(chat.type==='user')await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:caption||'[صورة]'});
+};
+
+/* ===== 2) العرض: النص تحت الصورة في نفس الفقاعة ===== */
+var _rmcCA=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  var html=_rmcCA(m);
+  try{
+    if(m&&m.type==='image'&&!m.deleted&&m.meta&&m.meta.cap){
+      var cap='<div style="margin-top:7px;font-size:14.5px;line-height:1.8;word-break:break-word;white-space:pre-wrap;text-align:right">'+escapeHtml(m.meta.cap)+'</div>';
+      /* نحط النص بعد صورة الرسالة الأساسية (اللي فيها viewFullImage) — مش صورة الرد */
+      var idx=html.indexOf('viewFullImage');
+      if(idx>-1){
+        var gt=html.indexOf('>',idx);
+        if(gt>-1)html=html.slice(0,gt+1)+cap+html.slice(gt+1);
+      }
+    }
+  }catch(e){}
+  return html;
+};
+
+/* ===== 3) الرد على الصورة: المعاينة تعرض النص كمان ===== */
+var _rphCA=window.replyPreviewHTML;
+window.replyPreviewHTML=function(m,small){
+  try{
+    if(m&&m.type==='image'&&m.meta&&m.meta.cap){
+      var cap=escapeHtml(m.meta.cap);
+      if(cap.length>40)cap=cap.substring(0,40)+'…';
+      return '<img src="'+escapeHtml(m.data)+'" style="max-height:'+(small?'36px':'56px')+';max-width:110px;border-radius:5px;vertical-align:middle;margin-left:4px;display:inline-block"><span style="font-size:11px;opacity:.9">'+cap+'</span>';
+    }
+  }catch(e){}
+  return _rphCA(m,small);
+};
+})();
+   </script>
 </body>
 </html>
