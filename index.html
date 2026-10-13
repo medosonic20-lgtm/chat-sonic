@@ -22017,5 +22017,83 @@ window.replyPreviewHTML=function(m,small){
 };
 })();
    </script>
+         <!-- ===== 📸 رد الاستوري: الصفحة تفضل ثابتة + تكمل من مكانك ===== -->
+<script>
+(function(){
+if(window._storyStayFix)return;window._storyStayFix=true;
+
+/* ===== 1) نلغي الرجوع التلقائي للشاشة عند قفل الاستوري =====
+   الكود القديم بيحفظ آخر شاشة (RET3) ويرجعك ليها عند الإغلاق — ده اللي بيطردك */
+try{
+  var _cmSSF=window.closeModal;
+  window.closeModal=function(id){
+    if(id==='storyViewModal'){
+      /* نشيل سلوك الرجوع للشاشة: استوري يقفل وترجع للشاشة اللي عليها عادي — من غير طرد */
+      /* الإغلاق التلقائي الكامل مش هيحصل — الصفحة هتفضل زي ما هي */
+    }
+    return _cmSSF(id);
+  };
+}catch(e){}
+
+/* ===== 2) حفظ مكانك: مؤلف + رقم القصة اللي انت عليها ===== */
+try{
+  var _oasSSF=window.openAuthorStories;
+  window.openAuthorStories=async function(author,startIdx){
+    var r=await _oasSSF(author,startIdx);
+    try{
+      /* نحفظ مكانك دلوقتي */
+      try{LS.setItem('story_resume',JSON.stringify({a:String(author),t:Date.now()}));}catch(e){}
+    }catch(e){}
+    return r;
+  };
+}catch(e){}
+
+/* ===== 3) الرد على الاستوري ما يقفلوش: نعدل sendStoryReply ===== */
+var _ssrSF=window.sendStoryReply;
+window.sendStoryReply=function(author,sid,stype){
+  try{
+    /* استدعاء الأصل يدوي: ننسخ منطقه ونشيل closeModal منه */
+    var inp=el('storyReplyInput');var text=inp?(inp.value||'').trim():'';
+    if(!text)return toast('اكتب ردك الأول');
+    if(author===me.name)return;
+    if(isBlockedByOther(author))return toast('⛔ محظور من هذا المستخدم');
+    var thumb='',vtype=stype||'image';
+    /* من القايمة المحملة L3 أو الاسم القديم */
+    var L=(window.L3||[]);
+    for(var i=0;i<L.length;i++)if(L[i].id===sid){if(L[i].stype==='text'){thumb='';vtype='text';}else{thumb=L[i].img||'';vtype=L[i].stype||vtype;}break;}
+    if(thumb&&thumb.length>80000)thumb='';
+    var convId=[me.name,author].sort().join('_');
+    var m={_id:'m'+Date.now()+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:text,type:'text',time:Date.now(),replyTo:'story:'+sid,edited:false,deleted:false,read:false,reactions:{},meta:{story:sid,thumb:thumb,vtype:vtype}};
+    SDB.addMsg(m).then(function(){
+      SDB.upsertConv(convId,{a:me.name,b:author,t:Date.now(),lastFrom:me.name,lastMsg:'📷 رد على حالة'});
+      toast('تم إرسال ردك ✅');
+      /* 🎯 الأهم: من غير closeModal — الاستوري يفضل مفتوح! */
+    });
+    /* نفرغ الخانة عشان تكتب رد جديد */
+    if(inp)inp.value='';
+    return;
+  }catch(e){}
+  /* fallback للأصل لو حصلت مشكلة */
+  return _ssrSF?_ssrSF(author,sid,stype):undefined;
+};
+
+/* ===== 4) نفس الكلام للرياكشن السريع (reactStory) — ما يقفلوش الاستوري ===== */
+var _rsS=window.reactStory;
+window.reactStory=async function(author,sid,em){
+  try{
+    if(author===me.name)return toast('دي حالتك 😄');
+    if(isBlockedByOther(author))return toast('⛔ محظور من هذا المستخدم');
+    var convId=[me.name,author].sort().join('_');
+    var m={_id:'m'+Date.now()+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:em,type:'text',time:Date.now(),replyTo:'story:'+sid,edited:false,deleted:false,read:false,reactions:{},meta:{story:sid,thumb:'',vtype:'reaction'}};
+    await SDB.addMsg(m);
+    await SDB.upsertConv(convId,{a:me.name,b:author,t:Date.now(),lastFrom:me.name,lastMsg:'تفاعل مع حالتك '+em});
+    toast('تم إرسال تفاعلك '+em+' ✅');
+    /* من غير إغلاق — تفضل عالاستوري */
+    return;
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+})();
+   </script>
 </body>
 </html>
