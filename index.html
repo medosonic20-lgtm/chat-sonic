@@ -22422,6 +22422,106 @@ window.enter=async function(u){
 console.log('%c💰 الحضور الاقتصادي + الإرسال المضمون: مُفعّل','color:#22c55e;font-weight:bold');
 })();
    </script>
+   <!-- ===== 🔐 إنشاء غرفة سرية من نافذة الإنشاء مباشرة ===== -->
+<script>
+(function(){
+if(window._secretCreate)return;window._secretCreate=true;
+
+function esc(s){return escapeHtml(String(s==null?'':s));}
+function isFullModF(){try{return me&&(isOwnerName(me.name)||isAdmin());}catch(e){return false;}}
+
+/* ===== 1) نعدل نافذة الإنشاء: نضيف قسم السرية قبل زرار الإنشاء ===== */
+var _cmSC=window.closeModal;
+window.closeModal=function(id){
+  /* نشيل قسم السرية المؤقت لما النافذة تقفل */
+  if(id==='roomModal'){try{var x=el('secCreateWrap');if(x)x.remove();}catch(e){}}
+  return _cmSC(id);
+};
+
+var _omSC=window.openModal;
+window.openModal=function(id){
+  var r=_omSC?_omSC(id):undefined;
+  if(id==='roomModal'){
+    /* نحط القسم بعد شوية عشان النافذة تتفتح الأول */
+    setTimeout(function(){
+      try{
+        var modal=el('roomModal');
+        var card=modal?modal.querySelector('.m-card2'):null;
+        if(!card||el('secCreateWrap'))return;
+        var goBtn=card.querySelector('button[onclick="createRoom()"]');
+        if(!goBtn)return;
+        var wrap=document.createElement('div');
+        wrap.id='secCreateWrap';
+        wrap.style.cssText='margin:4px 0 12px;border:1.5px solid #0ea5e9;border-radius:12px;padding:12px;background:rgba(14,165,233,.06)';
+        wrap.innerHTML=
+        '<label style="display:flex;align-items:center;gap:10px;cursor:pointer">'
+        +'<input type="checkbox" id="secCreateChk" style="width:19px;height:19px;accent-color:#0ea5e9;flex-shrink:0">'
+        +'<span style="font-size:13px;font-weight:bold;color:#7dd3fc">🔐 غرفة سرية'
+        +'<span style="display:block;font-size:10.5px;color:var(--mut);font-weight:normal;margin-top:2px">مخفية عن الجميع — تظهر للإدارة والأعضاء اللي هتضيفهم بس</span></span></label>'
+        +'<div id="secCreateMem" style="display:none;margin-top:10px">'
+        +'<div style="font-size:11.5px;color:var(--mut);margin-bottom:6px">أعضاء مسموح ليهم (تقدر تضيف الباقي بعدين من لوحة التحكم):</div>'
+        +'<input id="secCreateNames" placeholder="اسم، اسم، اسم (فاصلة بين كل اسم)" style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:10px;font-size:12.5px;outline:none">'
+        +'</div>';
+        card.insertBefore(wrap,goBtn);
+        /* سويتش إظهار/إخفاء حقل الأسماء */
+        var chk=el('secCreateChk');
+        chk.onchange=function(){
+          el('secCreateMem').style.display=this.checked?'block':'none';
+        };
+      }catch(e){}
+    },150);
+  }
+  return r;
+};
+
+/* ===== 2) createRoom: لو سرية → نحفظ الحالة والأعضاء ===== */
+var _crSC=window.createRoom;
+window.createRoom=async function(){
+  try{
+    var chk=el('secCreateChk');
+    var wantSecret=!!(chk&&chk.checked);
+    if(!wantSecret){return _crSC?_crSC():undefined;}
+    /* مسار الغرفة السرية: نفس المنطق الأصلي + إضافاتنا */
+    var name=el('roomName').value.trim();
+    if(!name)return toast('اكتب اسم الغرفة');
+    /* تجميع الأسماء من الحقل */
+    var members=[];
+    var namesRaw=el('secCreateNames')?el('secCreateNames').value.trim():'';
+    if(namesRaw){
+      var parts=namesRaw.split(/[,،]/);
+      for(var i=0;i<parts.length;i++){
+        var n=parts[i].trim();
+        if(!n)continue;
+        var u=await SDB.getUser(n);
+        if(!u)return toast('❌ عضوية غير موجودة: '+n);
+        if(members.indexOf(n)===-1)members.push(n);
+      }
+    }
+    var roomData={
+      id:'r'+Date.now(),
+      name:name,
+      descr:el('roomDesc').value.trim(),
+      welcome:el('roomWelcome').value.trim(),
+      pass:el('roomPass').value.trim()||null,
+      created_by:me.name,
+      created:Date.now(),
+      img:pendingRoomImg||null,
+      secret:true,
+      secretMembers:members
+    };
+    await SDB.addRoom(roomData);
+    toast('🔐 تم إنشاء الغرفة السرية — مخفية عن الجميع');
+    try{logActivity('room',me.name+' أنشأ غرفة سرية: '+name);}catch(e){}
+    closeModal('roomModal');
+    el('roomName').value='';el('roomDesc').value='';el('roomWelcome').value='';el('roomPass').value='';
+    try{refreshRooms();}catch(e){}
+    try{renderRoomsAdmin();}catch(e){}
+    return;
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+})();
+   </script>
    
 </body>
 </html>
