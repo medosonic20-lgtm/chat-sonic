@@ -22915,6 +22915,177 @@ window.sendWallComment=async function(pid){
 console.log('%c💬 ردود الحائط v2: شغالة','color:#22c55e');
 })();
    </script>
+   <!-- ===== @️ نظام الإشارات: قايمة أسماء + إشعار "تم ذكرك" ===== -->
+<script>
+(function(){
+if(window._mentionSys)return;window._mentionSys=true;
+
+/* ===== 1) قايمة الإشارات: بتظهر لما تكتب @ ===== */
+var pop=document.createElement('div');
+pop.id='mentionPop';
+pop.style.cssText='display:none;position:fixed;left:12px;bottom:110px;width:300px;max-width:calc(100vw - 24px);max-height:260px;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;z-index:9500;box-shadow:0 6px 24px rgba(0,0,0,.6)';
+document.body.appendChild(pop);
+
+var _mInp=el('msgInput');
+if(_mInp){
+  _mInp.addEventListener('input',function(){
+    setTimeout(function(){
+      try{
+        var v=_mInp.value;
+        var pos=_mInp.selectionStart||v.length;
+        var before=v.substring(0,pos);
+        var m=before.match(/@([\w\u0600-\u06FF]*)$/);
+        if(!m){pop.style.display='none';return;}
+        var q=m[1].toLowerCase();
+        var list=[];
+        for(var k in usersCache){
+          var u=usersCache[k];
+          if(u.banned===true||u.is_active===false)continue;
+          if(u.name===me.name)continue;
+          if(u.hidden===true&&!isOwner())continue;
+          if(!isOnline(u)&&!isOwnerName(u.name))continue;
+          var dn=(u.displayName||u.name).toLowerCase();
+          if(dn.indexOf(q)>-1||u.name.toLowerCase().indexOf(q)>-1)list.push(u);
+          if(list.length>=8)break;
+        }
+        if(!list.length){pop.style.display='none';return;}
+        var h='<div style="padding:6px 10px;font-size:10px;color:var(--mut);font-weight:bold">👥 اختار الشخص اللي هتذكره</div>';
+        list.forEach(function(u){
+          var n=String(u.name).replace(/'/g,"\\'");
+          h+='<div class="mnItem" onclick="pickMention(\''+n+'\')" style="padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--line)">'+getAvatarHTML(u,30)+'<span style="font-size:13px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(u.displayName||u.name)+'</span></div>';
+        });
+        pop.innerHTML=h;
+        pop.style.display='block';
+      }catch(e){}
+    },20);
+  });
+}
+
+/* اختيار الاسم من القايمة */
+window.pickMention=function(name){
+  try{
+    var inp=el('msgInput');
+    var pos=inp.selectionStart||inp.value.length;
+    var v=inp.value;
+    var before=v.substring(0,pos);
+    var after=v.substring(pos);
+    var m=before.match(/@([\w\u0600-\u06FF]*)$/);
+    if(m){
+      var nb=before.substring(0,before.length-m[0].length)+'@'+name+' ';
+      inp.value=nb+after;
+      try{inp.setSelectionRange(nb.length,nb.length);}catch(e){}
+    }else{
+      inp.value+='@'+name+' ';
+    }
+    pop.style.display='none';
+    inp.focus();
+  }catch(e){}
+};
+
+/* قفل القايمة بالضغط بره */
+document.addEventListener('click',function(e){
+  try{
+    var p=el('mentionPop');
+    if(p&&p.style.display==='block'&&!p.contains(e.target)&&e.target!==_mInp)p.style.display='none';
+  }catch(e){}
+});
+
+/* ===== 2) عند الإرسال: مين اتذكر؟ نسجل إشعار ليه ===== */
+var _smMN=window.sendMsg;
+window.sendMsg=async function(){
+  try{
+    var inp=el('msgInput');
+    var txt=inp?(inp.value||''):'';
+    if(txt&&txt.indexOf('@')>-1&&chat){
+      var names=txt.match(/@([\w\u0600-\u06FF]+)/g)||[];
+      var uniq=[];
+      names.forEach(function(n){var nm=n.substring(1);if(nm!==me.name&&uniq.indexOf(nm)===-1)uniq.push(nm);});
+      if(uniq.length){
+        try{
+          var s=await SDB.loadSettings();
+          var arr=Array.isArray(s.mention_notices)?s.mention_notices:[];
+          var now=Date.now();
+          uniq.forEach(function(nm){
+            if(!usersCache[nm])return;
+            arr.push({to:nm,from:me.name,text:txt.substring(0,90),conv:curConvId(),time:now});
+          });
+          if(arr.length>300)arr=arr.slice(-300);
+          await SDB.saveSetting('mention_notices',arr);
+        }catch(e){}
+      }
+    }
+    try{pop.style.display='none';}catch(e){}
+  }catch(e){}
+  return _smMN.apply(this,arguments);
+};
+
+/* ===== 3) فحص الإشعارات: "تم ذكرك" — حتى وانت بره الشات ===== */
+window.checkMentionNotices=async function(){
+  try{
+    if(!me)return;
+    var s=await SDB.loadSettings();
+    var arr=Array.isArray(s.mention_notices)?s.mention_notices:[];
+    var seen=parseInt(LS.getItem('mention_seen')||'0');
+    var mine=arr.filter(function(x){return x&&x.to===me.name&&(x.time||0)>seen;});
+    if(!mine.length)return;
+    LS.setItem('mention_seen',String(Date.now()));
+    var rest=arr.filter(function(x){return !(x&&x.to===me.name&&(x.time||0)>seen);});
+    await SDB.saveSetting('mention_notices',rest);
+    mine.forEach(function(x){
+      if(me.sndNotif!==false)try{beep(1000);}catch(e){}
+      showNotif('🔔 تم ذكرك بواسطة '+getMsgName(x.from),x.text||'',x.from);
+    });
+  }catch(e){}
+};
+setInterval(function(){try{checkMentionNotices();}catch(e){}},12000);
+var _saMN2=window.startAll;
+window.startAll=async function(){
+  var r=await _saMN2();
+  try{setTimeout(checkMentionNotices,3000);}catch(e){}
+  return r;
+};
+
+})();
+   </script>
+   <!-- ===== 🖼️ إرسال صور عادي (إلغاء كل تعديلات الكابشن) ===== -->
+<script>
+(function(){
+if(window._imgNormalBack)return;window._imgNormalBack=true;
+
+/* إرسال الصورة: عادي زي الأول — من غير شاشة كتابة */
+window.sendImage=function(e){
+  var f=e.target.files[0];if(!f)return;
+  compressImg(f,function(ev){
+    pendingImg=ev;
+    el('imgPreview').src=pendingImg;
+    el('imgModal').classList.add('open');
+  });
+  e.target.value='';
+};
+
+/* تأكيد الإرسال: النص رسالة منفصلة + الصورة ترفع على السيرفر وتظهر سليمة */
+window.confirmImage=async function(){
+  if(!pendingImg||!chat)return;
+  var caption=(el('imgCaption')?el('imgCaption').value.trim():'');
+  var convId=curConvId();
+  if(caption){
+    var cm={_id:'m'+Date.now()+'c'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:caption,type:'text',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{}};
+    msgsCache.push(cm);appendMsg(cm);
+    await SDB.addMsg(cm);
+  }
+  toast('⏳ جاري إرسال الصورة...');
+  var url=null;
+  try{url=await (window.uploadMedia?uploadMedia(pendingImg,'.jpg'):null);}catch(e){}
+  var m={_id:'m'+Date.now()+'i'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:url||pendingImg,type:'image',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{}};
+  msgsCache.push(m);appendMsg(m);scrollChat();
+  await SDB.addMsg(m);
+  pendingImg=null;
+  if(el('imgCaption'))el('imgCaption').value='';
+  closeModal('imgModal');
+  if(chat.type==='user')await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:caption||'[صورة]'});
+};
+})();
+</script>
    
 </body>
 </html>
