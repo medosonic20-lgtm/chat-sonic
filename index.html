@@ -22767,6 +22767,19 @@ window.sendWallComment=async function(pid){
 console.log('%c💬 ردود الحائط v2: شغالة','color:#22c55e');
 })();
    </script>
+   <!-- ===== ⏱️ مهلة أوفلاين: دقيقة واحدة ===== -->
+<script>
+(function(){
+if(window._presenceShort)return;window._presenceShort=true;
+
+/* دقيقة واحدة: آخر نبضة أقدم من 60 ثانية = أوفلاين */
+window.ONLINE_TIMEOUT=60000;
+
+/* لو في أي كود قديم بقى 3 أو 10 دقايق، ده بيلغي مفعوله */
+window.__HB=window.__HB||null;
+
+})();
+   </script>
    
 </body>
 </html>
