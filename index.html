@@ -22780,6 +22780,141 @@ window.__HB=window.__HB||null;
 
 })();
    </script>
+   <!-- ===== 💬 الرد على التعليقات v2 (المصلح) ===== -->
+<script>
+(function(){
+if(window._wallReply2)return;window._wallReply2=true;
+var REPLY_DEPTH=3;
+
+var _rwW2=window.renderWall;
+window.renderWall=function(){
+  try{
+    if(!wallCache.length){el('wallFeed').innerHTML='<div class="empty"><div class="big">🎨</div>لا توجد منشورات بعد<br>كن أول من يبدع!</div>';return;}
+    var html='';
+    for(var i=0;i<wallCache.length;i++){
+      var p=wallCache[i];
+      var u=usersCache[p.author];
+      var ava=(u&&u.avatar)?'<img src="'+u.avatar+'">':((u&&u.gender==='أنثى')?'👩':'👨');
+      var canDel=(p.author===me.name)||isAdmin();
+      var delBtn=canDel?'<button class="xbtn" onclick="deleteWallPost(\''+p.id+'\')" style="padding:2px 8px;font-size:11px">🗑️</button>':'';
+      var mediaHtml='';
+      if(p.type==='image'&&p.media_url)mediaHtml='<img src="'+p.media_url+'" class="w-media" onclick="viewFullImage(this.src)">';
+      else if(p.type==='youtube'&&p.media_url){
+        var yid='';
+        var my=p.media_url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+        if(my)yid=my[1];
+        mediaHtml=yid?'<div class="w-yt"><iframe src="https://www.youtube.com/embed/'+yid+'" allowfullscreen></iframe></div>':'';
+      }
+      var likeCount=(p.likes&&p.likes.length)||0;
+      var liked=(p.likes&&p.likes.indexOf(me.name)>-1);
+      var cc=(p.comments&&p.comments.length)||0;
+
+      /* فصل الرئيسية عن الردود */
+      var mainC=[],replyC=[];
+      if(p.comments&&p.comments.length){
+        for(var k=0;k<p.comments.length;k++){
+          var cm=p.comments[k];
+          if(cm.replyTo!==undefined&&cm.replyTo!==null)replyC.push({c:cm,idx:k});
+          else mainC.push({c:cm,idx:k});
+        }
+      }
+
+      /* دالة رسم تعليق مع ردوده — عادية ومفهومة */
+      function renderOne(cm,idx,depth,isReply){
+        var canDelC=(cm.from===me.name)||isAdmin();
+        var delC=canDelC?'<button onclick="delWallComment(\''+p.id+'\','+idx+')" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:0 4px;flex-shrink:0">🗑️</button>':'';
+        var repBtn=(depth<REPLY_DEPTH)?'<button onclick="openWallReply(\''+p.id+'\','+idx+')" style="background:none;border:none;color:var(--acc);font-size:11px;font-weight:bold;cursor:pointer;padding:0 6px;flex-shrink:0">↩️ رد</button>':'';
+        var ownerTag=(cm.from===p.author)?'<span style="background:rgba(59,130,246,.18);color:#7dd3fc;font-size:9px;font-weight:bold;padding:1px 8px;border-radius:8px;flex-shrink:0">⭐ صاحب المنشور</span>':'';
+        var inner='<div style="flex:1;min-width:0">'
+          +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><b style="color:var(--acc)">'+escapeHtml(cm.from)+'</b>'+ownerTag+'</div>'
+          +'<div style="color:var(--txt);word-break:break-word;margin-top:2px;line-height:1.8">'+escapeHtml(cm.text)+'</div>'
+          +'<div style="display:flex;align-items:center;margin-top:3px">'+repBtn+delC+'</div></div>';
+        var out='<div class="w-comment" style="align-items:flex-start;'+(isReply?'margin-right:22px;padding-right:10px;border-right:2px solid var(--line);':'')+'">'+inner+'</div>';
+        /* ردوده */
+        for(var r2=0;r2<replyC.length;r2++){
+          if(String(replyC[r2].c.replyTo)===String(idx)){
+            out+=renderOne(replyC[r2].c,replyC[r2].idx,depth+1,true);
+          }
+        }
+        return out;
+      }
+
+      var commentsHtml='';
+      for(var mi=0;mi<mainC.length;mi++){
+        commentsHtml+=renderOne(mainC[mi].c,mainC[mi].idx,0,false);
+      }
+      if(!(p.comments&&p.comments.length))commentsHtml='<div style="font-size:12px;color:var(--mut)">لا توجد تعليقات — كن أول من يعلق 💬</div>';
+
+      var openCls=(p._openReply)?'open':'';
+      var replyName=p._replyName?('<b style="color:var(--acc)">'+escapeHtml(p._replyName)+'</b>'):'';
+      var cancelBtn=p._openReply?'<button onclick="cancelWallReply(\''+p.id+'\')" style="background:none;border:none;color:var(--red);font-size:12px;cursor:pointer;padding:0 4px">✕</button>':'';
+
+      html+='<div class="w-post"><div class="w-head"><div class="w-ava">'+ava+'</div><div class="w-meta"><div class="w-name">'+styleName(u||{name:p.author})+'</div><div class="w-time">'+timeAgo(p.timestamp)+' • '+role(u||{name:p.author})+'</div></div>'+delBtn+'</div><div class="w-body">'+escapeHtml(p.content)+'</div>'+mediaHtml+'<div class="w-actions"><button class="w-btn '+(liked?'liked':'')+'" onclick="likeWallPost(\''+p.id+'\')">❤️ '+likeCount+'</button><button class="w-btn" onclick="toggleWallComments(\''+p.id+'\')">💬 '+cc+'</button></div><div class="w-comments" id="wc-'+p.id+'"><div style="margin-bottom:8px">'+commentsHtml+'</div><div id="wrBar-'+p.id+'" class="reply-bar '+openCls+'">↩️ رد على '+replyName+' '+cancelBtn+'</div><div class="w-comment-input"><input id="wci-'+p.id+'" placeholder="اكتب تعليق..." onkeydown="if(event.key===\'Enter\')sendWallComment(\''+p.id+'\')"><button class="adm-btn" onclick="sendWallComment(\''+p.id+'\')">إرسال</button></div></div></div>';
+    }
+    el('wallFeed').innerHTML=html;
+  }catch(e){
+    console.error('renderWall v2 err',e);
+  }
+};
+
+/* زرار الرد */
+window.openWallReply=function(pid,idx){
+  try{
+    var p=wallCache.find(function(x){return x.id===pid;});
+    if(!p)return;
+    var cm=p.comments&&p.comments[idx]?p.comments[idx]:null;
+    p._openReply=true;
+    p._replyTo=idx;
+    p._replyName=cm?cm.from:'';
+    try{renderWall();}catch(e){}
+    setTimeout(function(){
+      var inp=el('wci-'+pid);
+      if(inp){inp.placeholder='رد على '+(p._replyName||'')+'...';try{inp.focus();}catch(e){}}
+    },150);
+  }catch(e){}
+};
+window.cancelWallReply=function(pid){
+  try{
+    var p=wallCache.find(function(x){return x.id===pid;});
+    if(!p)return;
+    p._openReply=false;p._replyTo=null;p._replyName=null;
+    try{renderWall();}catch(e){}
+  }catch(e){}
+};
+
+/* الإرسال: لو رد مفتوح → يتربط */
+var _swcW2=window.sendWallComment;
+window.sendWallComment=async function(pid){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    var inp=el('wci-'+pid);var text=(inp.value||'').trim();if(!text)return;
+    var p=wallCache.find(function(x){return x.id===pid;});if(!p)return;
+    if(!p.comments)p.comments=[];
+    var c={from:me.name,text:text,timestamp:Date.now()};
+    if(p._openReply&&p._replyTo!==null&&p._replyTo!==undefined){
+      var target=p._replyTo;
+      var parentC=p.comments[target];
+      /* رد على رد = نربط على الأب عشان التداخل ما يتعمقش للأبد */
+      if(parentC&&parentC.replyTo!==undefined&&parentC.replyTo!==null)target=parentC.replyTo;
+      c.replyTo=target;
+    }
+    p.comments.push(c);
+    var toSave=p.comments.map(function(x){
+      var o={from:x.from,text:x.text,timestamp:x.timestamp};
+      if(x.replyTo!==undefined&&x.replyTo!==null)o.replyTo=x.replyTo;
+      return o;
+    });
+    p._openReply=false;p._replyTo=null;p._replyName=null;
+    await SDB.updWall(pid,{comments:toSave});
+    toast('💬 تم التعليق');
+    try{renderWall();}catch(e){}
+    try{var wc=el('wc-'+pid);if(wc)wc.classList.add('open');}catch(e){}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+console.log('%c💬 ردود الحائط v2: شغالة','color:#22c55e');
+})();
+   </script>
    
 </body>
 </html>
