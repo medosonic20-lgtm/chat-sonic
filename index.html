@@ -22522,6 +22522,116 @@ window.createRoom=async function(){
 
 })();
    </script>
+   <!-- ===== 🎯 نظام الحضور النهائي: يقفل كل القديم — ثابت بدون وميض ===== -->
+<script>
+(function(){
+if(window._presenceBoss)return;window._presenceBoss=true;
+
+/* ===== 1) القتل الشامل: كل باتشات الحضور القديمة ماتت ===== */
+window.startHeartbeat=function(){};        /* النبضات القديمة: ميتة */
+window.touchPresence=function(){};         /* النشاط باللمس: ميت (كان بيرسل كتير) */
+window._markGone=function(){};             /* إجبار الأوفلاين: ميت (ده سبب الوميض!) */
+window._markBack=function(){};             /* إجبار الأونلاين: ميت */
+window._presencePing=function(){};         /* الباتشات اللي فاتت: ميتة */
+
+/* ===== 2) النظام الوحيد الشغال: نبضة كل 60 ثانية + مهلة 15 دقيقة =====
+   فلسفة جديدة: "متصل" معناها الموقع فاتح في آخر 15 دقيقة — 
+   ثابت ومفيش وميض خالص، ومهلة كبيرة تعالج موبايلات بتفرّز الشاشة */
+window.ONLINE_TIMEOUT=900000; /* 15 دقيقة */
+window.__HB=null;
+
+/* نبضة فحص أول مرة */
+if(hbTimer){clearInterval(hbTimer);hbTimer=null;}
+
+window.__bossBeat=async function(){
+  if(!me)return;
+  try{
+    var now=Date.now();
+    await sb.from('users').update({last_seen:now}).eq('name',me.name);
+    me.lastSeen=now;
+    if(usersCache[me.name])usersCache[me.name].lastSeen=now;
+  }catch(e){}
+};
+/* شغّل النبضة فورًا لو فيه جلسة */
+if(me)window.__bossBeat();
+
+/* ===== 3) أحداث الحياة: دخول جديد = نبضة فورية + تشغيل النظام ===== */
+var _enB=window.enter;
+window.enter=async function(u){
+  var r=await _enB(u);
+  try{
+    if(u){
+      window.__bossBeat();
+      if(window.__HB)clearInterval(window.__HB);
+      window.__HB=setInterval(function(){try{window.__bossBeat();}catch(e){}},60000);
+    }
+  }catch(e){}
+  return r;
+};
+
+/* استرجاع الجلسة (بتدخل من غير enter) — نشغل النظام ليه كمان */
+try{
+  var _savedChk=setInterval(function(){
+    if(window.me&&!window.__HB){
+      window.__bossBeat();
+      window.__HB=setInterval(function(){try{window.__bossBeat();}catch(e){}},60000);
+      clearInterval(_savedChk);
+    }
+  },1500);
+  setTimeout(function(){clearInterval(_savedChk);},30000);
+}catch(e){}
+
+/* ===== 4) الخروج اليدوي = أوفلاين فوري (أكيد) ===== */
+var _loB=window.logout;
+window.logout=function(){
+  try{
+    if(me){
+      var gone=Date.now()-ONLINE_TIMEOUT-1000;
+      fetch(SUPABASE_URL+'/rest/v1/users?name=eq.'+encodeURIComponent(me.name),{
+        method:'PATCH',
+        headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify({last_seen:gone}),
+        keepalive:true
+      });
+    }
+  }catch(e){}
+  return _loB?_loB.apply(this,arguments):undefined;
+};
+
+/* ===== 5) مؤشر الكتابة: شغال ومقتصد (تحديث كل 3 ثواني بس) ===== */
+window.startTyping=function(){
+  if(!chat||!me)return;
+  var now=Date.now();
+  if(!window.__typT||now-window.__typT>3000){
+    window.__typT=now;
+    try{sb.from('typing').upsert({conv_id:curConvId(),name:me.name,t:now}).then(function(){},function(){});}catch(e){}
+  }
+  clearTimeout(typingTimer);
+  typingTimer=setTimeout(stopTyping,4000);
+};
+
+/* ===== 6) الحماية من "أوهم بيبعت حضور بعيد": 
+   لو التاب مخفي لفترة طويلة جداً (أكتر من 5 دقايق) = نبضات توقف
+   أول ما ترجع = نبضة فورية */
+var __hiddenSince=0;
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden){
+    __hiddenSince=Date.now();
+    /* نوقف النبضات والتاب مخفي → توفير */
+    if(window.__HB){clearInterval(window.__HB);window.__HB=null;}
+  }else{
+    /* رجعت؟ نبضة فورية + نبدأ من جديد */
+    try{window.__bossBeat();}catch(e){}
+    if(window.__HB)clearInterval(window.__HB);
+    window.__HB=setInterval(function(){try{window.__bossBeat();}catch(e){}},60000);
+  }
+});
+
+/* ===== 7) مقياس: حط ده في الكونسول لو حبيت تشوف النبضات =====
+   window.__beatCount */
+
+})();
+   </script>
    
 </body>
 </html>
