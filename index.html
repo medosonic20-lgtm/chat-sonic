@@ -22283,6 +22283,145 @@ window.giftNameStyleQuick=async function(n){
 function esc(s){return escapeHtml(String(s==null?'':s));}
 })();
    </script>
+   <!-- ===== ⚡ نظام الحضور والإرسال النهائي (توفير + مؤشر كتابة شغال + إرسال مضمون) ===== -->
+<script>
+(function(){
+if(window._presenceFinalV3)return;window._presenceFinalV3=true;
+
+/* ===== 1) المهلة: 3 دقايق أوفلاين ===== */
+window.ONLINE_TIMEOUT=180000;
+
+/* ===== 2) نبضة موحدة: بترسل بس لو عدى 50 ثانية عن آخر واحدة ===== */
+window._presencePing=function(force){
+  if(!me)return;
+  var now=Date.now();
+  if(!force&&window._lastPing&&now-window._lastPing<50000)return;
+  window._lastPing=now;
+  try{sb.from('users').update({last_seen:now}).eq('name',me.name);}catch(e){}
+  me.lastSeen=now;
+  if(usersCache[me.name])usersCache[me.name].lastSeen=now;
+};
+
+/* ===== 3) النبضة الأساسية: كل 60 ثانية (بدل 20) ===== */
+window.startHeartbeat=function(){
+  if(hbTimer)clearInterval(hbTimer);
+  hbTimer=setInterval(function(){try{window._presencePing(true);}catch(e){}},60000);
+};
+if(hbTimer){clearInterval(hbTimer);hbTimer=null;}
+if(me){
+  startHeartbeat();
+  window._presencePing(true);
+}
+
+/* ===== 4) مؤشر الكتابة: شغال 100% + مؤثر مقتصد =====
+   القديم كان يرسل تحديث مع كل حرف (5-10 تحديثات في الثانية!)
+   الجديد: تحديث كل 2.5 ثانية كحد أقصى — المؤشر يفضل ظاهر عادي */
+window.startTyping=function(){
+  if(!chat||!me)return;
+  var now=Date.now();
+  if(!window._typSent||now-window._typSent>2500){
+    window._typSent=now;
+    try{sb.from('typing').upsert({conv_id:curConvId(),name:me.name,t:now}).then(function(){},function(){});}catch(e){}
+  }
+  /* نبضة حضور خفيفة كل 30 ثانية أثناء الكتابة */
+  if(!window._typPing||now-window._typPing>30000){
+    window._typPing=now;
+    try{window._presencePing(false);}catch(e){}
+  }
+  clearTimeout(typingTimer);
+  typingTimer=setTimeout(stopTyping,3500);
+};
+
+/* ===== 5) sendMsg النسخة السليمة الكاملة (بتقفل أي نسخة قديمة) ===== */
+window.sendMsg=async function(){
+  if(!chat)return toast('افتح محادثة أولاً');
+  if(!me)return;
+  if(chat.type==='user'){
+    if(isBlockedByMe(chat.id))return toast('⛔ لقد حظرت هذا المستخدم');
+    if(isBlockedByOther(chat.id))return toast('⛔ تم حظرك من هذا المستخدم');
+    try{if(window._canSendTo&&!_canSendTo(chat.id))return toast('🔒 هذا المستخدم يستقبل رسائل الأصدقاء فقط');}catch(e){}
+  }
+  var inp=el('msgInput');
+  var raw=inp?inp.value:'';
+  var text=raw.trim();
+  if(!text&&!pendingSticker&&!inlineStickersArr.length)return toast('اكتب رسالة');
+  var convId=curConvId();
+  stopTyping();
+  /* نبضة حضور فورية مع الإرسال */
+  try{window._presencePing(true);}catch(e){}
+  if(text){
+    for(var i=0;i<scItems.length;i++){
+      var key=scItems[i].key,val=scItems[i].value;
+      var re=new RegExp('(^|\\s)'+key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s|$)','g');
+      text=text.replace(re,function(mm,p1,p2){return p1+val+p2;});
+    }
+    text=filterWords(text);
+    if(siteSettings.blockLinks&&/https?:\/\//.test(text)&&!isAdmin())return toast('ممنوع إرسال روابط');
+    if(editingMsgId){
+      await SDB.updMsg(editingMsgId,{body:text,edited:true});
+      var ei=msgsCache.findIndex(function(x){return x._id===editingMsgId;});
+      if(ei>-1){msgsCache[ei].data=text;msgsCache[ei].edited=true;updateMsg(msgsCache[ei]);}
+      editingMsgId=null;inp.value='';
+      return;
+    }
+    /* ⚡ الإخلاء الفوري: بعد كل التحققات وقبل انتظار الشبكة */
+    inp.value='';
+    var m={_id:'m'+Date.now()+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:text,type:'text',time:Date.now(),replyTo:replyTo||null,edited:false,deleted:false,read:false,reactions:{},meta:(window._fmtSel&&window._fmtSel!=='')?{fmt:{k:window._fmtSel}}:null};
+    msgsCache.push(m);appendMsg(m);scrollChat();
+    try{
+      await SDB.addMsg(m);
+    }catch(e){
+      /* ضعف شبكة: النص يرجع مايضيعش */
+      try{if(!inp.value)inp.value=raw;}catch(e2){}
+      return toast('⚠️ ضعف شبكة — رسالتك رجعت للخانة');
+    }
+    replyTo=null;
+    try{el('replyBar').classList.remove('open');}catch(e){}
+    if(chat.type==='user')await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:text});
+    if(me.sndOwn)beep(600);
+  }
+  if(pendingSticker){
+    var su=pendingSticker;pendingSticker=null;
+    try{el('stickerBar').classList.remove('open');}catch(e){}
+    var sm={_id:'m'+Date.now()+'s'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:su,type:'sticker',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{}};
+    msgsCache.push(sm);appendMsg(sm);scrollChat();
+    await SDB.addMsg(sm);
+    if(chat.type==='user')await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:'[ستيكر]'});
+    if(me.sndOwn)beep(600);
+  }
+  if(inlineStickersArr.length){
+    var arr=inlineStickersArr.slice();inlineStickersArr=[];renderInlineStickers();
+    for(var j=0;j<arr.length;j++){
+      var s2={_id:'m'+Date.now()+'i'+j+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:arr[j],type:'sticker',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{}};
+      msgsCache.push(s2);appendMsg(s2);scrollChat();
+      await SDB.addMsg(s2);
+    }
+    if(chat.type==='user')await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:'[ستيكر]'});
+  }
+};
+
+/* ===== 6) الرجوع للتاب / التركيز = نبضة واحدة ===== */
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'){try{window._presencePing(true);}catch(e){}}
+});
+window.addEventListener('focus',function(){try{window._presencePing(true);}catch(e){}});
+
+/* ===== 7) دخول جديد = نبضة + تشغيل النبضات ===== */
+var _enPV=window.enter;
+window.enter=async function(u){
+  var r=await _enPV(u);
+  try{
+    if(u){
+      window._presencePing(true);
+      startHeartbeat();
+    }
+  }catch(e){}
+  return r;
+};
+
+console.log('%c💰 الحضور الاقتصادي + الإرسال المضمون: مُفعّل','color:#22c55e;font-weight:bold');
+})();
+   </script>
    
 </body>
 </html>
