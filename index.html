@@ -23625,6 +23625,97 @@ window.sendChatPoll=async function(){
 };
 })();
    </script>
+   <script>
+(function(){
+if(window._imgReplyFix)return;window._imgReplyFix=true;
+
+/* ===== 1) حفظ حالة الرد لما تفتح نافذة الصورة ===== */
+var _siIR=window.sendImage;
+window.sendImage=function(e){
+  try{window._stashedReply=(typeof replyTo!=='undefined'&&replyTo)?replyTo:null;}catch(e){}
+  return _siIR?_siIR.apply(this,arguments):undefined;
+};
+var _ciX=window.cancelImage;
+window.cancelImage=function(){try{window._stashedReply=null;}catch(e){}return _ciX?_ciX.apply(this,arguments):undefined;};
+
+/* ===== 2) إرسال الصورة مع الرد + الكابشن مع بعض ===== */
+window.confirmImage=async function(){
+  if(!pendingImg||!chat)return;
+  var caption=(el('imgCaption')?el('imgCaption').value.trim():'');
+  var convId=curConvId();
+  var rep=null;
+  try{rep=(typeof replyTo!=='undefined'&&replyTo)?replyTo:null;}catch(e){}
+  if(!rep)rep=window._stashedReply||null;
+  /* لقطة الاقتباس: تتخزن مع الرسالة عشان تظهر عند الكل حتى لو الرسالة الأصلية قديمة */
+  var q=null;
+  if(rep){
+    var om=msgsCache.find(function(x){return x._id===rep;});
+    if(om&&!om.deleted){
+      var t='رسالة';
+      if(om.type==='text')t=om.data;
+      else if(om.type==='image')t='📷 صورة';
+      else if(om.type==='audio')t='🎤 تسجيل صوتي';
+      else if(om.type==='video')t='📹 فيديو';
+      q={n:getMsgName(om.from),t:String(t||''),th:(om.type==='image'&&om.data&&om.data.length<80000)?om.data:''};
+    }
+  }
+  var meta={};
+  if(caption)meta.cap=caption;
+  if(q)meta.quote=q;
+  var m={_id:'m'+Date.now()+'i'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:pendingImg,type:'image',time:Date.now(),replyTo:rep,edited:false,deleted:false,read:false,reactions:{},meta:(Object.keys(meta).length?meta:null)};
+  msgsCache.push(m);appendMsg(m);scrollChat();
+  await SDB.addMsg(m);
+  pendingImg=null;window._stashedReply=null;
+  if(el('imgCaption'))el('imgCaption').value='';
+  closeModal('imgModal');
+  if(rep){try{cancelReply();}catch(e){}}
+  if(chat.type==='user'){try{await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:caption||'[صورة]'});}catch(e){}}
+};
+
+/* ===== 3) شريط الاقتباس جوه فقاعة الصورة — ستايل واتساب ===== */
+window._jumpToMsg=function(id){
+  try{
+    var b=document.querySelector('[data-id="'+id+'"]');
+    if(b){b.scrollIntoView({behavior:'smooth',block:'center'});b.style.boxShadow='0 0 0 2px var(--acc)';setTimeout(function(){try{b.style.boxShadow='';}catch(e){}},1300);}
+  }catch(e){}
+};
+function quoteBarIR(m){
+  var q=(m.meta&&m.meta.quote)?m.meta.quote:null;
+  var name='',txt='',th='';
+  if(q){name=q.n;txt=q.t;th=q.th||'';}
+  else if(m.replyTo){
+    var om=msgsCache.find(function(x){return x._id===m.replyTo;});
+    if(om){
+      name=getMsgName(om.from);
+      if(om.type==='text')txt=om.data;
+      else if(om.type==='image'){txt='📷 صورة';th=om.data||'';}
+      else if(om.type==='audio')txt='🎤 تسجيل صوتي';
+      else txt='رسالة';
+      if(om.deleted)txt='رسالة محذوفة';
+    }else txt='الرسالة الأصلية';
+  }
+  if(!name&&!txt)return '';
+  if(txt&&txt.length>70)txt=txt.substring(0,70)+'…';
+  var thumb=th?('<img src="'+escapeHtml(th)+'" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0">'):'';
+  return '<div onclick="_jumpToMsg(\''+String(m.replyTo).replace(/['\\]/g,'')+'\')" style="display:flex;gap:8px;align-items:center;background:rgba(0,0,0,.28);border-right:3px solid #ffd54f;border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:pointer">'
+  +'<div style="flex:1;min-width:0">'
+  +'<div style="font-size:12.5px;font-weight:bold;color:#ffd54f">'+escapeHtml(name||'رد')+'</div>'
+  +'<div style="font-size:12.5px;color:rgba(255,255,255,.92);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px">'+escapeHtml(txt||'')+'</div></div>'
+  +thumb+'</div>';
+}
+var _rmcIR=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  var html=_rmcIR?_rmcIR(m):'';
+  try{
+    if(m&&!m.deleted&&m.type==='image'&&m.replyTo){
+      var already=(html.indexOf(String(m.replyTo))>-1)||(html.indexOf('#ffd54f')>-1);
+      if(!already)html=quoteBarIR(m)+html;
+    }
+  }catch(e){}
+  return html;
+};
+})();
+   </script>
    
 </body>
 </html>
