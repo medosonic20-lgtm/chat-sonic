@@ -23373,6 +23373,200 @@ window._roomsDump=async function(){
 };
 })();
    </script>
+   <script>
+(function(){
+if(window._chatPoll)return;window._chatPoll=true;
+
+/* ===== أدوات ===== */
+function pPoll(m){try{return (m.meta&&m.meta.poll)?m.meta.poll:null;}catch(e){return null;}}
+function esc(s){return escapeHtml(String(s==null?'':s));}
+
+/* ===== حفظ التصويت في الداتابيز ===== */
+async function persistPoll(m){
+  var ok=false;
+  try{var r=await sb.from('messages').update({meta:m.meta}).eq('id',m._id);ok=!(r&&r.error);}catch(e){ok=false;}
+  if(!ok){try{await sb.from('messages').update({meta:JSON.stringify(m.meta)}).eq('id',m._id);}catch(e2){}}
+}
+
+/* ===== رسم الخيارات ===== */
+function pollInner(m){
+  var p=pPoll(m);if(!p)return '';
+  var total=0;(p.opts||[]).forEach(function(o){total+=(o.v||[]).length;});
+  var h='';
+  (p.opts||[]).forEach(function(o,i){
+    var n=(o.v||[]).length,pct=total?Math.round(n/total*100):0;
+    var mine=me&&(o.v||[]).indexOf(me.name)>-1;
+    h+='<div onclick="votePollMsg(\''+m._id+'\','+i+')" style="cursor:pointer;margin:9px 0">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
+    +'<span style="font-size:14px;color:'+(mine?'#fff':'rgba(255,255,255,.92)')+';font-weight:'+(mine?'bold':'normal')+';word-break:break-word">'+esc(o.t)+(mine?' ✓':'')+'</span>'
+    +'<span style="font-size:12px;opacity:.85;flex-shrink:0;font-weight:bold">'+pct+'%</span></div>'
+    +'<div style="height:7px;background:rgba(255,255,255,.18);border-radius:5px;margin-top:5px;overflow:hidden">'
+    +'<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:5px;transition:width .4s"></div></div></div>';
+  });
+  var canCtl=(m.from===me.name)||(typeof isAdmin==='function'&&isAdmin());
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:7px;border-top:1px solid rgba(255,255,255,.2);font-size:11px;opacity:.9">'
+  +'<span>🎭 مجهول • 👥 '+total+' صوت'+(p.closed?' • 🔒 مقفول':'')+'</span>'
+  +(canCtl?'<span onclick="togglePollMsg(\''+m._id+'\')" style="cursor:pointer;font-weight:bold">'+(p.closed?'🔓 فتح':'🔒 قفل')+'</span>':'')
+  +'</div>';
+  return h;
+}
+
+/* ===== حقن الاستفتاء في عرض الرسالة ===== */
+var _rmcP=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  var html=_rmcP?_rmcP(m):'';
+  try{
+    if(m&&!m.deleted&&pPoll(m)){
+      html+='<div id="rpoll-'+m._id+'" style="margin-top:6px">'+pollInner(m)+'</div>';
+    }
+  }catch(e){}
+  return html;
+};
+
+/* ===== التصويت ===== */
+window.votePollMsg=async function(mid,idx){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    var m=msgsCache.find(function(x){return x._id===mid;});if(!m)return;
+    var p=pPoll(m);if(!p)return;
+    if(p.closed)return toast('🔒 التصويت مقفول');
+    var opts=p.opts;if(idx<0||idx>=opts.length)return;
+    var my=-1;
+    for(var i=0;i<opts.length;i++){if((opts[i].v||[]).indexOf(me.name)>-1)my=i;}
+    if(my===idx)opts[idx].v=opts[idx].v.filter(function(n){return n!==me.name;});
+    else{
+      if(my>-1&&!p.multi)opts[my].v=opts[my].v.filter(function(n){return n!==me.name;});
+      opts[idx].v=(opts[idx].v||[]).concat([me.name]);
+    }
+    await persistPoll(m);
+    repaintPollBox(mid);
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+window.togglePollMsg=async function(mid){
+  try{
+    var m=msgsCache.find(function(x){return x._id===mid;});if(!m)return;
+    var p=pPoll(m);if(!p)return;
+    if(m.from!==me.name&&!(typeof isAdmin==='function'&&isAdmin()))return;
+    p.closed=!p.closed;
+    await persistPoll(m);
+    toast(p.closed?'🔒 تم قفل التصويت':'🔓 تم فتح التصويت');
+    repaintPollBox(mid);
+  }catch(e){}
+};
+
+function repaintPollBox(mid){
+  try{
+    var m=msgsCache.find(function(x){return x._id===mid;});if(!m)return;
+    var box=document.querySelector('[id="rpoll-'+mid+'"]');
+    if(box)box.innerHTML=pollInner(m);
+  }catch(e){}
+}
+
+/* ===== تحديث لحظي للكل: مراقبة تحديث رسايل الاستفتاء ===== */
+window.subPollRT=function(convId){
+  try{if(window._pollCh){try{sb.removeChannel(window._pollCh);}catch(e){}window._pollCh=null;}}catch(e){}
+  try{
+    window._pollCh=sb.channel('rt-poll-'+convId.replace(/[^a-zA-Z0-9]/g,''))
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'messages',filter:'conv_id=eq.'+convId},function(pl){
+      try{
+        var row=pl.new;if(!row)return;
+        var meta=row.meta;
+        if(typeof meta==='string'){try{meta=JSON.parse(meta);}catch(e){meta=null;}}
+        if(!meta||!meta.poll)return;
+        var m=msgsCache.find(function(x){return x._id===row.id;});
+        if(m){m.meta=meta;repaintPollBox(row.id);}
+      }catch(e){}
+    }).subscribe();
+  }catch(e){}
+};
+
+/* ===== نافذة إنشاء الاستفتاء ===== */
+window.openChatPoll=function(){
+  if(!me)return toast('سجل دخولك أولاً');
+  if(!chat)return toast('افتح غرفة أو محادثة الأول');
+  var old=el('chatPollModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='chatPollModal';m.className='modal';
+  var h='<div class="m-card2" style="width:320px;max-height:85vh;overflow-y:auto">'
+  +'<h3>📊 استفتاء جديد</h3>'
+  +'<div class="ig"><label>السؤال</label><input id="cpQ" placeholder="اكتب سؤالك..."></div>'
+  +'<div style="font-size:12px;font-weight:bold;color:var(--acc);margin-bottom:6px">الخيارات (من 2 لـ 10)</div>'
+  +'<div id="cpOpts"></div>'
+  +'<div style="display:flex;gap:8px;align-items:center;margin:8px 0">'
+  +'<button class="adm-btn" onclick="cpAddOpt()">➕ خيار</button>'
+  +'<label style="font-size:12px;color:var(--txt);display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="cpMulti" style="accent-color:var(--acc)"> اختيارات متعددة</label></div>'
+  +'<button style="background:var(--acc);color:#fff" onclick="sendChatPoll()">✅ إرسال الاستفتاء</button>'
+  +'<button style="background:transparent;color:var(--red);border:1px solid var(--red)!important" onclick="closeModal(\'chatPollModal\')">إلغاء</button></div>';
+  m.innerHTML=h;
+  m.onclick=function(e){if(e.target===m)closeModal('chatPollModal');};
+  document.body.appendChild(m);m.classList.add('open');
+  cpAddOpt();cpAddOpt();
+};
+window.cpAddOpt=function(){
+  try{
+    var box=el('cpOpts');if(!box)return;
+    if(box.children.length>=10)return toast('أقصى 10 خيارات');
+    var r=document.createElement('div');
+    r.style.cssText='display:flex;gap:6px;margin-bottom:6px';
+    r.innerHTML='<input class="cpOptInp" placeholder="خيار '+(box.children.length+1)+'" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px"><button onclick="cpDelOpt(this)" style="background:var(--red);border:none;color:#fff;border-radius:8px;width:32px;cursor:pointer">✕</button>';
+    box.appendChild(r);
+    var is=box.querySelectorAll('.cpOptInp');is.forEach(function(i,k){i.placeholder='خيار '+(k+1);});
+  }catch(e){}
+};
+window.cpDelOpt=function(b){
+  try{var box=el('cpOpts');if(box&&box.children.length>2){b.parentElement.remove();var is=box.querySelectorAll('.cpOptInp');is.forEach(function(i,k){i.placeholder='خيار '+(k+1);});}else toast('لازم خيارين على الأقل');}catch(e){}
+};
+
+window.sendChatPoll=async function(){
+  try{
+    if(!me||!chat)return;
+    var q=el('cpQ')?el('cpQ').value.trim():'';
+    var opts=[];
+    document.querySelectorAll('.cpOptInp').forEach(function(i){var t=i.value.trim();if(t)opts.push(t);});
+    if(!q)return toast('اكتب السؤال');
+    if(opts.length<2)return toast('حط خيارين على الأقل');
+    var multi=!!(el('cpMulti')&&el('cpMulti').checked);
+    var convId=curConvId();
+    var m={_id:'m'+Date.now()+'p'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:q,type:'text',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{},meta:{poll:{opts:opts.map(function(t){return{t:t,v:[]};}),multi:multi,closed:false}}};
+    closeModal('chatPollModal');
+    msgsCache.push(m);appendMsg(m);scrollChat();
+    await SDB.addMsg(m);
+    if(chat.type==='user'){try{await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:'📊 استفتاء'});}catch(e){}}
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* ===== زرار 📊 في شريط الإدخال ===== */
+function buildPollBtn(){
+  try{
+    if(el('chatPollBtn'))return;
+    var inp=el('msgInput');if(!inp)return;
+    var row=inp.closest('.chat-input');if(!row)return;
+    var btn=document.createElement('button');
+    btn.id='chatPollBtn';btn.className='ic-btn';btn.title='استفتاء 📊';
+    btn.style.cssText='cursor:pointer;flex-shrink:0;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:18px';
+    btn.innerText='📊';
+    btn.onclick=function(e){e.preventDefault();e.stopPropagation();openChatPoll();};
+    var cam=row.querySelector('label[for="imgInput"]');
+    if(cam)cam.parentElement.insertBefore(btn,cam);
+    else row.insertBefore(btn,row.firstChild);
+  }catch(e){}
+}
+
+/* ===== تشغيل: زرار + مراقبة لحظية مع كل فتح شات ===== */
+var _smCP=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smCP();
+  try{if(chat)subPollRT(curConvId());}catch(e){}
+  return r;
+};
+var _ouCP=window.openUser;
+window.openUser=function(n){var r=_ouCP(n);try{setTimeout(buildPollBtn,400);}catch(e){}return r;};
+var _jrCP=window.joinRoom;
+window.joinRoom=async function(rid){var r=await _jrCP(rid);try{setTimeout(buildPollBtn,400);}catch(e){}return r;};
+setInterval(function(){try{if(el('s-chat')&&el('s-chat').classList.contains('active'))buildPollBtn();}catch(e){}},2000);
+setTimeout(buildPollBtn,1500);
+})();
+   </script>
    
 </body>
 </html>
