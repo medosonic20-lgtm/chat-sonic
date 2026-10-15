@@ -23716,6 +23716,188 @@ window.renderMsgContent=function(m){
 };
 })();
    </script>
+   <script>
+(function(){
+if(window._pollWallV2)return;window._pollWallV2=true;
+
+/* ===== 1) حقن الخيار في قايمة النوع — مع مراقبة دائمة ===== */
+function injectOpt(){
+  try{
+    var s=el('wallType');if(!s)return;
+    if(!s.querySelector('option[value="poll"]')){
+      var o=document.createElement('option');
+      o.value='poll';o.innerText='📊 استفتاء / تصويت';
+      s.appendChild(o);
+    }
+  }catch(e){}
+}
+injectOpt();
+setInterval(function(){if(!document.hidden)injectOpt();},1500);
+try{var _wt=el('wallType');if(_wt)new MutationObserver(injectOpt).observe(_wt,{childList:true});}catch(e){}
+
+/* ===== 2) باني الخيارات ===== */
+function addOptRow(){
+  var box=el('pwOpts2');if(!box)return;
+  if(box.children.length>=10)return toast('أقصى 10 خيارات');
+  var r=document.createElement('div');
+  r.style.cssText='display:flex;gap:6px;margin-bottom:6px';
+  r.innerHTML='<input class="pollOptInp2" placeholder="خيار '+(box.children.length+1)+'" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px"><button type="button" onclick="this.parentElement.remove();pwRe2()" style="background:var(--red);border:none;color:#fff;border-radius:8px;width:32px;cursor:pointer">✕</button>';
+  box.appendChild(r);pwRe2();
+}
+window.pwRe2=function(){try{var is=el('pwOpts2').querySelectorAll('.pollOptInp2');is.forEach(function(i,k){i.placeholder='خيار '+(k+1);});}catch(e){}};
+window.pwAdd2=addOptRow;
+
+function ensureBuilder(){
+  try{
+    var form=el('wallForm');if(!form)return;
+    var b=el('pollBuilderV2');
+    if(!b){
+      b=document.createElement('div');
+      b.id='pollBuilderV2';
+      b.style.cssText='display:none;border:1px solid var(--acc);border-radius:12px;padding:10px;margin-bottom:10px';
+      b.innerHTML='<div style="font-size:12px;font-weight:bold;color:var(--acc);margin-bottom:8px">⚙️ خيارات التصويت (من 2 لـ 10)</div>'
+      +'<div id="pwOpts2"></div>'
+      +'<div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">'
+      +'<button type="button" class="adm-btn" onclick="pwAdd2()">➕ خيار</button>'
+      +'<label style="font-size:12px;color:var(--txt);display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="pollMulti2" style="accent-color:var(--acc)"> اختيارات متعددة</label></div>';
+      var anchor=el('wallContent');
+      var ig=anchor?anchor.closest('.ig'):null;
+      if(ig&&ig.parentElement)ig.parentElement.insertBefore(b,ig.nextSibling);
+      else form.appendChild(b);
+      addOptRow();addOptRow();
+    }
+    var s=el('wallType');
+    b.style.display=(s&&s.value==='poll')?'block':'none';
+  }catch(e){}
+}
+setInterval(function(){if(!document.hidden)ensureBuilder();},1500);
+setTimeout(ensureBuilder,800);
+
+/* ===== 3) النشر: الأصل بينشر السؤال، وإحنا بتركيب الاستفتاء عليه ===== */
+var _pwp2=window.publishWallPost;
+window.publishWallPost=async function(){
+  try{
+    var s=el('wallType');
+    if(!s||s.value!=='poll')return _pwp2?await _pwp2.apply(this,arguments):undefined;
+    if(!me)return toast('سجل دخولك أولاً');
+    var q=el('wallContent')?el('wallContent').value.trim():'';
+    var opts=[];
+    document.querySelectorAll('.pollOptInp2').forEach(function(i){var t=i.value.trim();if(t)opts.push(t);});
+    if(!q)return toast('اكتب سؤال الاستفتاء');
+    if(opts.length<2)return toast('حط خيارين على الأقل');
+    var multi=!!(el('pollMulti2')&&el('pollMulti2').checked);
+    s.value='text';
+    await _pwp2.apply(this,arguments);
+    for(var t=0;t<12;t++){
+      await new Promise(function(r){setTimeout(r,600);});
+      var cand=null;
+      try{
+        (wallCache||[]).forEach(function(p){
+          if(p.author===me.name&&String(p.content).trim()===q.trim()){
+            if(!cand||(p.timestamp||0)>(cand.timestamp||0))cand=p;
+          }
+        });
+      }catch(e){}
+      if(cand){
+        try{
+          var d={opts:opts.map(function(x){return{t:x,v:[]};}),multi:multi,closed:false};
+          await SDB.updWall(cand.id,{media_url:JSON.stringify(d)});
+          toast('📊 تم نشر الاستفتاء');
+          try{refreshWall();}catch(e){try{renderWall();}catch(e2){}}
+        }catch(e){toast('خطأ: '+e.message);}
+        return;
+      }
+    }
+    toast('⚠️ المنشور نزل نصي — انشر تاني');
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* ===== 4) التصويت + القفل ===== */
+function parseP(p){try{var d=JSON.parse(p.media_url);if(d&&Array.isArray(d.opts))return d;}catch(e){}return null;}
+function isPoll(p){return p&&(p.type==='poll'||parseP(p));}
+
+window.voteWall2=async function(pid,idx){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    var p=wallCache.find(function(x){return x.id===pid;});if(!p)return;
+    var d=parseP(p);if(!d)return;
+    if(d.closed)return toast('🔒 التصويت مقفول');
+    var opts=d.opts;if(idx<0||idx>=opts.length)return;
+    var my=-1;
+    for(var i=0;i<opts.length;i++){if((opts[i].v||[]).indexOf(me.name)>-1)my=i;}
+    if(my===idx)opts[idx].v=opts[idx].v.filter(function(n){return n!==me.name;});
+    else{
+      if(my>-1&&!d.multi)opts[my].v=opts[my].v.filter(function(n){return n!==me.name;});
+      opts[idx].v=(opts[idx].v||[]).concat([me.name]);
+    }
+    await SDB.updWall(pid,{media_url:JSON.stringify(d)});
+    paintOnePoll2(pid,true);
+  }catch(e){toast('خطأ: '+e.message);}
+};
+window.tglWall2=async function(pid){
+  try{
+    var p=wallCache.find(function(x){return x.id===pid;});if(!p)return;
+    var d=parseP(p);if(!d)return;
+    if(p.author!==me.name&&!isAdmin())return;
+    d.closed=!d.closed;
+    await SDB.updWall(pid,{media_url:JSON.stringify(d)});
+    toast(d.closed?'🔒 تم قفل التصويت':'🔓 تم فتح التصويت');
+    paintOnePoll2(pid,true);
+  }catch(e){}
+};
+
+/* ===== 5) الرسم جوه المنشور ===== */
+function findCard2(pid){
+  var cards=document.querySelectorAll('#wallFeed .w-post');
+  for(var i=0;i<cards.length;i++){
+    var lk=cards[i].querySelector('button[onclick*="likeWallPost"]');
+    if(lk&&(lk.getAttribute('onclick')||'').indexOf("'"+pid+"'")>-1)return cards[i];
+  }
+  return null;
+}
+function pollHTML2(p,d){
+  var total=0;d.opts.forEach(function(o){total+=(o.v||[]).length;});
+  var h='';
+  d.opts.forEach(function(o,i){
+    var n=(o.v||[]).length,pct=total?Math.round(n/total*100):0;
+    var mine=me&&(o.v||[]).indexOf(me.name)>-1;
+    h+='<div onclick="voteWall2(\''+p.id+'\','+i+')" style="cursor:pointer;margin:10px 0">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
+    +'<span style="font-size:14px;color:'+(mine?'var(--acc)':'var(--txt)')+';font-weight:'+(mine?'bold':'normal')+';word-break:break-word">'+escapeHtml(o.t)+(mine?' ✓':'')+'</span>'
+    +'<span style="font-size:12px;color:var(--mut);flex-shrink:0;font-weight:bold">'+pct+'%</span></div>'
+    +'<div style="height:7px;background:var(--card2);border-radius:5px;margin-top:5px;overflow:hidden">'
+    +'<div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:5px;transition:width .4s"></div></div></div>';
+  });
+  var canCtl=(p.author===me.name)||isAdmin();
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);font-size:11px;color:var(--mut)">'
+  +'<span>🎭 تصويت مجهول • 👥 '+total+' صوت'+(d.closed?' • 🔒 مقفول':'')+'</span>'
+  +(canCtl?'<span onclick="tglWall2(\''+p.id+'\')" style="cursor:pointer;color:'+(d.closed?'var(--grn)':'var(--yel)')+';font-weight:bold">'+(d.closed?'🔓 فتح':'🔒 قفل')+'</span>':'')
+  +'</div>';
+  return h;
+}
+window.paintOnePoll2=function(pid,force){
+  try{
+    var p=wallCache.find(function(x){return x.id===pid;});if(!p)return;
+    var d=parseP(p);if(!d)return;
+    var card=findCard2(pid);if(!card)return;
+    var old=card.querySelector('.pollBoxV2');
+    if(old){if(!force)return;old.remove();}
+    var body=card.querySelector('.w-body');if(!body)return;
+    var box=document.createElement('div');box.className='pollBoxV2';
+    if(d.closed)box.style.opacity='.85';
+    box.innerHTML=pollHTML2(p,d);
+    body.parentElement.insertBefore(box,body.nextSibling);
+  }catch(e){}
+};
+function paintAllPolls2(){try{(wallCache||[]).forEach(function(p){if(p&&isPoll(p))paintOnePoll2(p.id,false);});}catch(e){}}
+
+var _rw2=window.renderWall;
+window.renderWall=function(){var r=_rw2?_rw2.apply(this,arguments):undefined;try{setTimeout(paintAllPolls2,80);setTimeout(paintAllPolls2,600);}catch(e){}return r;};
+try{var wf=el('wallFeed');if(wf)new MutationObserver(function(){setTimeout(paintAllPolls2,100);}).observe(wf,{childList:true});}catch(e){}
+setInterval(function(){if(!document.hidden)paintAllPolls2();},4000);
+setTimeout(paintAllPolls2,1500);
+})();
+   </script>
    
 </body>
 </html>
