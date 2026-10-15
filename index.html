@@ -23086,6 +23086,149 @@ window.confirmImage=async function(){
 };
 })();
 </script>
+   <script>
+(function(){
+if(window._secretRoomFix)return;window._secretRoomFix=true;
+
+/* ===== 0) أدوات قراءة حقول الغرفة (بأي اسم ممكن) ===== */
+function rf(r,names){
+  try{
+    for(var i=0;i<names.length;i++){if(r[names[i]]!==undefined&&r[names[i]]!==null&&r[names[i]]!=='')return r[names[i]];}
+  }catch(e){}
+  return null;
+}
+function rOwner(r){return String(rf(r,['owner','creator','by','author','user','created_by'])||'');}
+function rName(r){return String(rf(r,['name','title','room_name'])||'');}
+function rDesc(r){return String(rf(r,['desc','description','welcome'])||'');}
+function rImg(r){return rf(r,['img','image','icon','photo','avatar']);}
+function rPass(r){return rf(r,['pass','password','room_pass','has_pass']);}
+function GAR(){try{return (typeof allRooms!=='undefined'&&allRooms)?allRooms:[];}catch(e){return[];}}
+
+/* ===== 1) تحميل كل الغرف خام — بيتجاوز أي فلتر مخفي ===== */
+window._rawRooms=[];
+window.loadRawRooms=async function(){
+  try{
+    var d=await sb.from('rooms').select('*');
+    if(d.error)return window._rawRooms;
+    window._rawRooms=(d.data||[]).map(function(r){
+      if(r&&typeof r.data==='string'){try{r.data=JSON.parse(r.data);}catch(e){}}
+      if(r&&r.data&&typeof r.data==='object')return Object.assign({id:r.id},r.data);
+      return r;
+    });
+    /* دمج أي غرفة ناقصة في allRooms عشان joinRoom يلاقيها */
+    try{
+      var arr=GAR(),have={};
+      arr.forEach(function(x){if(x&&x.id!=null)have[String(x.id)]=1;});
+      window._rawRooms.forEach(function(r){if(r&&r.id!=null&&!have[String(r.id)]){arr.push(r);have[String(r.id)]=1;}});
+    }catch(e){}
+  }catch(e){}
+  return window._rawRooms;
+};
+
+/* ===== 2) مين يشوف الغرفة السرية في القايمة: صاحبها + الإدارة ===== */
+function canSee(r){
+  try{
+    if(!me)return false;
+    if(isOwnerName(me.name)||isAdmin())return true;
+    return rOwner(r)===String(me.name);
+  }catch(e){return false;}
+}
+
+/* ===== 3) إلحاق الغرف السرية بالقايمة بعد كل رسم ===== */
+function secretCard(r){
+  var id=String(r.id).replace(/['\\]/g,'');
+  var nm=escapeHtml(rName(r)||'غرفة');
+  var ds=escapeHtml(rDesc(r)||'غرفة سرية');
+  var img=rImg(r);
+  var icon=img?'<img src="'+escapeHtml(String(img))+'">':'🔒';
+  var badge=rPass(r)?'🔑 بكلمة سر':'🕶️ سرية';
+  return '<div class="r-card" onclick="joinRoom(\''+id+'\')" style="border-style:dashed;border-color:rgba(59,130,246,.45)">'
+  +'<div class="r-icon">'+icon+'</div>'
+  +'<div style="flex:1;min-width:0"><div style="font-weight:bold;font-size:15px">'+nm+'</div>'
+  +'<div style="font-size:11px;color:var(--mut)">'+ds+'</div></div>'
+  +'<span style="font-size:10px;color:var(--yel);white-space:nowrap">'+badge+'</span></div>';
+}
+
+function appendSecrets(){
+  try{
+    if(!me)return;
+    var box=el('roomsList');if(!box)return;
+    var scr=el('s-rooms');if(!scr||!scr.classList.contains('active'))return;
+    var h=box.innerHTML;
+    var src=(GAR().length?GAR():window._rawRooms)||[];
+    var html='',seen={};
+    src.forEach(function(r){
+      if(!r||r.id==null)return;
+      var id=String(r.id),nm=rName(r);
+      if(seen[id])return;seen[id]=1;
+      /* متكررش لو القايمة الأصلية عرضتها بالفعل */
+      if(h.indexOf("joinRoom('"+id+"')")>-1||h.indexOf('joinRoom("'+id+'")')>-1||h.indexOf('joinRoom('+id+')')>-1)return;
+      if(nm&&h.indexOf(escapeHtml(nm))>-1)return;
+      if(!canSee(r))return;
+      html+=secretCard(r);
+    });
+    if(html)box.insertAdjacentHTML('beforeend',html);
+  }catch(e){}
+}
+
+var _rrO=window.renderRooms;
+window.renderRooms=function(){
+  var r=_rrO?_rrO.apply(this,arguments):undefined;
+  try{setTimeout(appendSecrets,150);setTimeout(appendSecrets,700);}catch(e){}
+  return r;
+};
+try{
+  var rl=el('roomsList');
+  if(rl)new MutationObserver(function(){setTimeout(appendSecrets,120);}).observe(rl,{childList:true});
+}catch(e){}
+
+/* ===== 4) زرار: دخول غرفة سرية بالاسم — لأي حد يعرف الاسم ===== */
+function ensureJoinBtn(){
+  try{
+    var scr=el('s-rooms');if(!scr||el('joinSecretWrap'))return;
+    var list=el('roomsList');if(!list)return;
+    var w=document.createElement('div');
+    w.id='joinSecretWrap';w.style.cssText='margin-bottom:10px';
+    w.innerHTML='<button onclick="joinSecretByName()" style="width:100%;padding:11px;background:var(--card);border:1px dashed var(--acc);color:var(--acc);border-radius:10px;font-size:13px;font-weight:bold;cursor:pointer">🔑 دخول غرفة سرية بالاسم</button>';
+    list.parentElement.insertBefore(w,list);
+  }catch(e){}
+}
+setInterval(function(){try{if(!document.hidden)ensureJoinBtn();}catch(e){}},3000);
+
+window.joinSecretByName=async function(){
+  try{
+    var n=prompt('اكتب اسم الغرفة السرية بالظبط:');
+    n=(n||'').trim();
+    if(!n)return;
+    toast('⏳ جاري البحث...');
+    await loadRawRooms();
+    var hit=null;
+    (window._rawRooms||[]).forEach(function(r){
+      if(!hit&&rName(r).trim()===n)hit=r;
+    });
+    if(!hit)return toast('❌ مفيش غرفة بالاسم ده');
+    joinRoom(hit.id);
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* ===== 5) بعد إنشاء غرفة جديدة: تظهر فورًا لو سرية ===== */
+var _crO=window.createRoom;
+window.createRoom=async function(){
+  var r=_crO?await _crO.apply(this,arguments):undefined;
+  try{
+    setTimeout(async function(){await loadRawRooms();try{renderRooms();}catch(e){}},800);
+    setTimeout(async function(){await loadRawRooms();try{renderRooms();}catch(e){}},2200);
+  }catch(e){}
+  return r;
+};
+
+/* ===== 6) تشغيل: تحميل دوري خفيف ===== */
+var _saSR=window.startAll;
+window.startAll=async function(){var r=await _saSR();try{loadRawRooms();}catch(e){}return r;};
+setTimeout(function(){try{if(me)loadRawRooms();}catch(e){}},1500);
+setInterval(function(){try{if(!document.hidden&&me)loadRawRooms();}catch(e){}},12000);
+})();
+   </script>
    
 </body>
 </html>
