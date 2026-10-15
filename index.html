@@ -23567,6 +23567,64 @@ setInterval(function(){try{if(el('s-chat')&&el('s-chat').classList.contains('act
 setTimeout(buildPollBtn,1500);
 })();
    </script>
+  <script>
+(function(){
+if(window._pollRoomsOnly)return;window._pollRoomsOnly=true;
+
+/* ===== 1) الزرار يظهر في الغرف فقط ويختفي في الخاص ===== */
+function syncPollBtn(){
+  try{
+    var btn=el('chatPollBtn');
+    var inRoom=(chat&&chat.type==='room');
+    if(inRoom){
+      if(!btn){
+        /* مبني من الباتش الأصلي — موجود، نتأكد بس من ظهوره */
+        if(typeof buildPollBtn==='function')buildPollBtn();
+        btn=el('chatPollBtn');
+      }
+      if(btn)btn.style.display='';
+    }else{
+      if(btn)btn.style.display='none';
+    }
+  }catch(e){}
+}
+
+/* نلغي البناء التلقائي القديم ونعوض ببناء مشروط */
+try{
+  /* الحلقات القديمة بتنده buildPollBtn كل شوية — نخليها بتنادي نسختنا المشروطة */
+  window.buildPollBtnOriginal=window.buildPollBtn;
+  window.buildPollBtn=function(){
+    try{
+      if(window.buildPollBtnOriginal)window.buildPollBtnOriginal();
+      syncPollBtn();
+    }catch(e){}
+  };
+}catch(e){}
+
+/* دوري: يظهر في الغرف / يختفي في الخاص */
+setInterval(function(){
+  try{
+    if(el('s-chat')&&el('s-chat').classList.contains('active'))syncPollBtn();
+  }catch(e){}
+},1500);
+
+/* ===== 2) منع فتح/إرسال استفتاء في الخاص نهائياً ===== */
+var _ocp=window.openChatPoll;
+window.openChatPoll=function(){
+  try{
+    if(!chat||chat.type!=='room')return toast('📊 الاستفتاء في الغرف فقط');
+  }catch(e){}
+  return _ocp?_ocp.apply(this,arguments):undefined;
+};
+var _scp=window.sendChatPoll;
+window.sendChatPoll=async function(){
+  try{
+    if(!chat||chat.type!=='room'){toast('📊 الاستفتاء في الغرف فقط');return;}
+  }catch(e){}
+  return _scp?await _scp.apply(this,arguments):undefined;
+};
+})();
+   </script>
    
 </body>
 </html>
