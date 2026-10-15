@@ -23229,6 +23229,150 @@ setTimeout(function(){try{if(me)loadRawRooms();}catch(e){}},1500);
 setInterval(function(){try{if(!document.hidden&&me)loadRawRooms();}catch(e){}},12000);
 })();
    </script>
+  <script>
+(function(){
+if(window._secretSearchV2)return;window._secretSearchV2=true;
+
+/* ===== تطبيع النص العربي ===== */
+function norm(s){
+  try{
+    return String(s==null?'':s)
+      .toLowerCase()
+      .replace(/[\u0623\u0625\u0622\u0671]/g,'\u0627')
+      .replace(/\u0640/g,'')
+      .replace(/[ىی]/g,'\u064a')
+      .replace(/ة/g,'ه')
+      .replace(/[\u064B-\u065F\u0670]/g,'')
+      .replace(/\s+/g,' ')
+      .trim();
+  }catch(e){return String(s||'');}
+}
+
+/* ===== فك أي تغليف JSON جوه الصف ===== */
+function parseRow(r){
+  try{
+    if(!r||typeof r!=='object')return r;
+    var m=Object.assign({},r);
+    for(var k in r){
+      var v=r[k];
+      if(typeof v==='string'){
+        var t=v.trim();
+        if(t.charAt(0)==='{'&&t.charAt(t.length-1)==='}'){
+          try{
+            var o=JSON.parse(t);
+            if(o&&typeof o==='object'){for(var k2 in o){if(m[k2]===undefined)m[k2]=o[k2];}}
+          }catch(e){}
+        }
+      }else if(v&&typeof v==='object'&&!Array.isArray(v)){
+        for(var k3 in v){if(m[k3]===undefined)m[k3]=v[k3];}
+      }
+    }
+    return m;
+  }catch(e){return r;}
+}
+
+/* ===== جمع كل النصوص جوه الكائن ===== */
+function collectStrings(o,out,d){
+  try{
+    if(o==null||d>7)return;
+    if(typeof o==='string'){if(o.length<300)out.push(o);return;}
+    if(typeof o!=='object')return;
+    for(var k in o){try{collectStrings(o[k],out,d+1);}catch(e){}}
+  }catch(e){}
+}
+
+/* ===== تحميل الغرف من كل المصادر ===== */
+window.loadRawRooms=async function(){
+  var out=[],got=false;
+  var tables=['rooms','room','chat_rooms'];
+  for(var i=0;i<tables.length;i++){
+    try{
+      var d=await sb.from(tables[i]).select('*');
+      if(!d.error&&Array.isArray(d.data)&&d.data.length){out=d.data;got=true;break;}
+    }catch(e){}
+  }
+  /* من كاش loadRooms */
+  try{if(window._loadRoomsSeen)out=out.concat(window._loadRoomsSeen);}catch(e){}
+  /* من allRooms الحالي */
+  try{if(typeof allRooms!=='undefined'&&Array.isArray(allRooms))out=out.concat(allRooms);}catch(e){}
+  /* من الإعدادات لو فيها مفتاح غرف */
+  try{
+    var s=await SDB.loadSettings();
+    for(var k in s){
+      if(k&&String(k).toLowerCase().indexOf('room')>-1&&Array.isArray(s[k])){
+        s[k].forEach(function(x){if(x&&typeof x==='object')out.push(x);});
+      }
+    }
+  }catch(e){}
+  /* فك التغليف + إزالة المكرر */
+  var parsed=out.map(parseRow),seen={},final=[];
+  parsed.forEach(function(r){
+    var key=(r&&r.id!=null)?('i'+r.id):(r?('n'+(r.name||'')+(r.owner||'')):Math.random());
+    if(!seen[key]){seen[key]=1;final.push(r);}
+  });
+  window._rawRooms=final;
+  /* دمج في allRooms عشان joinRoom يلاقيها */
+  try{
+    var arr=(typeof allRooms!=='undefined')?allRooms:(window.allRooms=[]);
+    final.forEach(function(r){
+      if(r&&r.id!=null&&!arr.find(function(x){return x&&String(x.id)===String(r.id);}))arr.push(r);
+    });
+  }catch(e){}
+  return final;
+};
+
+/* التقط ناتج loadRooms الأصلي دايماً */
+try{
+  var _lrS=SDB.loadRooms.bind(SDB);
+  SDB.loadRooms=async function(){
+    var r=await _lrS();
+    try{if(Array.isArray(r))window._loadRoomsSeen=r.map(parseRow);}catch(e){}
+    return r;
+  };
+}catch(e){}
+
+/* ===== البحث الجديد: فحص شامل ===== */
+window.joinSecretByName=async function(){
+  if(!me)return toast('سجل دخولك أولاً');
+  var n=prompt('اكتب اسم الغرفة السرية بالظبط:');
+  n=(n||'').replace(/\s+/g,' ').trim();
+  if(!n)return;
+  toast('⏳ جاري البحث...');
+  var list=[];
+  try{list=await window.loadRawRooms()||[];}catch(e){}
+  var nn=norm(n),hit=null,hitSub=null;
+  list.forEach(function(r){
+    if(hit||!r)return;
+    var strs=[];
+    collectStrings(r,strs,0);
+    for(var i=0;i<strs.length;i++){
+      var s=norm(strs[i]);
+      if(!s)continue;
+      if(s===nn){hit=r;break;}
+      if(!hitSub&&s.length>2&&(s.indexOf(nn)>-1||nn.indexOf(s)>-1))hitSub=r;
+    }
+  });
+  var found=hit||hitSub;
+  if(!found)return toast('❌ مفيش غرفة بالاسم ده (فحصنا '+list.length+' غرفة)');
+  /* تأكيد وجودها في allRooms قبل الدخول */
+  try{
+    var arr=(typeof allRooms!=='undefined')?allRooms:(window.allRooms=[]);
+    if(found.id!=null){
+      if(!arr.find(function(x){return x&&String(x.id)===String(found.id);}))arr.push(found);
+    }else arr.push(found);
+  }catch(e){}
+  toast('✅ لقيتها — جاري الدخول...');
+  joinRoom(found.id!=null?found.id:(found.name||n));
+};
+
+/* ===== أداة تشخيص: اكتب في الكونسول _roomsDump() ===== */
+window._roomsDump=async function(){
+  var l=await window.loadRawRooms();
+  try{console.log('عدد الغرف الخام:',l.length);l.forEach(function(r,i){console.log(i,'| id:',r&&r.id,'| name:',r&&(r.name||r.title)||'؟');});}catch(e){}
+  return l;
+};
+})();
+   </script>
    
 </body>
 </html>
