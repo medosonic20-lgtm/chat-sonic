@@ -24308,6 +24308,92 @@ window.confirmImage=async function(){
 };
 })();
    </script>
+   <script>
+(function(){
+if(window._videoLoadBar)return;window._videoLoadBar=true;
+
+/* ===== CSS: الأوفرلاي والشريط ===== */
+var st=document.createElement('style');
+st.textContent=
+'.vloadWrap{position:relative;display:inline-block}'
++'.vloadOv{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:5;border-radius:8px;backdrop-filter:blur(2px)}'
++'.vloadSpin{width:34px;height:34px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:vspin .8s linear infinite}'
++'@keyframes vspin{to{transform:rotate(360deg)}}'
++'.vloadTxt{color:#fff;font-size:11px;font-weight:bold;text-shadow:0 1px 3px #000}'
++'.vloadBar{width:70%;max-width:150px;height:5px;background:rgba(255,255,255,.25);border-radius:4px;overflow:hidden}'
++'.vloadFill{height:100%;width:0%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:4px;transition:width .3s}'
++'.vloadErr{color:#ff8a8a;font-size:22px}';
+document.head.appendChild(st);
+
+/* ===== تركيب الأوفرلاي على فيديو ===== */
+function attach(v){
+  try{
+    if(!v||v._vloadB)return;
+    v._vloadB=true;
+    /* لف الفيديو في حاوية relative */
+    var wrap=document.createElement('span');
+    wrap.className='vloadWrap';
+    v.parentNode.insertBefore(wrap,v);
+    wrap.appendChild(v);
+    v.style.display='block';
+    var ov=document.createElement('div');
+    ov.className='vloadOv';
+    ov.innerHTML='<div class="vloadSpin"></div><div class="vloadTxt">⏳ جاري التحميل... 0%</div><div class="vloadBar"><div class="vloadFill"></div></div>';
+    wrap.appendChild(ov);
+    var txt=ov.querySelector('.vloadTxt'),fill=ov.querySelector('.vloadFill'),spin=ov.querySelector('.vloadSpin');
+    function show(){ov.style.display='flex';}
+    function hide(){ov.style.display='none';}
+    function pct(){
+      try{
+        if(!v.duration||!isFinite(v.duration))return 0;
+        if(v.buffered.length){
+          var end=v.buffered.end(v.buffered.length-1);
+          return Math.min(100,Math.round(end/v.duration*100));
+        }
+      }catch(e){}
+      return 0;
+    }
+    show();
+    v.addEventListener('loadstart',show);
+    v.addEventListener('waiting',function(){show();txt.innerText='⏳ جاري التحميل... '+pct()+'%';});
+    v.addEventListener('stalled',show);
+    v.addEventListener('progress',function(){
+      var p=pct();
+      txt.innerText='⏳ جاري التحميل... '+p+'%';
+      fill.style.width=p+'%';
+    });
+    v.addEventListener('canplay',function(){fill.style.width='100%';setTimeout(hide,350);});
+    v.addEventListener('playing',hide);
+    v.addEventListener('error',function(){
+      ov.innerHTML='<span class="vloadErr">⚠️</span><div class="vloadTxt">فشل تحميل الفيديو</div>';
+    });
+  }catch(e){}
+}
+
+/* ===== رصد كل فيديو جديد في الشات ===== */
+function scan(){
+  try{
+    var box=el('chatBox');if(!box)return;
+    var vs=box.querySelectorAll('video:not([data-inbub])');
+    for(var i=0;i<vs.length;i++){
+      var v=vs[i];
+      if(v.closest('.vloadWrap'))continue;
+      attach(v);
+    }
+  }catch(e){}
+}
+try{
+  var cb=el('chatBox');
+  if(cb)new MutationObserver(function(){setTimeout(scan,80);}).observe(cb,{childList:true,subtree:true});
+}catch(e){}
+setInterval(function(){if(!document.hidden)scan();},2000);
+setTimeout(scan,600);
+
+/* عند فتح الشات: امسح فوراً */
+var _smVL=window.subMsgs;
+window.subMsgs=async function(){var r=await _smVL();try{setTimeout(scan,300);}catch(e){}return r;};
+})();
+   </script>
    
 </body>
 </html>
