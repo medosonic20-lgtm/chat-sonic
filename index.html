@@ -24604,6 +24604,68 @@ window.subMsgs=async function(){
 };
 })();
    </script>
+   <script>
+(function(){
+if(window._reactMediaFix)return;window._reactMediaFix=true;
+
+/* ===== CSS: أزرار التفاعل ظاهرة دايماً وفوق الفيديو/الصور ===== */
+var st=document.createElement('style');
+st.textContent=
+'.bub .msg-actions{opacity:1!important;z-index:90!important;background:rgba(0,0,0,.5);border-radius:16px;padding:3px 4px;backdrop-filter:blur(3px)}'
++'.bub .reactions{position:relative;z-index:60}';
+document.head.appendChild(st);
+
+/* منع قايمة الفيديو الأصلية (حفظ/مشاركة) عشان الضغط المطول يفتح قايمة الرسالة */
+document.addEventListener('contextmenu',function(e){
+  try{
+    var v=e.target&&e.target.closest?e.target.closest('.bub video'):null;
+    if(v)e.preventDefault();
+  }catch(err){}
+});
+
+/* ===== إعادة رسم آمنة: شريط الرياكشن بس — من غير لمس الصورة/الفيديو ===== */
+function reactionsHTML(m){
+  try{
+    var r=m.reactions||{};
+    var parts=[];
+    for(var em in r){
+      var users=r[em];
+      if(typeof users==='number')users=[];
+      if(!users||!users.length)continue;
+      var mine=me&&users.indexOf(me.name)>-1;
+      var em2=String(em).replace(/'/g,'');
+      parts.push('<button class="reaction-btn'+(mine?' mine':'')+'" onclick="toggleReaction(\''+m._id+'\',\''+em2+'\')">'+em+' '+users.length+'</button>');
+    }
+    if(!parts.length)return '';
+    return '<div class="reactions">'+parts.join('')+'</div>';
+  }catch(e){return '';}
+}
+window.__repaintBubble=function(mid){
+  try{
+    var m=msgsCache.find(function(x){return x._id===mid;});
+    if(!m)return;
+    var b=document.querySelector('[data-id="'+mid+'"]');
+    if(!b)return;
+    /* نص: إعادة رسم كاملة آمنة | وسائط: نلمس الرياكشن بس */
+    if(m.type==='text'||m.deleted){
+      b.innerHTML=renderMsgContent(m);
+      try{if(window.__paintBub)window.__paintBub(b,m);}catch(e){}
+      return;
+    }
+    var old=b.querySelector('.reactions');
+    var nh=reactionsHTML(m);
+    if(old){
+      if(nh)old.outerHTML=nh;
+      else old.remove();
+    }else if(nh){
+      var tk=b.querySelector('.ticks');
+      if(tk)tk.insertAdjacentHTML('beforebegin',nh);
+      else b.insertAdjacentHTML('beforeend',nh);
+    }
+  }catch(e){}
+};
+})();
+   </script>
    
 </body>
 </html>
