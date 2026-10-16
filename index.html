@@ -23898,6 +23898,353 @@ setInterval(function(){if(!document.hidden)paintAllPolls2();},4000);
 setTimeout(paintAllPolls2,1500);
 })();
    </script>
+   <script>
+(function(){
+if(window._quizFinal)return;window._quizFinal=true;
+
+function pP(m){try{return (m.meta&&m.meta.poll)?m.meta.poll:null;}catch(e){return null;}}
+function esc(s){return escapeHtml(String(s==null?'':s));}
+function nm(n){try{return getMsgName(n);}catch(e){return n;}}
+
+/* ===== 1) نافذة الإنشاء: سؤال + خيارات + تحديد الإجابة الصح 👑 ===== */
+window._cpCorrect=null;
+window.openChatPoll=function(){
+  if(!me)return toast('سجل دخولك أولاً');
+  if(!chat||chat.type!=='room')return toast('🎯 الكويز في الغرف فقط');
+  window._cpCorrect=null;
+  var old=el('chatPollModal');if(old)old.remove();
+  var m=document.createElement('div');m.id='chatPollModal';m.className='modal';
+  m.innerHTML='<div class="m-card2" style="width:330px;max-height:88vh;overflow-y:auto">'
+  +'<h3>🎯 سؤال وجواب</h3>'
+  +'<div class="ig"><label>السؤال</label><input id="cpQ" placeholder="اكتب سؤالك..."></div>'
+  +'<div style="font-size:12px;font-weight:bold;color:var(--acc);margin-bottom:6px">الخيارات (من 2 لـ 10)</div>'
+  +'<div id="cpOpts"></div>'
+  +'<div style="display:flex;gap:8px;align-items:center;margin:8px 0">'
+  +'<button class="adm-btn" onclick="cpAddOpt()">➕ خيار</button></div>'
+  +'<div style="font-size:11px;color:var(--mut);background:var(--bg);border-radius:10px;padding:8px;margin-bottom:8px;line-height:1.9">👑 دوس على "صح" جنب الإجابة الصحيحة.<br>لو محددتش → استفتاء عادي. لو حددت → كويز والإجابة مرة واحدة!</div>'
+  +'<button style="background:var(--acc);color:#fff" onclick="sendChatPoll()">✅ إرسال</button>'
+  +'<button style="background:transparent;color:var(--red);border:1px solid var(--red)!important" onclick="closeModal(\'chatPollModal\')">إلغاء</button></div>';
+  m.onclick=function(e){if(e.target===m)closeModal('chatPollModal');};
+  document.body.appendChild(m);m.classList.add('open');
+  cpAddOpt();cpAddOpt();
+};
+window.cpAddOpt=function(){
+  try{
+    var box=el('cpOpts');if(!box)return;
+    if(box.children.length>=10)return toast('أقصى 10 خيارات');
+    var i=box.children.length;
+    var r=document.createElement('div');
+    r.id='cpRow'+i;
+    r.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center';
+    r.innerHTML='<span style="min-width:24px;height:24px;border-radius:50%;background:var(--card2);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex-shrink:0">'+(i+1)+'</span>'
+    +'<input class="cpOptInp" placeholder="خيار '+(i+1)+'" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;font-size:13px">'
+    +'<button type="button" onclick="cpMark('+i+',this)" title="الإجابة الصحيحة" style="background:var(--card2);border:1px solid var(--line);color:var(--mut);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer;flex-shrink:0">👑 صح</button>'
+    +'<button type="button" onclick="cpDelOpt(this)" style="background:var(--red);border:none;color:#fff;border-radius:8px;width:30px;cursor:pointer;flex-shrink:0">✕</button>';
+    box.appendChild(r);cpRe();
+  }catch(e){}
+};
+window.cpMark=function(i,btn){
+  try{
+    if(window._cpCorrect===i){window._cpCorrect=null;}
+    else{window._cpCorrect=i;}
+    var box=el('cpOpts');
+    for(var k=0;k<box.children.length;k++){
+      var b=box.children[k].querySelector('button[title="الإجابة الصحيحة"]');
+      if(b){
+        var on=(window._cpCorrect===k);
+        b.style.background=on?'var(--grn)':'var(--card2)';
+        b.style.color=on?'#fff':'var(--mut)';
+        b.style.borderColor=on?'var(--grn)':'var(--line)';
+      }
+    }
+    toast(window._cpCorrect===null?'الاستفتاء عادي (مفيش إجابة صح)':'✅ الإجابة الصح: رقم '+(window._cpCorrect+1));
+  }catch(e){}
+};
+window.cpDelOpt=function(b){
+  try{
+    var box=el('cpOpts');
+    if(box.children.length<=2){toast('لازم خيارين على الأقل');return;}
+    var idx=Array.prototype.indexOf.call(box.children,b.parentElement);
+    b.parentElement.remove();cpRe();
+    if(window._cpCorrect===idx)window._cpCorrect=null;
+    else if(window._cpCorrect>idx)window._cpCorrect--;
+    for(var k=0;k<box.children.length;k++){
+      var bb=box.children[k].querySelector('button[title="الإجابة الصحيحة"]');
+      if(bb){var on=(window._cpCorrect===k);bb.style.background=on?'var(--grn)':'var(--card2)';bb.style.color=on?'#fff':'var(--mut)';bb.style.borderColor=on?'var(--grn)':'var(--line)';}
+    }
+  }catch(e){}
+};
+function cpRe(){try{var box=el('cpOpts');if(!box)return;var is=box.querySelectorAll('.cpOptInp');is.forEach(function(i,k){i.placeholder='خيار '+(k+1);});var ns=box.children;for(var k=0;k<ns.length;k++){var n=ns[k].querySelector('span');if(n)n.innerText=(k+1);}}catch(e){}}
+
+/* ===== 2) الإرسال ===== */
+window.sendChatPoll=async function(){
+  try{
+    if(!me||!chat)return;
+    var q=el('cpQ')?el('cpQ').value.trim():'';
+    var opts=[];
+    document.querySelectorAll('.cpOptInp').forEach(function(i){var t=i.value.trim();if(t)opts.push(t);});
+    if(!q)return toast('اكتب السؤال');
+    if(opts.length<2)return toast('حط خيارين على الأقل');
+    var corr=window._cpCorrect;
+    if(corr!==null&&(corr<0||corr>=opts.length))corr=null;
+    var convId=curConvId();
+    var m={_id:'m'+Date.now()+'q'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:q,type:'text',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{},meta:{poll:{opts:opts.map(function(t){return{t:t,v:[]};}),multi:false,closed:false,correct:(corr===null?undefined:corr)}}};
+    closeModal('chatPollModal');
+    msgsCache.push(m);appendMsg(m);scrollChat();
+    await SDB.addMsg(m);
+    try{if(chat.type==='user')await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:'🎯 سؤال'});}catch(e){}
+    toast(corr===null?'📊 تم نشر الاستفتاء':'🎯 تم نشر الكويز — الإجابة الصح رقم '+(corr+1)+' (سِر بينك وبين نفسك)');
+  }catch(e){toast('خطأ: '+e.message);}
+};
+
+/* ===== 3) الرسم: كويز / استفتاء بنمط الكويز ===== */
+window.quizFinalInner=function(m){
+  var p=pP(m);if(!p)return '';
+  var isQuiz=(p.correct!==undefined&&p.correct!==null);
+  var iVoted=me?p.opts.some(function(o){return (o.v||[]).indexOf(me.name)>-1;}):false;
+  var revealed=(p.closed||iVoted||!isQuiz);
+  var myIdx=-1;
+  if(me)for(var i=0;i<p.opts.length;i++){if((p.opts[i].v||[]).indexOf(me.name)>-1){myIdx=i;break;}}
+  var h='';
+  p.opts.forEach(function(o,i){
+    var voters=o.v||[];
+    var isCorr=isQuiz&&(i===p.correct);
+    var isMine=(i===myIdx);
+    var icon;
+    if(!revealed){
+      icon='<span style="width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.45);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"></span>';
+    }else if(isCorr){
+      icon='<span style="width:26px;height:26px;border-radius:50%;background:var(--acc);display:inline-flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0;box-shadow:0 0 8px rgba(59,130,246,.6)">✓</span>';
+    }else if(isMine){
+      icon='<span style="width:26px;height:26px;border-radius:50%;background:var(--red);display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#fff;flex-shrink:0">✗</span>';
+    }else{
+      icon='<span style="width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.4);display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:rgba(255,255,255,.55);flex-shrink:0">✗</span>';
+    }
+    var bg=(isMine&&revealed&&!isCorr)?';background:rgba(230,69,83,.10);border-radius:10px;padding:6px':(isCorr&&revealed?';background:rgba(59,130,246,.12);border-radius:10px;padding:6px':'');
+    var cnt=voters.length?(' <span style="font-size:11px;opacity:.75">('+voters.length+')</span>'):'';
+    var canVote=(!revealed)||(!isQuiz&&(!p.closed));
+    h+='<div '+(canVote?'onclick="votePollMsg(\''+m._id+'\','+i+')"':'')+' style="cursor:'+(canVote?'pointer':'default')+';margin:9px 0'+bg+'">'
+    +'<div style="display:flex;align-items:center;gap:9px">'
+    +'<span style="flex:1;font-size:14.5px;color:#fff;font-weight:'+((isMine||isCorr)&&revealed?'bold':'normal')+';word-break:break-word;display:flex;align-items:center;gap:8px">'
+    +'<span style="min-width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.16);display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:bold;flex-shrink:0">'+(i+1)+'</span>'
+    +esc(o.t)+cnt+'</span>'+icon+'</div>';
+    if(!isQuiz&&voters.length){
+      var names=voters.slice(0,8).map(function(n){return '👤 '+esc(nm(n));}).join(' &nbsp;');
+      if(voters.length>8)names+=' &nbsp;<b>+'+(voters.length-8)+'</b>';
+      h+='<div style="margin-top:5px;font-size:11px;line-height:2;color:rgba(255,255,255,.8);background:rgba(255,255,255,.08);border-radius:8px;padding:4px 8px">'+names+'</div>';
+    }
+    h+='</div>';
+  });
+  var total=0;p.opts.forEach(function(o){total+=(o.v||[]).length;});
+  var winnersStr='';
+  if(isQuiz&&revealed){
+    var w=(p.correct<p.opts.length)?(p.opts[p.correct].v||[]):[];
+    if(w.length){
+      var wn=w.slice(0,10).map(function(n){return '👤 '+esc(nm(n));}).join(' &nbsp;');
+      if(w.length>10)wn+=' &nbsp;<b>+'+(w.length-10)+'</b>';
+      winnersStr='<div style="margin-top:8px;background:rgba(255,215,0,.12);border:1px solid rgba(255,215,0,.45);border-radius:10px;padding:8px;font-size:12px;line-height:2;color:#ffd54f">🏆 الكسبان ('+w.length+'): '+wn+'</div>';
+    }else if(p.closed){
+      winnersStr='<div style="margin-top:8px;background:var(--card2);border-radius:10px;padding:8px;font-size:12px;color:var(--mut);text-align:center">😅 محدش جاوب صح!</div>';
+    }
+  }
+  var canCtl=(m.from===me.name)||(typeof isAdmin==='function'&&isAdmin());
+  var note=(!p.closed&&isQuiz&&m.from===me.name&&me)?'<span style="color:#ffd54f"> • ✅ الصح رقم '+(p.correct+1)+' (إنت بس)</span>':'';
+  var hint=(!p.closed&&!isQuiz&&iVoted)?' • ✏️ اضغط لتغيير إجابتك':'';
+  h+=winnersStr
+  +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:7px;border-top:1px solid rgba(255,255,255,.2);font-size:11px;opacity:.9;flex-wrap:wrap;gap:4px">'
+  +'<span>👥 '+total+' إجابة'+(p.closed?' • 🔒 انتهى':(isQuiz?' • 🎯 مرة واحدة':''))+note+hint+'</span>'
+  +(canCtl?'<span onclick="togglePollMsg(\''+m._id+'\')" style="cursor:pointer;font-weight:bold">'+(p.closed?'🔓 فتح':'🔒 إنهاء وكشف')+'</span>':'')
+  +'</div>';
+  return h;
+};
+
+/* ===== 4) حقن الرسم ===== */
+var _rmcQF=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  var html=_rmcQF?_rmcQF(m):'';
+  try{
+    if(m&&!m.deleted&&pP(m)){
+      var tag='<div id="rpoll-'+m._id+'"';
+      var idx=html.indexOf(tag);
+      var inner='<div id="rpoll-'+m._id+'" style="margin-top:6px">'+window.quizFinalInner(m)+'</div>';
+      if(idx>-1){
+        var end=html.indexOf('</div>',html.indexOf('>',idx));
+        /* نستبدل الصندوق كله: ندور على نهاية الصندوق (الجزء الثابت المضاف) */
+        var closeIdx=html.indexOf('</div>',idx);
+        /* الصندوق بيتقفل بعد محتواه — نعمل استبدال بسيط: نقطع من بداية التاج لنهاية أقرب تسلسل معروف */
+        html=html.slice(0,idx)+inner+html.slice(html.length);
+      }else{
+        html+=inner;
+      }
+    }
+  }catch(e){}
+  return html;
+};
+
+/* ===== 5) التصويت ===== */
+async function persist(m){
+  var ok=false;
+  try{var r=await sb.from('messages').update({meta:m.meta}).eq('id',m._id);ok=!(r&&r.error);}catch(e){ok=false;}
+  if(!ok){try{await sb.from('messages').update({meta:JSON.stringify(m.meta)}).eq('id',m._id);}catch(e2){}}
+}
+window.repaintPollV3=function(mid){
+  try{
+    var m=msgsCache.find(function(x){return x._id===mid;});if(!m)return;
+    var box=document.querySelector('[id="rpoll-'+mid+'"]');
+    if(box)box.innerHTML=window.quizFinalInner(m);
+  }catch(e){}
+};
+window.votePollMsg=async function(mid,idx){
+  try{
+    if(!me)return toast('سجل دخولك أولاً');
+    var m=msgsCache.find(function(x){return x._id===mid;});if(!m)return;
+    var p=pP(m);if(!p)return;
+    if(p.closed)return toast('🔒 السؤال خلص');
+    var isQuiz=(p.correct!==undefined&&p.correct!==null);
+    var opts=p.opts;if(idx<0||idx>=opts.length)return;
+    var my=-1;
+    for(var i=0;i<opts.length;i++){if((opts[i].v||[]).indexOf(me.name)>-1)my=i;}
+    if(my===idx&&!isQuiz){opts[idx].v=opts[idx].v.filter(function(n){return n!==me.name;});}
+    else{
+      if(isQuiz&&my>-1)return toast('🎯 إجابتك متسجلة — الكويز مرة واحدة!');
+      if(my>-1&&!p.multi)opts[my].v=opts[my].v.filter(function(n){return n!==me.name;});
+      opts[idx].v=(opts[idx].v||[]).concat([me.name]);
+    }
+    await persist(m);
+    window.repaintPollV3(mid);
+    if(isQuiz){
+      if(idx===p.correct){toast('✅ إجابة صح! 🎉 مبروك');try{beep(1000);}catch(e){}}
+      else{toast('❌ غلط — الصح رقم '+(p.correct+1));try{beep(400);}catch(e){}}
+    }
+  }catch(e){toast('خطأ: '+e.message);}
+};
+window.togglePollMsg=async function(mid){
+  try{
+    var m=msgsCache.find(function(x){return x._id===mid;});if(!m)return;
+    var p=pP(m);if(!p)return;
+    if(m.from!==me.name&&!(typeof isAdmin==='function'&&isAdmin()))return;
+    p.closed=!p.closed;
+    await persist(m);
+    toast(p.closed?'🔒 انتهى السؤال — النتيجة انكشفت للكل':'🔓 اتفتح تاني');
+    window.repaintPollV3(mid);
+  }catch(e){}
+};
+
+/* ===== 6) إعادة رسم بعد فتح الشات + اللحظي ===== */
+var _smQF=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smQF();
+  try{setTimeout(function(){try{(msgsCache||[]).forEach(function(m){if(pP(m))window.repaintPollV3(m._id);});}catch(e){}},900);}catch(e){}
+  return r;
+};
+})();
+   </script>
+   <script>
+(function(){
+if(window._pollStyleV4)return;window._pollStyleV4=true;
+
+function pP(m){try{return (m.meta&&m.meta.poll)?m.meta.poll:null;}catch(e){return null;}}
+function esc(s){return escapeHtml(String(s==null?'':s));}
+function nm(n){try{return getMsgName(n);}catch(e){return n;}}
+
+/* صورة المصوت (أفاتار صغير) */
+function avaChip(n){
+  var u=null;try{u=usersCache[n]||null;}catch(e){}
+  var inner='👤';
+  try{
+    if(u&&u.avatar)inner='<img src="'+escapeHtml(u.avatar)+'" style="width:100%;height:100%;object-fit:cover">';
+    else if(u&&u.gender==='أنثى')inner='👩';
+    else inner='👨';
+  }catch(e){}
+  return '<span title="'+esc(nm(n))+'" style="display:inline-flex;width:24px;height:24px;border-radius:50%;overflow:hidden;background:var(--card2);align-items:center;justify-content:center;font-size:12px;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3);margin:2px">'+inner+'</span>';
+}
+
+/* ===== الرسم النهائي: عادي = أفاتارات بس | كويز = صح وغلط ===== */
+window.quizFinalInner=function(m){
+  var p=pP(m);if(!p)return '';
+  var isQuiz=(p.correct!==undefined&&p.correct!==null);
+  var iVoted=me?p.opts.some(function(o){return (o.v||[]).indexOf(me.name)>-1;}):false;
+  var revealed=(p.closed||iVoted||!isQuiz);
+  var myIdx=-1;
+  if(me)for(var z=0;z<p.opts.length;z++){if((p.opts[z].v||[]).indexOf(me.name)>-1){myIdx=z;break;}}
+  var h='';
+  p.opts.forEach(function(o,i){
+    var voters=o.v||[];
+    var isCorr=isQuiz&&(i===p.correct);
+    var isMine=(i===myIdx);
+    /* الأيقونة */
+    var icon;
+    if(!isQuiz){
+      /* عادي: دايرة فاضية دايماً — لا صح ولا غلط */
+      icon='<span style="width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.45);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"></span>';
+    }else if(!revealed){
+      icon='<span style="width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.45);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"></span>';
+    }else if(isCorr){
+      icon='<span style="width:26px;height:26px;border-radius:50%;background:var(--acc);display:inline-flex;align-items:center;justify-content:center;font-size:14px;color:#fff;flex-shrink:0;box-shadow:0 0 8px rgba(59,130,246,.6)">✓</span>';
+    }else if(isMine){
+      icon='<span style="width:26px;height:26px;border-radius:50%;background:var(--red);display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:#fff;flex-shrink:0">✗</span>';
+    }else{
+      icon='<span style="width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.4);display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:rgba(255,255,255,.55);flex-shrink:0">✗</span>';
+    }
+    /* خلفية الخيار (كويز بس) */
+    var bg='';
+    if(isQuiz&&revealed){
+      if(isCorr)bg=';background:rgba(59,130,246,.12);border-radius:10px;padding:6px';
+      else if(isMine)bg=';background:rgba(230,69,83,.10);border-radius:10px;padding:6px';
+    }
+    var canVote=(!p.closed)&&((!isQuiz)||(myIdx===-1));
+    var cnt=(isQuiz&&voters.length)?' <span style="font-size:11px;opacity:.75">('+voters.length+')</span>':'';
+    h+='<div '+(canVote?'onclick="votePollMsg(\''+m._id+'\','+i+')"':'')+' style="cursor:'+(canVote?'pointer':'default')+';margin:9px 0'+bg+'">'
+    +'<div style="display:flex;align-items:center;gap:9px">'
+    +'<span style="flex:1;font-size:14.5px;color:#fff;word-break:break-word;display:flex;align-items:center;gap:8px">'
+    +'<span style="min-width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.16);display:inline-flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:bold;flex-shrink:0">'+(i+1)+'</span>'
+    +esc(o.t)+cnt+'</span>'+icon+'</div>';
+    /* صف الأفاتارات */
+    var showAvas=false;
+    if(!isQuiz&&voters.length)showAvas=true;           /* عادي: دايماً */
+    if(isQuiz&&p.closed&&voters.length)showAvas=true;  /* كويز: بعد الإنهاء */
+    if(showAvas){
+      h+='<div style="display:flex;flex-wrap:wrap;align-items:center;margin-top:4px">'
+      +voters.slice(0,20).map(avaChip).join('')
+      +(voters.length>20?'<span style="font-size:11px;color:rgba(255,255,255,.7);margin-right:4px">+'+(voters.length-20)+'</span>':'')
+      +'</div>';
+    }
+    h+='</div>';
+  });
+  /* الكسبان (كويز بس) */
+  var winnersStr='';
+  if(isQuiz&&revealed){
+    var w=(p.correct<p.opts.length)?(p.opts[p.correct].v||[]):[];
+    if(w.length){
+      winnersStr='<div style="margin-top:8px;background:rgba(255,215,0,.12);border:1px solid rgba(255,215,0,.45);border-radius:10px;padding:8px;font-size:12px;line-height:2.2;color:#ffd54f">🏆 الكسبان ('+w.length+'): '
+      +w.slice(0,12).map(avaChip).join(' ')+' '
+      +w.slice(0,10).map(function(n){return esc(nm(n));}).join('، ')
+      +(w.length>10?' +'+(w.length-10):'')+'</div>';
+    }else if(p.closed){
+      winnersStr='<div style="margin-top:8px;background:var(--card2);border-radius:10px;padding:8px;font-size:12px;color:var(--mut);text-align:center">😅 محدش جاوب صح!</div>';
+    }
+  }
+  var canCtl=(m.from===me.name)||(typeof isAdmin==='function'&&isAdmin());
+  var note=(!p.closed&&isQuiz&&m.from===me.name&&me)?'<span style="color:#ffd54f"> • ✅ الصح رقم '+(p.correct+1)+' (إنت بس)</span>':'';
+  var hint=(!p.closed&&!isQuiz&&iVoted)?' • ✏️ اضغط على خيار تاني لتغيير إجابتك':'';
+  var total=0;p.opts.forEach(function(o){total+=(o.v||[]).length;});
+  h+=winnersStr
+  +'<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:7px;border-top:1px solid rgba(255,255,255,.2);font-size:11px;opacity:.9;flex-wrap:wrap;gap:4px">'
+  +'<span>👥 '+total+' صوت'+(p.closed?' • 🔒 انتهى':(isQuiz?' • 🎯 مرة واحدة':''))+note+hint+'</span>'
+  +(canCtl?'<span onclick="togglePollMsg(\''+m._id+'\')" style="cursor:pointer;font-weight:bold">'+(p.closed?'🔓 فتح':'🔒 '+(isQuiz?'إنهاء وكشف':'إغلاق'))+'</span>':'')
+  +'</div>';
+  return h;
+};
+
+/* إعادة رسم الاستفتاءات الموجودة بالشكل الجديد بعد فتح الشات */
+var _smV4=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smV4();
+  try{setTimeout(function(){try{(msgsCache||[]).forEach(function(m){if(pP(m))window.repaintPollV3&&window.repaintPollV3(m._id);});}catch(e){}},900);}catch(e){}
+  return r;
+};
+})();
+   </script>
    
 </body>
 </html>
