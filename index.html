@@ -24325,6 +24325,62 @@ setInterval(function(){
 try{toast('✅ خانة الكتابة رجعت زي الأول');}catch(e){}
 })();
    </script>
+   <script>
+(function(){
+if(window._imgUploadFix)return;window._imgUploadFix=true;
+
+/* رفع الصورة للتخزين — بأي صيغة دخول */
+async function upImg(p){
+  try{if(typeof p==='string'&&p.indexOf('data:')===0){var u=await uploadMedia(p,'.jpg');if(u)return u;}}catch(e){}
+  try{
+    var blob=(p instanceof Blob||p instanceof File)?p:((typeof dataURLtoBlob==='function'&&typeof p==='string'&&p.indexOf('data:')===0)?dataURLtoBlob(p):null);
+    if(blob){
+      var fname='img_'+Date.now()+'_'+Math.floor(Math.random()*9999)+'.jpg';
+      var up=await sb.storage.from('stories').upload(fname,blob,{cacheControl:'31536000',upsert:false});
+      if(!up.error)return sb.storage.from('stories').getPublicUrl(fname).data.publicUrl;
+    }
+  }catch(e){}
+  return null;
+}
+
+/* إرسال الصورة: رفع أولاً ← ثم إرسال برابط + كابشن + رد */
+window.confirmImage=async function(){
+  if(!pendingImg||!chat)return;
+  var caption=(el('imgCaption')?el('imgCaption').value.trim():'');
+  var convId=curConvId();
+  var rep=null;
+  try{rep=(typeof replyTo!=='undefined'&&replyTo)?replyTo:null;}catch(e){}
+  if(!rep)rep=window._stashedReply||null;
+  /* لقطة الاقتباس */
+  var q=null;
+  if(rep){
+    var om=msgsCache.find(function(x){return x._id===rep;});
+    if(om&&!om.deleted){
+      var t='رسالة';
+      if(om.type==='text')t=om.data;
+      else if(om.type==='image')t='📷 صورة';
+      else if(om.type==='audio')t='🎤 تسجيل صوتي';
+      else if(om.type==='video')t='📹 فيديو';
+      q={n:getMsgName(om.from),t:String(t||''),th:(om.type==='image'&&om.data&&om.data.length<80000)?om.data:''};
+    }
+  }
+  toast('⏳ جاري إرسال الصورة...');
+  var url=await upImg(pendingImg);
+  var finalData=url||pendingImg;
+  var meta={};
+  if(caption)meta.cap=caption;
+  if(q)meta.quote=q;
+  var m={_id:'m'+Date.now()+'i'+Math.random().toString(36).slice(2),_conv:convId,from:me.name,data:finalData,type:'image',time:Date.now(),replyTo:rep,edited:false,deleted:false,read:false,reactions:{},meta:(Object.keys(meta).length?meta:null)};
+  msgsCache.push(m);appendMsg(m);scrollChat();
+  await SDB.addMsg(m);
+  pendingImg=null;window._stashedReply=null;
+  if(el('imgCaption'))el('imgCaption').value='';
+  closeModal('imgModal');
+  if(rep){try{cancelReply();}catch(e){}}
+  if(chat.type==='user'){try{await SDB.upsertConv(convId,{a:me.name,b:chat.id,t:Date.now(),lastFrom:me.name,lastMsg:caption||'[صورة]'});}catch(e){}}
+};
+})();
+   </script>
    
 </body>
 </html>
