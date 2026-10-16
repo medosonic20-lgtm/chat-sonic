@@ -24507,6 +24507,103 @@ buildVidBtn();
 setInterval(function(){if(!document.hidden)buildVidBtn();},2000);
 })();
    </script>
+   <script>
+(function(){
+if(window._reactSync)return;window._reactSync=true;
+
+function parseR(v){
+  try{
+    if(!v)return{};
+    if(typeof v==='string'){var o=JSON.parse(v);return (o&&typeof o==='object')?o:{};}
+    if(typeof v==='object')return v;
+  }catch(e){}
+  return{};
+}
+
+/* إعادة رسم فقاعة رسالة واحدة بمحتواها الجديد */
+window.__repaintBubble=function(mid){
+  try{
+    var m=msgsCache.find(function(x){return x._id===mid;});
+    if(!m)return;
+    var b=document.querySelector('[data-id="'+mid+'"]');
+    if(!b)return;
+    b.innerHTML=renderMsgContent(m);
+    try{if(window.__paintBub)window.__paintBub(b,m);}catch(e){}
+  }catch(e){}
+};
+
+/* ===== 1) اشتراك لحظي: أي تحديث على رسايل الشات الحالي يوصل فوراً ===== */
+window.subMsgUpdRT=function(convId){
+  try{if(window._updCh){try{sb.removeChannel(window._updCh);}catch(e){}window._updCh=null;}}catch(e){}
+  try{
+    window._updCh=sb.channel('rt-upd-'+String(convId).replace(/[^a-zA-Z0-9]/g,''))
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'messages',filter:'conv_id=eq.'+convId},function(pl){
+      try{
+        var row=pl.new;if(!row||!row.id)return;
+        var m=msgsCache.find(function(x){return x._id===row.id;});
+        if(!m)return;
+        var nr=parseR(row.reactions);
+        var chR=JSON.stringify(nr)!==JSON.stringify(m.reactions||{});
+        var chD=(row.deleted!==undefined&&!!row.deleted!==!!m.deleted);
+        var chE=(row.edited!==undefined&&!!row.edited!==!!m.edited);
+        if(!chR&&!chD&&!chE)return;
+        m.reactions=nr;
+        if(row.deleted!==undefined)m.deleted=!!row.deleted;
+        if(row.edited!==undefined)m.edited=!!row.edited;
+        window.__repaintBubble(row.id);
+      }catch(e){}
+    }).subscribe();
+  }catch(e){}
+};
+
+/* ===== 2) حلقة أمان: كل 6 ثواني تجيب رياكشنز آخر الرسايل (لو الريل تايم وقع) ===== */
+setInterval(function(){
+  try{
+    if(document.hidden||!chat||!me)return;
+    if(!msgsCache.length)return;
+    var ids=msgsCache.slice(-60).map(function(m){return m._id;});
+    sb.from('messages').select('id,reactions,deleted').in('id',ids).then(function(d){
+      if(d.error||!d.data)return;
+      d.data.forEach(function(row){
+        var m=msgsCache.find(function(x){return x._id===row.id;});
+        if(!m)return;
+        var nr=parseR(row.reactions);
+        var chR=JSON.stringify(nr)!==JSON.stringify(m.reactions||{});
+        var chD=(row.deleted!==undefined)&&!!row.deleted&&!m.deleted;
+        if(!chR&&!chD)return;
+        m.reactions=nr;
+        if(row.deleted!==undefined)m.deleted=!!row.deleted;
+        window.__repaintBubble(row.id);
+      });
+    });
+  }catch(e){}
+},6000);
+
+/* ===== 3) ضمان حفظ الرياكشن في الداتابيز بعد كل ضغطة ===== */
+var _trO=window.toggleReaction;
+window.toggleReaction=async function(){
+  var args=arguments;
+  var r=await _trO.apply(this,args);
+  try{
+    var mid=args[0];
+    var m=msgsCache.find(function(x){return x._id===mid;});
+    if(!m)return r;
+    var ok=false;
+    try{var res=await sb.from('messages').update({reactions:m.reactions||{}}).eq('id',mid);ok=!(res&&res.error);}catch(e){}
+    if(!ok){try{await sb.from('messages').update({reactions:JSON.stringify(m.reactions||{})}).eq('id',mid);}catch(e2){}}
+  }catch(e){}
+  return r;
+};
+
+/* ربط الاشتراك مع كل فتح شات */
+var _smRS=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _smRS();
+  try{if(chat)subMsgUpdRT(curConvId());}catch(e){}
+  return r;
+};
+})();
+   </script>
    
 </body>
 </html>
