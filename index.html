@@ -24851,6 +24851,391 @@ setTimeout(function(){
 },300);
 })();
    </script>
+   <!-- ═══════════ باتش 1: صاحب الموقع يحذف أي استوري لأي شخص ═══════════ -->
+<script>
+(function(){
+if(window._ownerStoryDel)return;window._ownerStoryDel=1;
+
+function _osIsOwner(){try{return !!(window.me&&typeof isOwner==='function'&&isOwner());}catch(e){return false;}}
+
+/* حذف الحالة: يمسح الملف من التخزين + الصف من الجدول */
+window._osDelStory=async function(sid){
+  try{var o=document.getElementById('stMenuOv');if(o)o.remove();}catch(e){}
+  if(!sid)return;
+  if(!confirm('🗑️ حذف هذه الحالة نهائياً؟'))return;
+  try{
+    var d=await sb.from('stories').select('*').eq('id',sid).limit(1);
+    var row=d&&d.data&&d.data[0];
+    if(row&&typeof deleteStoryFile==='function'){try{deleteStoryFile(row.img);}catch(e){}}
+    var r=await sb.from('stories').delete().eq('id',sid);
+    if(r&&r.error){toast('⚠️ الحذف اترفض من قاعدة البيانات: '+(r.error.message||'')+' — راجع RLS لجدول stories');return;}
+    try{closeModal('storyViewModal');}catch(e){}
+    try{renderStories();}catch(e){}
+    toast('✅ تم حذف الحالة');
+  }catch(e){toast('⚠️ حصل خطأ أثناء الحذف');}
+};
+
+/* منيو الستوري: لصاحب الموقع منيو خاص فيه الحذف فوق كل حاجة */
+var _mgO=window.mgStoryMenu;
+window.mgStoryMenu=function(sid){
+  if(!_osIsOwner()){
+    if(typeof _mgO==='function')return _mgO.apply(this,arguments);
+    return;
+  }
+  try{
+    var old=document.getElementById('stMenuOv');if(old)old.remove();
+    if(!sid||!window.me){if(typeof _mgO==='function')return _mgO.apply(this,arguments);return;}
+    sb.from('stories').select('id,author').eq('id',sid).limit(1).then(function(d){
+      try{
+        var s=d&&d.data&&d.data[0];
+        if(!s)return toast('الحالة انتهت');
+        var au=String(s.author);
+        var isMine=(au===me.name);
+        var esc=au.replace(/'/g,"\\'");
+        var ov=document.createElement('div');
+        ov.id='stMenuOv';
+        ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1350';
+        var btns='';
+        btns+='<button onclick="_osDelStory(\''+sid+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--red);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">🗑️ حذف القصة'+(isMine?'':' — قصة '+getMsgName(au))+'</button>';
+        if(!isMine){
+          btns+='<button onclick="stRep(\''+esc+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--txt);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">🚨 إبلاغ عن القصة</button>'
+              +'<button onclick="stBlock(\''+esc+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--red);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">⛔ حظر المستخدم</button>'
+              +'<button onclick="stMsg(\''+esc+'\')" style="width:100%;padding:13px;background:none;border:none;color:var(--txt);font-size:13px;text-align:right;cursor:pointer;border-bottom:1px solid var(--line)">💬 مراسلة</button>';
+        }
+        btns+='<button onclick="document.getElementById(\'stMenuOv\').remove()" style="width:100%;padding:13px;background:none;border:none;color:var(--mut);font-size:13px;text-align:right;cursor:pointer">✕ إلغاء</button>';
+        ov.innerHTML='<div style="position:absolute;top:70px;left:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;width:230px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.5)">'+btns+'</div>';
+        ov.onclick=function(ev){if(ev.target===ov)ov.remove();};
+        document.body.appendChild(ov);
+      }catch(e){}
+    });
+  }catch(e){try{if(typeof _mgO==='function')return _mgO.apply(this,arguments);}catch(_e){}}
+};
+console.log('%cPATCH _ownerStoryDel: صاحب الموقع يقدر يحذف أي استوري ✅','color:#22c55e');
+})();
+</script>
+  <!-- ═══════════ باتش 2: زرار "مسح كل الرسايل" — لصاحب الموقع فقط ═══════════ -->
+<script>
+(function(){
+if(window._wipeMsgs)return;window._wipeMsgs=1;
+
+window.ownerWipeAll=async function(){
+  try{
+    if(!(window.me&&typeof isOwner==='function'&&isOwner()))return toast('⛔ ده لصاحب الموقع فقط');
+    if(!confirm('⚠️ هتحذف كل الرسايل (الخاص + كل الغرف) نهائياً — متأكد؟'))return;
+    if(!confirm('متأكد 100%؟ مفيش رجوع بعد المسح!'))return;
+    toast('⏳ جاري المسح...');
+    var errs=[];
+    var r1=await sb.from('messages').delete().neq('id','');
+    if(r1&&r1.error)errs.push(r1.error.message||'');
+    var r2=await sb.from('convs').delete().neq('id','');
+    if(r2&&r2.error)errs.push(r2.error.message||'');
+    try{msgsCache=[];el('chatBox').innerHTML='';}catch(e){}
+    try{convsCache=[];unread={};updateBadges();}catch(e){}
+    if(errs.length){toast('⚠️ حصل خطأ: '+errs[0]+' — راجع RLS');return;}
+    toast('✅ اتمسحت كل الرسايل — رجعت نضافة');
+    try{if(window.chat)subMsgs();}catch(e){}
+    try{refreshConvs();}catch(e){}
+    try{renderRooms();}catch(e){}
+  }catch(e){toast('⚠️ حصل خطأ أثناء المسح');}
+};
+
+function _wmEnsure(){
+  try{
+    var scr=document.getElementById('s-admin');
+    if(!scr)return;
+    if(document.getElementById('wipeMsgsBox'))return;
+    var box=document.createElement('div');
+    box.id='wipeMsgsBox';box.className='owner-only hide';
+    box.style.cssText='margin:10px 12px;padding:12px;border:1px dashed var(--red);border-radius:12px;background:rgba(230,69,83,.06)';
+    box.innerHTML='<div style="font-size:12px;font-weight:bold;color:var(--red);margin-bottom:8px">🗑️ منطقة الخطر (لصاحب الموقع فقط)</div>'
+     +'<div style="font-size:11px;color:var(--mut);margin-bottom:10px;line-height:1.8">الزرار ده بيمسح كل الرسايل من الخاص ومن كل الغرف + قايمة المحادثات، والموقع يرجع نضيف من الأول. مفيش رجوع بعد المسح!</div>'
+     +'<button onclick="ownerWipeAll()" style="width:100%;padding:11px;background:var(--red);border:none;color:#fff;border-radius:10px;font-size:13px;font-weight:bold;cursor:pointer">🗑️ مسح كل الرسايل دلوقتي</button>';
+    var sub=scr.querySelector('.sub-title');
+    if(sub&&sub.parentElement===scr)sub.insertAdjacentElement('afterend',box);
+    else scr.insertBefore(box,scr.firstChild);
+  }catch(e){}
+}
+_wmEnsure();
+var _wmT=setInterval(_wmEnsure,2000);setTimeout(function(){clearInterval(_wmT);},30000);
+console.log('%cPATCH _wipeMsgs: زرار مسح كل الرسايل جاهز ✅','color:#22c55e');
+})();
+</script>
+   <!-- ═══════════ باتش 3: إشعار "تم ذكرك" @ — لحظي + أوفلاين ═══════════ -->
+<script>
+(function(){
+if(window._mentionNotif)return;window._mentionNotif=1;
+var _mnShown={},_mnFor=null;
+
+/* توحيد الحروف العربية عشان @أحمد تلحق احمد و@مها تلقى مهاة */
+function _nAr(s){try{return String(s||'').toLowerCase().replace(/[\u064B-\u0652\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/\s+/g,' ').trim();}catch(e){return String(s||'');}}
+
+function _mnNames(){
+  var out=[];
+  try{for(var k in usersCache){var u=usersCache[k];if(u&&u.name)out.push(u.name);}}catch(e){}
+  return out;
+}
+/* استخراج الأسماء المذكورة من نص الرسالة */
+function _mnTargets(text){
+  var t=_nAr(text);
+  if(t.indexOf('@')<0)return[];
+  var names=_mnNames(),out=[],seen={};
+  var toks=t.match(/@[^\s@،,.:!؟?&#]+/g)||[];
+  for(var i=0;i<toks.length;i++){
+    var w=toks[i].slice(1);if(!w)continue;
+    var ws=w.replace(/\s+/g,'');
+    for(var j=0;j<names.length;j++){
+      var n=names[j];if(seen[n])continue;
+      var nn=_nAr(n);if(!nn)continue;
+      var nns=nn.replace(/\s+/g,'');
+      if(nn===w||nns===ws||nns.indexOf(ws)===0||nn.split(' ')[0]===w){seen[n]=1;out.push(n);}
+    }
+  }
+  /* أسماء فيها مسافات: @أحمد محمد */
+  for(var j2=0;j2<names.length;j2++){
+    var n2=names[j2];if(seen[n2])continue;
+    var nn2=_nAr(n2);
+    if(nn2.indexOf(' ')>-1&&t.indexOf('@'+nn2)>-1){seen[n2]=1;out.push(n2);}
+  }
+  return out;
+}
+/* تحديد سياق الرسالة: روم ولا خاص */
+function _mnCtx(convId){
+  var cid=String(convId||'');
+  if(cid.indexOf('__notif__')===0)return null;
+  try{
+    var r=(window.allRooms||[]).find(function(x){return x&&x.id===cid;});
+    if(r)return{t:'room',c:cid,n:r.name};
+  }catch(e){}
+  return{t:'user',c:cid,n:''};
+}
+
+/* ── جهة الإرسال: لما أبعت رسالة فيها @ — أسجل إشعار لكل مذكور ── */
+async function _mnScan(m){
+  try{
+    if(!m||m.type!=='text'||!m.data)return;
+    var d=String(m.data);
+    if(d.indexOf('@')<0)return;
+    if(!window.me||String(m.from||'')!==String(me.name))return;
+    var ctx=_mnCtx(m._conv);if(!ctx)return;
+    var tg=_mnTargets(d);if(!tg.length)return;
+    for(var i=0;i<tg.length;i++){
+      var to=tg[i];
+      if(!to||to===me.name)continue;
+      var label=ctx.t==='room'?('تم ذكرك في روم "'+(ctx.n||'')+'"'):('تم ذكرك في الخاص');
+      var row={_id:'mn'+Date.now()+Math.floor(Math.random()*9999),_conv:'__notif__'+to,from:me.name,data:'🔔 '+label,type:'text',time:Date.now(),replyTo:null,edited:false,deleted:false,read:false,reactions:{},meta:{mn:{c:ctx.c,t:ctx.t,n:ctx.n||'',f:me.name,m:m._id||'',d:d.slice(0,120)}}};
+      try{await sb.from('messages').insert(msgToRow(row));}catch(e){}
+    }
+  }catch(e){}
+}
+try{
+  var _amO=SDB.addMsg;
+  SDB.addMsg=function(m){try{_mnScan(m);}catch(e){}return _amO.apply(this,arguments);};
+}catch(e){}
+
+/* ── عرض الإشعار ── */
+function _mnShow(m){
+  try{
+    if(!m||!m._id||_mnShown[m._id])return;_mnShown[m._id]=1;
+    var mn=(m.meta&&m.meta.mn)||{};
+    var title='🔔 '+(mn.t==='room'?('تم ذكرك في روم "'+(mn.n||'')+'"'):('تم ذكرك في الخاص'+(mn.f?' من '+getMsgName(mn.f):'')));
+    var body=String(mn.d||m.data||'');
+    try{if(!me||me.sndNotif!==false)beep(900);}catch(e){}
+    var n=document.createElement('div');
+    n.style.cssText='position:fixed;top:-100px;left:10px;right:10px;background:var(--card);border:1px solid var(--acc);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;z-index:9500;box-shadow:0 6px 20px rgba(0,0,0,.6);transition:top .4s ease;cursor:pointer';
+    n.innerHTML='<div style="width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08);border-radius:50%;font-size:20px;flex-shrink:0">🔔</div><div style="flex:1;overflow:hidden"><div style="font-weight:bold;font-size:14px;color:var(--acc)">'+escapeHtml(title)+'</div><div style="font-size:13px;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(body.substring(0,70))+'</div></div><div style="font-size:11px;color:var(--mut)">الآن</div>';
+    document.body.appendChild(n);
+    setTimeout(function(){n.style.top='10px';},50);
+    var ht=setTimeout(function(){n.style.top='-100px';setTimeout(function(){n.remove();},500);},5000);
+    n.onclick=function(){clearTimeout(ht);n.style.top='-100px';setTimeout(function(){n.remove();},400);_mnOpen(mn);_mnAck(m._id);};
+  }catch(e){}
+}
+window._mnOpen=function(mn){
+  try{
+    if(mn&&mn.t==='room'&&typeof joinRoom==='function'){joinRoom(mn.c);return;}
+    if(mn&&typeof openUser==='function'){var f=mn.f||mn.o;if(f){openUser(f);return;}}
+  }catch(e){}
+  toast('مش قادر أفتح المحادثة');
+};
+window._mnAck=async function(rid){try{if(rid)await sb.from('messages').delete().eq('id',rid);}catch(e){}};
+
+/* ── لحظي: قناة realtime على جدول الرسايل ── */
+try{
+  var _ch=sb.channel('mnf'+Date.now()).on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},function(pl){
+    try{
+      var r=pl&&pl.new;
+      if(!r||!window.me)return;
+      if(r.conv_id==='__notif__'+me.name){var m=rowToMsg(r);_mnShow(m);_mnAck(m._id);}
+    }catch(e){}
+  });
+  if(_ch&&_ch.subscribe)_ch.subscribe();
+}catch(e){}
+
+/* ── أوفلاين: أول ما تفتح الموقع تجيب الإشعارات اللي فاتتك ── */
+window._mnCatchup=async function(){
+  try{
+    var d=await sb.from('messages').select('*').eq('conv_id','__notif__'+me.name).order('mtime',{ascending:true}).limit(30);
+    var rows=(d&&d.data)||[];
+    var k=0;
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i];
+      if(_mnShown[r.id])continue;
+      if(r.mtime&&Date.now()-r.mtime>86400000){_mnShown[r.id]=1;_mnAck(r.id);continue;} /* أقدم من يوم = اتسحب */
+      var m=rowToMsg(r);
+      (function(mm,delay){setTimeout(function(){_mnShow(mm);_mnAck(mm._id);},delay);})(m,700+k*900);
+      k++;
+      if(k>=8)break;
+    }
+  }catch(e){}
+}
+setInterval(function(){try{if(window.me&&me.name&&me.name!==_mnFor){_mnFor=me.name;_mnCatchup();}}catch(e){}},2500);
+setInterval(function(){try{if(window.me&&me.name===_mnFor)_mnCatchup();}catch(e){}},45000);
+
+/* ── لما تفتح الروم بنفسك: إشعارات الروم ده تتعلم مقروءة ── */
+try{
+  var _smO=window.subMsgs;
+  window.subMsgs=function(){
+    var r=_smO?_smO.apply(this,arguments):undefined;
+    try{
+      if(window.chat&&chat.type==='room'&&window.me){
+        var cid=curConvId();
+        sb.from('messages').select('id,meta').eq('conv_id','__notif__'+me.name).limit(50).then(function(d){
+          try{(d&&d.data||[]).forEach(function(row){var mn=row.meta&&row.meta.mn;if(mn&&mn.c===cid){_mnShown[row.id]=1;_mnAck(row.id);}});}catch(e){}
+        });
+      }
+    }catch(e){}
+    return r;
+  };
+}catch(e){}
+console.log('%cPATCH _mentionNotif: إشعارات الذكر @ شغالة ✅','color:#22c55e');
+})();
+</script>
+   <!-- ═══════════ باتش 4: البحث في المحادثة — عداد نتائج + تنقل سابق/تالي ═══════════ -->
+<script>
+(function(){
+if(window._searchNav)return;window._searchNav=1;
+var _srList=[],_srIdx=0,_srHad=false;
+
+function _snEnsure(){
+  try{
+    var bar=document.getElementById('chatSearch');
+    if(!bar||document.getElementById('srNav'))return;
+    var nav=document.createElement('span');nav.id='srNav';
+    nav.style.cssText='display:none;align-items:center;gap:4px;flex-shrink:0';
+    nav.innerHTML='<span id="srCnt" style="font-size:11px;color:var(--mut);min-width:38px;text-align:center;font-weight:bold">0/0</span>'
+     +'<button id="srPrev" type="button" title="النتيجة السابقة" style="width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--card2);color:var(--txt);font-size:11px;cursor:pointer;line-height:1">▲</button>'
+     +'<button id="srNext" type="button" title="النتيجة التالية" style="width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--card2);color:var(--txt);font-size:11px;cursor:pointer;line-height:1">▼</button>';
+    bar.appendChild(nav);
+    document.getElementById('srPrev').onclick=function(){_snGo(-1);};
+    document.getElementById('srNext').onclick=function(){_snGo(1);};
+  }catch(e){}
+}
+
+/* النص اللي بندور فيه: نص الرسالة + كابشن الصور/الفيديو + نص الاقتباس */
+function _snHay(m){
+  var h=String(m&&m.data||'');
+  try{
+    if(m&&m.meta){
+      if(m.meta.cap)h+=' '+m.meta.cap;
+      var q=m.meta.quote;
+      if(q)h+=' '+(typeof q==='string'?q:(q.t||q.text||q.data||''));
+    }
+  }catch(e){}
+  return h.toLowerCase();
+}
+
+function _snShow(){
+  try{
+    if(!_srList.length)return;
+    var m=_srList[_srIdx];
+    var c=document.getElementById('srCnt');
+    if(c)c.innerText=(_srIdx+1)+'/'+_srList.length;
+    var node=document.querySelector('[data-id="'+m._id+'"]');
+    if(!node)return;
+    try{node.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){node.scrollIntoView();}
+    node.style.background='rgba(230,92,0,.35)';
+    clearTimeout(node._srT);
+    node._srT=setTimeout(function(){node.style.background='';},1800);
+  }catch(e){}
+}
+window._snGo=function(d){
+  try{
+    if(!_srList.length)return;
+    _srIdx=(_srIdx+d+_srList.length)%_srList.length;
+    _snShow();
+  }catch(e){}
+};
+
+/* البحث الجديد: بيعد النتائج وبيتنقل فيها */
+window.searchChat=function(){
+  try{
+    _snEnsure();
+    var q='';try{q=el('chatSearchInput').value.trim().toLowerCase();}catch(e){}
+    var nav=document.getElementById('srNav');
+    if(!q){if(nav)nav.style.display='none';_srList=[];_srHad=false;return;}
+    _srList=(msgsCache||[]).filter(function(m){return !m.deleted&&_snHay(m).indexOf(q)>-1;});
+    _srIdx=0;
+    if(nav)nav.style.display='flex';
+    if(!_srList.length){
+      var c=document.getElementById('srCnt');if(c)c.innerText='0 نتيجة';
+      if(_srHad)toast('لا توجد نتائج');
+      _srHad=false;
+      return;
+    }
+    _srHad=true;
+    _snShow();
+  }catch(e){}
+};
+
+/* قفل شريط البحث = إخفاء العداد */
+try{
+  var _tcs=window.toggleChatSearch;
+  window.toggleChatSearch=function(){
+    var r=_tcs?_tcs.apply(this,arguments):undefined;
+    try{
+      var bar=document.getElementById('chatSearch');
+      if(bar&&!bar.classList.contains('open')){
+        var nav=document.getElementById('srNav');
+        if(nav)nav.style.display='none';
+        _srList=[];_srHad=false;
+      }
+    }catch(e){}
+    return r;
+  };
+}catch(e){}
+
+/* تغيير المحادثة = إعادة البحث لو الشريط لسه مفتوح */
+try{
+  var _smO2=window.subMsgs;
+  window.subMsgs=function(){
+    var r=_smO2?_smO2.apply(this,arguments):undefined;
+    try{
+      var nav=document.getElementById('srNav');
+      if(nav)nav.style.display='none';
+      _srList=[];_srHad=false;
+      var bar=document.getElementById('chatSearch');
+      var inp=document.getElementById('chatSearchInput');
+      if(bar&&bar.classList.contains('open')&&inp&&inp.value.trim())setTimeout(function(){try{window.searchChat();}catch(e){}},600);
+    }catch(e){}
+    return r;
+  };
+}catch(e){}
+
+/* Enter = النتيجة التالية */
+(function(){
+  function bind(){
+    try{
+      var i=document.getElementById('chatSearchInput');
+      if(i&&!i._snBound){i._snBound=1;i.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();_snGo(1);}});}
+    }catch(e){}
+  }
+  bind();
+  var t=setInterval(function(){_snEnsure();bind();},1500);
+  setTimeout(function(){clearInterval(t);},30000);
+})();
+_snEnsure();
+console.log('%cPATCH _searchNav: عداد البحث والتنقل شغالين ✅','color:#22c55e');
+})();
+</script>
    
 </body>
 </html>
