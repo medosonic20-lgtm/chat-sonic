@@ -24673,6 +24673,65 @@ window.__repaintBubble=function(mid){
 .bub.in .msg-actions{left:6px!important;right:auto!important;top:2px!important}
 .msg-act-btn{width:22px!important;height:22px!important}
    </style>
+   <script>
+/* ======_roomDotsMenu: تلت نقط الغرف (رد/تعديل/حذف) زي الخاص بالظبط + شكل مبتغطيش الكلام ====== */
+(function(){
+if(window._roomDotsMenu)return;window._roomDotsMenu=1;
+
+/* 1) شكل جديد: النقط سطر صغير تحت الرسالة — مبتغطيش أول الحروف أبداً (بيلغي الشكل القديم المظلم) */
+var st=document.createElement('style');
+st.textContent=
+'#chatBox .bub .msg-actions,#chatBox .bub.in .msg-actions{'+
+'position:static!important;display:flex!important;gap:3px!important;'+
+'opacity:.55!important;background:transparent!important;border:none!important;'+
+'box-shadow:none!important;z-index:auto!important;top:auto!important;left:auto!important;right:auto!important;'+
+'margin:3px 0 0!important;padding:0!important;align-items:center;}'+
+'#chatBox .bub .msg-actions{justify-content:flex-end}'+
+'#chatBox .bub.in .msg-actions{justify-content:flex-start}'+
+'#chatBox .bub:active .msg-actions,#chatBox .bub.in:active .msg-actions{opacity:1!important}'+
+'#chatBox .msg-act-btn{width:20px;height:20px;font-size:10px;background:rgba(0,0,0,.35);border-radius:50%}';
+document.head.appendChild(st);
+
+/* 2) حقن النقط في أي رسالة ناقصها نقط (فيديو/بول/ستيكر/صوت) في الغرف والخاص */
+var _rdRC=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  var h='';
+  try{h=_rdRC?_rdRC.apply(this,arguments):'';}catch(e){h='';}
+  try{
+    if(!m||m.deleted||m.type==='system')return h;
+    if(typeof h!=='string')h='';
+    if(h.indexOf('msg-actions')>-1)return h;
+    var id=String(m._id||'').replace(/['\\]/g,'');
+    var fr=String(m.from||'').replace(/['\\]/g,'');
+    if(!id)return h;
+    h+='<div class="msg-actions"><button class="msg-act-btn" onclick="event.stopPropagation();openMsgMenu(event,\''+id+'\',\''+fr+'\')">⋮</button></div>';
+  }catch(e){}
+  return h;
+};
+
+/* 3) المنيو: رد+رياكشن للكل، تعديل لرسايلي النص، حذف لرسايلي أو للإدارة جوه الغرفة — زي الخاص بالظبط */
+var _rdOM=window.openMsgMenu;
+window.openMsgMenu=function(e,id,from){
+  try{
+    if(e&&e.stopPropagation)e.stopPropagation();
+    window.msgMenuId=id;window.msgMenuTarget=from;
+    var menu=el('msgMenu');if(!menu)throw 0;
+    var m=null;try{m=msgsCache.find(function(x){return x._id===id;});}catch(_e){}
+    var isMine=(from===me.name);
+    var canEdit=isMine&&m&&m.type==='text';
+    var inRoom=(chat&&chat.type==='room');
+    var canDel=isMine||isOwner()||(inRoom&&isAdmin());
+    var h='<button onclick="doReply()">↩️ رد</button><button onclick="doReact()">❤️ رياكشن</button>';
+    if(canEdit)h+='<button onclick="doEdit()">✏️ تعديل</button>';
+    if(canDel)h+='<button onclick="doDelete()">🗑️ حذف</button>';
+    menu.innerHTML=h;
+    menu.classList.add('open');
+    menu.style.top=(e.clientY+window.scrollY)+'px';
+    menu.style.left=(window.innerWidth-e.clientX<160?e.clientX-150:e.clientX)+'px';
+  }catch(err){try{_rdOM.apply(this,arguments);}catch(e2){}}
+};
+})();
+   </script>
    
 </body>
 </html>
