@@ -24749,6 +24749,108 @@ st.textContent=
 document.head.appendChild(st);
 })();
 </script>
+<script>
+/* ======_reactFixFinal: الرياكشن بيتسجل ومبيعملش ريفريش ومبيبوظش الفيديو ====== */
+(function(){
+if(window._reactFixFinal)return;window._reactFixFinal=1;
 
+/* وقت آخر حفظ رياكشن محلي — درع ضد المسح من التحديث الدوري */
+var TS=window._rfTs=window._rfTs||{};
+function grace(mid){return TS[mid]&&(Date.now()-TS[mid])<8000;}
+
+/* 1) الرياكشن: تحديث فوري + حفظ بفحص خطأ حقيقي */
+window.toggleReaction=async function(mid,emoji){
+  try{
+    if(!chat||!me||!emoji)return;
+    var key=String(emoji).trim();if(!key)return;
+    var msg=null,i;
+    for(i=0;i<msgsCache.length;i++)if(msgsCache[i]._id===mid){msg=msgsCache[i];break;}
+    if(!msg)return;
+    var reacts=(msg.reactions&&typeof msg.reactions==='object')?msg.reactions:{};
+    var hadSame=false;
+    for(var k in reacts){
+      var arr=reacts[k];
+      if(Array.isArray(arr)){
+        var idx=arr.indexOf(me.name);
+        if(idx>-1){if(k===key)hadSame=true;arr.splice(idx,1);if(!arr.length)delete reacts[k];}
+      }else if(k===key){hadSame=true;delete reacts[k];}
+    }
+    if(!hadSame){if(Array.isArray(reacts[key]))reacts[key].push(me.name);else reacts[key]=[me.name];}
+    msg.reactions=reacts;
+    TS[mid]=Date.now();
+    updateMsg(msg);
+    var res=null;
+    try{res=await sb.from('messages').update({reactions:reacts}).eq('id',mid);}catch(e){res={error:e};}
+    if(res&&res.error){try{toast('⚠️ الرياكشن متسجلش — جرب تاني');}catch(_e){}console.error('react save:',res.error);return;}
+    TS[mid]=Date.now();
+  }catch(e){console.error(e);}
+};
+
+/* 2) تحديث ذكي: مفيش رسم من جديد لو مفيش تغيير — والوسائط تتحدث جراحي من غير ما الفيديو يعيد تحميله */
+var _rfUM=function(m){var div=document.querySelector('[data-id="'+m._id+'"]');if(div)div.innerHTML=renderMsgContent(m);};
+window.updateMsg=function(m){
+  try{
+    if(!m||!m._id)return;
+    var ci=-1,i;
+    for(i=0;i<msgsCache.length;i++)if(msgsCache[i]._id===m._id){ci=i;break;}
+    var cur=ci>-1?msgsCache[ci]:null;
+    if(cur){
+      ['type','data','meta','from','time','replyTo','edited','read','deleted'].forEach(function(f){
+        if(m[f]===undefined&&cur[f]!==undefined)m[f]=cur[f];
+      });
+      if(m.reactions===undefined)m.reactions=cur.reactions||{};
+      if(grace(m._id)&&m.reactions&&cur.reactions&&JSON.stringify(m.reactions)!==JSON.stringify(cur.reactions))m.reactions=cur.reactions;
+      msgsCache[ci]=m;
+    }
+    var div=document.querySelector('[data-id="'+m._id+'"]');
+    if(!div)return;
+    var h=renderMsgContent(m);
+    if(div.innerHTML===h)return; /* نفس الشكل = مفيش أي لمس — الفيديو مش هيقطع */
+    var media=m.type==='video'||m.type==='audio'||m.type==='image';
+    /* تحويل لمرة واحدة: لينك نصي اتحول مشغل في الرندر الجديد */
+    var hasVideo=!!div.querySelector('video');
+    var wantVideo=/<video[\s>]/.test(h);
+    if(wantVideo&&!hasVideo){div.innerHTML=h;return;}
+    if(media&&!m.deleted&&cur&&!cur.deleted){
+      var tmp=document.createElement('div');tmp.innerHTML=h;
+      ['reactions','ticks','msg-actions'].forEach(function(cls){
+        var nn=tmp.querySelector('.'+cls);
+        var on=div.querySelector('.'+cls);
+        if(nn){
+          if(on){if(on.outerHTML!==nn.outerHTML)on.parentNode.replaceChild(nn,on);}
+          else div.appendChild(nn);
+        }else if(on&&on.parentNode){on.parentNode.removeChild(on);}
+      });
+    }else{div.innerHTML=h;}
+  }catch(e){try{_rfUM(m);}catch(e2){}}
+};
+
+/* 3) شبكة أمان الرندر: فيديو لازم يترسم مشغل — واللينكات القديمة mp4 تتحول مشغل برضه */
+var _rfRC=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  var h='';try{h=_rfRC.apply(this,arguments);}catch(e){h='';}
+  try{
+    if(!m||m.deleted)return h;
+    var d=String(m.data||'');
+    var isVid=m.type==='video';
+    var isOldLink=(m.type==='text'&&/^https?:\/\/\S+\.mp4(\?\S*)?$/i.test(d))||(m.type==='text'&&/\/storage\/v1\/object\/public\//.test(d)&&/\.(mp4|webm|mov)(\?\S*)?$/i.test(d));
+    if((isVid&&h.indexOf('<video')===-1&&/^https?:\/\//.test(d))||isOldLink){
+      var tmp=document.createElement('div');tmp.innerHTML=h;
+      var keep='';
+      ['reactions','ticks','msg-actions'].forEach(function(cls){var n=tmp.querySelector('.'+cls);if(n)keep+=n.outerHTML;});
+      var src=d.replace(/"/g,'&quot;');
+      h='<video controls playsinline preload="metadata" src="'+src+'" style="max-width:230px;width:100%;border-radius:10px;display:block;background:#000"></video>'+keep;
+    }
+  }catch(e){}
+  return h;
+};
+
+/* 4) مسحة واحدة عند التحميل: أي فقاعة معروضة تتحدث للشكل الجديد */
+setTimeout(function(){
+  try{if(window.msgsCache&&msgsCache.length)msgsCache.forEach(function(m){try{updateMsg(m);}catch(e){}});}catch(e){}
+},300);
+})();
+   </script>
+   
 </body>
 </html>
