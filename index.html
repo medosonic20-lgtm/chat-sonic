@@ -25468,6 +25468,56 @@ window.renderMsgContent=function(m){
 console.log('%cPATCH _mentionPicker: قايمة الذكر @ جاهزة ✅','color:#22c55e');
 })();
 </script>
- 
+ <!-- ═══════════ 🧹 باتش مسح رسايل الروم — لصاحب الموقع ═══════════ -->
+<!-- يتلصق في آخر الملف — في منيو ••• جوه أي روم هيظهر "مسح كل رسايل الروم" لصاحب الموقع بس: بيمسح كل الكلام والروم ترجع جديدة -->
+<script>
+(function(){
+if(window._roomClear)return;window._roomClear=true;
+
+/* بند في منيو الروم ••• (الأصل بيمنع الروم من قايمة الحذف — إحنا بنضيفه للمالك بس) */
+var _tcm=window.toggleChatMenu;
+window.toggleChatMenu=function(e){
+  var r;try{r=_tcm?_tcm.apply(this,arguments):void 0;}catch(err){r=void 0;}
+  try{
+    if(window.chat&&chat.type==='room'&&typeof isOwner==='function'&&isOwner()){
+      var menu=document.getElementById('chatMenu');
+      if(menu&&!menu.querySelector('.rc-btn')){
+        var b=document.createElement('button');
+        b.className='rc-btn';
+        b.innerHTML='🧹 مسح كل رسايل الروم';
+        b.onclick=function(){try{window.rcClearRoom();}catch(e2){}};
+        menu.appendChild(b);
+      }
+    }
+  }catch(e){}
+  return r;
+};
+
+/* المسح نفسه: بتأكدين → حذف كل صفوف الروم → تنظيف محلي → اللوج */
+window.rcClearRoom=async function(){
+  try{
+    if(!window.me||!window.chat||chat.type!=='room')return toast('افتح روم الأول');
+    if(typeof isOwner!=='function'||!isOwner())return toast('⛔ دي لصاحب الموقع بس');
+    var rid=chat.id,rname=chat.name||'الروم';
+    if(!confirm('🧹 مسح كل رسايل روم "'+rname+'" نهائيًا؟'))return;
+    if(!confirm('⚠️ متأكد؟ كله هيتمسح ومفيش رجوع — والروم هترجع جديدة من الأول'))return;
+    var res=await sb.from('messages').delete().eq('conv_id',rid);
+    if(res&&res.error)return toast('❌ فشل المسح: '+(res.error.message||'صلاحيات RLS'));
+    try{
+      if(window.msgsCache)msgsCache=[];
+      var box=document.getElementById('chatBox');if(box)box.innerHTML='';
+      try{LS.setItem('room_seen_'+rid,Date.now());}catch(e){}
+      try{if(window.roomUnread){roomUnread[rid]=0;}}catch(e){}
+      try{if(typeof renderRooms==='function')renderRooms();}catch(e){}
+    }catch(e){}
+    try{var mn=document.getElementById('chatMenu');if(mn)mn.classList.remove('open');}catch(e){}
+    try{if(typeof logActivity==='function')logActivity('room_clear',me.name+' مسح كل رسايل روم '+rname);}catch(e){}
+    toast('🧹 اتمسح كل حاجة — "'+rname+'" رجعت جديدة ✨');
+  }catch(e){toast('خطأ في المسح: '+e.message);}
+};
+console.log('%cPATCH _roomClear: مسح رسايل الروم جاهز ✅','color:#22c55e');
+})();
+</script>
+
 </body>
 </html>
