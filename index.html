@@ -25518,6 +25518,81 @@ window.rcClearRoom=async function(){
 console.log('%cPATCH _roomClear: مسح رسايل الروم جاهز ✅','color:#22c55e');
 })();
 </script>
+<!-- ═══════════ 🛡️ باتش درع الشاشة — منع ميلان/زحلان المحادثة الجانبي ═══════════ -->
+<!-- المشكلة: المحادثة بتطلع أعرض من الشاشة والمحتوى بيتزحلق يمين وشمال (الفقاعات بتتقص من الطرفين) -->
+<!-- الحل: قص أي overflow أفقي في كل طبقات الشاشة + لو حاجة اتعزلت عرضها ينضبط + رجعة فورية لأي زحلان -->
+<!-- يتلصق في آخر الملف — مش بيغير أي شكل، بيسلّف بس إن مفيش حاجة تطلع بره الشاشة أبدًا -->
+<script>
+(function(){
+if(window._screenArmor)return;window._screenArmor=true;
+
+/* ─────────── 1) درع CSS ─────────── */
+try{
+  var st=document.createElement('style');st.id='scArmorCss';
+  st.textContent=''
+  /* المستوى الأعلى: ممنوع الصفحة نفسها تتبسط أفقيًا + قفل عرض 100% على كل سلسلة الحاويات */
+  +'html,body{max-width:100vw!important;overflow-x:hidden!important}'
+  +'body>.content,#s-chat,.chat-win{width:100%!important;max-width:100vw!important}'
+  /* طبقات شاشة المحادثة: قص أفقي كامل (clip لو مدعوم وأحسن من hidden لأنه بيمنع حتى الزحل البرمجي) */
+  +'.content{overflow-x:hidden!important;overflow-x:clip!important;max-width:100vw!important}'
+  +'.screen{max-width:100vw!important;overflow-x:hidden!important;overflow-x:clip!important}'
+  +'.chat-win{max-width:100vw!important;overflow-x:hidden!important;overflow-x:clip!important}'
+  /* صندوق الشات: ده اللي كان بيتزحلق جواه — قص أفقي نهائي والطولي زي ما هو + عرض مقفول */
+  +'.chat-box{overflow-x:hidden!important;overflow-x:clip!important;width:100%!important;max-width:100vw!important}'
+  /* الفقاعات: سقف 85% زي الأصل + ممنوع أي حاجة جواها تكسر الحد */
+  +'.chat-box .bub{max-width:85%!important}'
+  +'.chat-box .bub img{max-width:min(200px,60vw)!important}'
+  +'.chat-box .bub video{max-width:min(230px,65vw)!important}'
+  +'.chat-box .bub audio{max-width:100%!important;min-width:0!important}'
+  +'.chat-box .bub a{overflow-wrap:anywhere!important;word-break:break-word!important}'
+  +'.chat-box .bub .reactions{max-width:100%!important;flex-wrap:wrap!important}'
+  /* صف الإدخال: ينضغط بدل ما يبسط الصفحة — وعلى الشاشات الضيقة الزرارات تتصغر شوية */
+  +'.chat-input{min-width:0!important}'
+  +'.chat-input input{min-width:0!important}'
+  +'@media (max-width:430px){'
+  +'.chat-input{gap:6px!important}'
+  +'.chat-input .ic-btn{padding:2px!important;font-size:20px!important}'
+  +'}'
+  +'@media (max-width:330px){'
+  +'.chat-input{gap:4px!important;padding-right:4px!important;padding-left:4px!important}'
+  +'.chat-input .ic-btn{font-size:17px!important;padding:1px!important}'
+  +'}'
+  /* الصور اللي بتيجي مقلوبة من الموبايل (EXIF) تترسم باتجاهها الصح */
+  +'img,video{image-orientation:from-image}'
+  /* منيو الرسايل واللوحات العائمة ماتطلعش بره */
+  +'#msgMenu,#mentionPanel,.sticker-panel,.chat-menu{max-width:calc(100vw - 20px)!important;overflow-x:hidden!important}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* ─────────── 2) درع JS: رجعة فورية لأي زحلان أفقي ─────────── */
+function _saSnap(){
+  try{
+    var boxes=[document.getElementById('chatBox'),document.querySelector('.content')];
+    for(var i=0;i<boxes.length;i++){
+      var b=boxes[i];if(!b)continue;
+      /* لو مفيش زيادة عرض أصلًا مفيش حاجة نعملها */
+      if(b.scrollWidth<=b.clientWidth+1)continue;
+      /* RTL: بداية الزحل = 0 — أي إزاحة عنها بنرجعها فورًا */
+      if(Math.abs(b.scrollLeft)>2){try{b.scrollLeft=0;}catch(e){}}
+    }
+  }catch(e){}
+}
+try{
+  document.addEventListener('scroll',_saSnap,true);   /* يلقط أي سكرول جوه الحاويات */
+  window.addEventListener('resize',_saSnap);
+  setInterval(_saSnap,1500);                           /* شبكة أمان دورية */
+  setTimeout(_saSnap,300);setTimeout(_saSnap,1500);setTimeout(_saSnap,4000);
+}catch(e){}
+
+/* ─────────── 3) درع الكيبورد: لما الكيبورد يفتح المتصفح بيحاول يزحل أحيانًا ─────────── */
+try{
+  var _saIn=document.getElementById('msgInput');
+  if(_saIn)_saIn.addEventListener('focus',function(){setTimeout(_saSnap,250);setTimeout(_saSnap,900);});
+}catch(e){}
+
+console.log('%cPATCH _screenArmor: درع الشاشة ضد الزحلان الجانبي جاهز ✅','color:#22c55e');
+})();
+</script>
 
 </body>
 </html>
