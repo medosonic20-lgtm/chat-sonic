@@ -25593,6 +25593,175 @@ try{
 console.log('%cPATCH _screenArmor: درع الشاشة ضد الزحلان الجانبي جاهز ✅','color:#22c55e');
 })();
 </script>
+<!-- ═══════════ 🤝 باتش العدالة — نفس تجربة صاحب الموقع للكل بلا استثناء ═══════════ -->
+<!-- المشكلة: الموقع شغال سلس مع صاحب الموقع لكن الناس بيشوفوا مشاكل، للأسباب دي: -->
+<!--   1) الدخول التلقائي ملوش شبكة أمان: لو النت ضعيف لحظة فتح الموقع المستخدم يقف على شاشة الدخول للأبد -->
+<!--   2) لو تحميل المستخدمين/الغرف فشل نص الواجهة بيفضل فاضي من غير رسالة ولا إعادة محاولة -->
+<!--   3) الناس القديمة بتفضل على نسخة قديمة من الكود (كاش المتصفح) فيها الباجات القديمة اللي انت متخلاص منها -->
+<!--   4) قنوات اللابدات بتموت لما النت يقطع وترجع ومحدش بيبنيها تاني → رسايل بتوصل متأخر -->
+<!--   5) الموبايلات الضعيفة بتهنج من الفيديوهات اللي بتفضل شغالة حتى وهي بره الشاشة -->
+<!-- الحل: الباتش ده بيقفل الخمس نقاط دول — يتلصق في آخر الملف -->
+<script>
+(function(){
+if(window._fairAll)return;window._fairAll=true;
 
+/* ══════════ 1) منقذ الدخول التلقائي ══════════ */
+/* لو فيه جلسة محفوظة والمستخدم لسه واقف على شاشة الدخول بعد 9 ثواني = الاستعادة فشلت بالسكتة (نت ضعيف) → بنعيد المحاولة */
+setTimeout(function(){
+  try{
+    if(window.me||!window.LS||!window.SDB)return;
+    var s=LS.getItem('session');
+    if(!s)return;
+    var lm=document.getElementById('loginModal');
+    if(!lm||lm.classList.contains('hide'))return; /* دخل عادي أو مش مسجل — مفيش مشكلة */
+    var tries=0;
+    var t=setInterval(function(){
+      tries++;
+      if(window.me||tries>3){clearInterval(t);return;}
+      try{
+        toast('📡 النت ضعيف — بنعيد الاتصال... ('+tries+'/3)');
+        SDB.getUser(s).then(function(u){
+          if(!u){LS.removeItem('session');clearInterval(t);return;}
+          if(u.banned||window.me)return;
+          me=u;usersCache[u.name]=u;
+          lm.classList.add('hide');
+          try{applyPrefsUI();}catch(e){}
+          try{updateProfile();}catch(e){}
+          try{u.dev=deviceId();u.dtype=deviceType();u.browser=browserName();u.ip=myIP;u.lastSeen=Date.now();}catch(e){}
+          try{SDB.saveUser(u.name,u);}catch(e){}
+          try{logLogin(u);}catch(e){}
+          try{startHeartbeat();}catch(e){}
+          try{checkDeviceOrIPBan();}catch(e){}
+          try{startAll();}catch(e){}
+          toast('✅ رجعت لحسابك بأمان');
+        }).catch(function(){});
+      }catch(e){}
+    },5000);
+  }catch(e){}
+},9000);
+
+/* ══════════ 2) إنقاذ startAll + فحص سلامة البيانات ══════════ */
+var _faSA=window.startAll;
+window.startAll=async function(){
+  try{
+    return await _faSA.apply(this,arguments);
+  }catch(e){
+    try{toast('📡 الشبكة ضعيفة — بنكمل التحميل...');}catch(e2){}
+    setTimeout(function(){try{_faSA();}catch(e){}},4000);
+  }finally{
+    /* فحص سلامة بعد 7 ثواني: لو البيانات الأساسية فاضية بنعيد تحميلها مرة واحدة */
+    setTimeout(function(){
+      try{
+        if(!window.me)return;
+        if(!usersCache||Object.keys(usersCache).length===0){
+          toast('📡 بنكمل تحميل بيانات الشات...');
+          var p=refreshUsers&&refreshUsers();
+          if(p&&p.catch)p.catch(function(){setTimeout(function(){try{refreshUsers();}catch(e){}},6000);});
+        }
+        if(typeof allRooms!=='undefined'&&allRooms&&allRooms.length===0&&typeof refreshRooms==='function'){
+          var p2=refreshRooms();
+          if(p2&&p2.catch)p2.catch(function(){});
+        }
+      }catch(e){}
+    },7000);
+  }
+};
+
+/* ══════════ 3) المحدّث التلقائي الذكي ══════════ */
+/* بيقرأ حجم الملف من النت ويقارنه بالمحفوظ — أي تعديل للملف = تحديث تلقائي للكل خلال ثواني من غير version.txt */
+function _fairCheckUpdate(){
+  try{
+    if(location.protocol.indexOf('http')!==0)return;
+    fetch(location.href.split('#')[0]+(location.href.indexOf('?')>-1?'&':'?')+'_ck='+Date.now(),{cache:'no-store'})
+    .then(function(r){return r.ok?r.text():null;})
+    .then(function(txt){
+      if(!txt)return;
+      var len=String(txt.length);
+      var old=LS.getItem('_fair_len');
+      if(old&&old!==len){
+        try{if(sessionStorage.getItem('_fair_upd')==='1'){LS.setItem('_fair_len',len);return;}}catch(e){}
+        try{sessionStorage.setItem('_fair_upd','1');}catch(e){}
+        LS.setItem('_fair_len',len);
+        toast('🚀 في تحديث جديد للموقع — بنحدث عندك لوحده...');
+        setTimeout(function(){
+          try{document.documentElement.setAttribute('data-fair-reload','update');}catch(e){}
+          try{location.reload(true);}catch(e){try{location.reload();}catch(e2){}}
+        },1200);
+      }else{
+        LS.setItem('_fair_len',len);
+      }
+    }).catch(function(){});
+  }catch(e){}
+}
+setTimeout(_fairCheckUpdate,25000);
+setInterval(_fairCheckUpdate,15*60*1000);
+window._fairCheckUpdate=_fairCheckUpdate; /* مكشوفة للفحص اليدوي */
+
+/* ══════════ 4) إعادة بناء قنوات اللابدات لما النت يقطع ويرجع ══════════ */
+function _fairRebuildRT(){
+  try{
+    if(!window.me||!window.SDB||!SDB.subs)return;
+    var had=false;
+    for(var k in SDB.subs){had=true;try{SDB.subs[k].unsubscribe();}catch(e){}delete SDB.subs[k];}
+    if(had){
+      ['subUsersRT','subConvsRT','subRoomsRT','subSettingsRT'].forEach(function(f){try{if(window[f])window[f]();}catch(e){}});
+      try{refreshUsers&&refreshUsers();}catch(e){}
+    }
+  }catch(e){}
+}
+window.addEventListener('online',function(){setTimeout(_fairRebuildRT,2000);});
+/* ولو التاب قعد في الخلفية وقت طويل: القنوات بتتموت في الموبايل — بنبنيها عند الرجوع */
+var _fairHiddenAt=0;
+document.addEventListener('visibilitychange',function(){
+  try{
+    if(document.hidden){_fairHiddenAt=Date.now();}
+    else if(_fairHiddenAt&&Date.now()-_fairHiddenAt>180000){_fairHiddenAt=0;_fairRebuildRT();}
+  }catch(e){}
+});
+
+/* ══════════ 5) فيديوهات بره الشاشة بتتوقف لوحدها (موبايلات ضعيفة = مفيش تهنيج) ══════════ */
+try{
+  if('IntersectionObserver' in window){
+    var _vio=new IntersectionObserver(function(es){
+      es.forEach(function(en){
+        var v=en.target;
+        try{
+          if(en.isIntersecting){
+            if(v.__fairPausedBy){var p=v.play();if(p&&p.catch)p.catch(function(){});v.__fairPausedBy=false;}
+          }else{
+            if(!v.paused&&!v.ended){v.pause();v.__fairPausedBy=true;}
+          }
+        }catch(e){}
+      });
+    },{threshold:0.05});
+    document.addEventListener('play',function(e){
+      try{
+        var v=e.target;
+        if(v&&v.tagName==='VIDEO'&&!v.__fairObs){_vio.observe(v);v.__fairObs=true;}
+      }catch(e){}
+    },true);
+  }
+}catch(e){}
+
+/* ══════════ 6) مطاردة موجة أعطال البداية ══════════ */
+/* لو أول 12 ثانية فيه 5 أخطاء أو أكتر = حالة بايظة → إصلاح تلقائي (تحميل نظيف) مرة واحدة في الجلسة */
+try{
+  var _ec=0,_et0=Date.now();
+  var _boom=function(){
+    try{if(sessionStorage.getItem('_fair_fix')==='1')return;}catch(e){}
+    try{sessionStorage.setItem('_fair_fix','1');}catch(e){}
+    try{toast('🔧 حصلت مشكلة تقنية — بنعمل إصلاح سريع...');}catch(e){}
+    setTimeout(function(){
+      try{document.documentElement.setAttribute('data-fair-reload','fix');}catch(e){}
+      try{location.reload(true);}catch(e){try{location.reload();}catch(e2){}}
+    },1500);
+  };
+  window.addEventListener('error',function(){try{if(Date.now()-_et0<12000&&++_ec>=5)_boom();}catch(e){}});
+  window.addEventListener('unhandledrejection',function(){try{if(Date.now()-_et0<12000&&++_ec>=5)_boom();}catch(e){}});
+}catch(e){}
+
+console.log('%cPATCH _fairAll: العدالة جاهزة — نفس التجربة للكل ✅','color:#22c55e');
+})();
+</script>
 </body>
 </html>
