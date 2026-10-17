@@ -24732,6 +24732,23 @@ window.openMsgMenu=function(e,id,from){
 };
 })();
    </script>
-   
+   <script>
+/* ======_roomDotsTop: رجّع تلت النقط فوق زي الأول — بس في الركن اللي مبيغطيش أول حروف الكلام ====== */
+/* يتلصق في الآخر بعد باتش _roomDotsMenu — مش محتاج تمسح حاجة */
+(function(){
+if(window._roomDotsTop)return;window._roomDotsTop=1;
+var st=document.createElement('style');
+st.textContent=
+'#chatBox .bub .msg-actions,#chatBox .bub.in .msg-actions{'+
+'position:absolute!important;top:3px!important;left:3px!important;'+
+'right:auto!important;bottom:auto!important;'+
+'display:flex!important;opacity:.5!important;'+
+'background:transparent!important;border:none!important;box-shadow:none!important;'+
+'z-index:95!important;margin:0!important;padding:0!important;}'+
+'#chatBox .bub:active .msg-actions,#chatBox .bub.in:active .msg-actions{opacity:1!important}';
+document.head.appendChild(st);
+})();
+</script>
+
 </body>
 </html>
