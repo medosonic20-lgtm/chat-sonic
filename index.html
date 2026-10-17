@@ -25802,6 +25802,169 @@ try{
 console.log('%cPATCH _noWipeBox: صندوق الحذف الشامل اتشال من لوحة التحكم ✅','color:#22c55e');
 })();
 </script>
+<!-- ═══════════ باتش: قايمة الذكر @ في الغرف فقط — تتشال من الخاص ═══════════ -->
+<!-- يتلصق في آخر الملف (بعد كل الباتشات) — بيخفي زرار @ والقايمة وتلوين الذكر في الخاص، وبيمنع إشعارات "تم ذكرك في الخاص" -->
+<!-- الغرف زي ما هي بالظبط: زرار @ + القايمة + الكل + الإشعارات كلها شغالة -->
+<script>
+(function(){
+if(window._mentionsRoomsOnly)return;window._mentionsRoomsOnly=1;
+
+/* ── هل المحادثة المفتوحة دلوقتي روم؟ (نفس منطق كاشف الإشعارات: عضوية allRooms) ── */
+function _mroRoom(){
+  try{
+    if(typeof curConvId!=='function')return false;
+    var cid=curConvId();
+    if(!cid)return false;
+    var ar=window.allRooms||[];
+    for(var i=0;i<ar.length;i++){if(ar[i]&&ar[i].id===cid)return true;}
+  }catch(e){}
+  return false;
+}
+/* هل الرسالة دي في روم؟ (لفحص الرسائل وقت الإرسال والعرض) */
+function _mroMsgRoom(conv){
+  try{
+    var c=String(conv||'');if(!c)return false;
+    var ar=window.allRooms||[];
+    for(var i=0;i<ar.length;i++){if(ar[i]&&ar[i].id===c)return true;}
+  }catch(e){}
+  return false;
+}
+window._mroRoom=_mroRoom;
+
+/* ── CSS: لو مش في روم → القايمة وزرار @ مختفين تمامًا (حتى لو كود قديم حاول يفتحهم) ── */
+try{
+  var st=document.createElement('style');
+  st.textContent='body:not(.mro-room) #mentionPanel{display:none!important}'
+    +'body:not(.mro-room) #mentionBtn{display:none!important}';
+  document.head.appendChild(st);
+}catch(e){}
+
+function _mroApply(){
+  try{
+    var room=_mroRoom();
+    if(room){document.body.classList.add('mro-room');}
+    else{
+      document.body.classList.remove('mro-room');
+      /* اقفل القايمة لو مفتوحة (مثلاً خرج من الروم والقايمة كانت واقفة) */
+      try{if(typeof mpClose==='function')mpClose();}catch(e){}
+      try{var p=el('mentionPanel');if(p)p.classList.remove('open');}catch(e){}
+    }
+    try{var b=el('mentionBtn');if(b)b.style.display=room?'':'none';}catch(e){}
+  }catch(e){}
+}
+window._mroApply=_mroApply;
+
+/* ── تحديث فوري عند فتح روم أو خاص ── */
+['joinRoom','openUser'].forEach(function(fn){
+  try{
+    var o=window[fn];
+    if(typeof o!=='function')return;
+    window[fn]=function(){
+      var r;
+      try{r=o.apply(this,arguments);}catch(e){try{_mroApply();}catch(e2){}throw e;}
+      try{_mroApply();}catch(e){}
+      try{if(r&&typeof r.then==='function')r.then(function(){try{_mroApply();}catch(e){}}).catch(function(){});}catch(e){}
+      return r;
+    };
+  }catch(e){}
+});
+
+/* ── أمان: فحص دوري يغطي أي مسار تاني لتغيير المحادثة ── */
+setInterval(function(){try{_mroApply();}catch(e){}},900);
+
+/* ── كتابة @ في صندوق الكتابة: لو مش في روم → القايمة تتقفل فورًا (بدون وميض: في نفس النبضة) ── */
+try{
+  var _ht=window.handleTyping;
+  window.handleTyping=function(){
+    var r;
+    try{r=_ht?_ht.apply(this,arguments):void 0;}catch(e){}
+    try{if(!_mroRoom()){var p=el('mentionPanel');if(p)p.classList.remove('open');}}catch(e){}
+    return r;
+  };
+}catch(e){}
+
+/* ── حماية إضافية: نداء mpOpen/mpToggle مباشر في الخاص مبيفتحش ── */
+try{
+  var _mt=window.mpToggle;
+  if(typeof _mt==='function')window.mpToggle=function(){
+    try{if(!_mroRoom()){try{if(typeof mpClose==='function')mpClose();}catch(e){}return;}}catch(e){}
+    return _mt.apply(this,arguments);
+  };
+}catch(e){}
+try{
+  var _mo=window.mpOpen;
+  if(typeof _mo==='function')window.mpOpen=function(){
+    try{if(!_mroRoom()){try{if(typeof mpClose==='function')mpClose();}catch(e){}return;}}catch(e){}
+    return _mo.apply(this,arguments);
+  };
+}catch(e){}
+
+/* ── إشعارات الذكر في الخاص: تتلغي نهائيًا ──
+   كاشف _mentionNotif بيقرأ usersCache بشكل متزامن أول ما الرسالة تتبعت.
+   وقت الإرسال في الخاص بنفضّي الكاش مؤقتًا (جزء من الثانية) فالكاشف مبيلاقيش أسماء = مفيش إشعارات خاص.
+   الغرف مش بنلمسها خالص → @الكل والإشعارات العادية شغالة زي ما هي. */
+try{
+  var _am=SDB.addMsg;
+  SDB.addMsg=function(m){
+    var dm=false;
+    try{
+      if(m&&m.type==='text'&&String(m.data||'').indexOf('@')>-1&&!_mroMsgRoom(m._conv))dm=true;
+    }catch(e){}
+    if(!dm)return _am.apply(this,arguments);
+    var saved,blank=null;
+    try{saved=window.usersCache;blank={};window.usersCache=blank;}catch(e){saved=undefined;}
+    try{
+      return _am.apply(this,arguments);
+    }finally{
+      /* الجزء المتزامن من الكاشف خلص — رجّع الكاش فورًا (وشبكة أمان بعد microtask) */
+      try{if(window.usersCache===blank)window.usersCache=saved;}catch(e){}
+      setTimeout(function(){try{if(window.usersCache===blank)window.usersCache=saved;}catch(e){}},0);
+    }
+  };
+}catch(e){}
+
+/* ── تلوين الذكر في فقاعات الخاص: يتشال كمان — الإشارة شكلها للغرف بس ── */
+try{
+  var _rc2=window.renderMsgContent;
+  if(typeof _rc2==='function')window.renderMsgContent=function(m){
+    var h=_rc2.apply(this,arguments);
+    try{
+      if(h&&String(h).indexOf('class="mention"')>-1&&m&&m._conv&&!_mroMsgRoom(m._conv)){
+        h=String(h).replace(/<span class="mention">@([\s\S]*?)<\/span>/g,'@$1');
+      }
+    }catch(e){}
+    return h;
+  };
+}catch(e){}
+
+/* ── تنظيف إشعارات "تم ذكرك في الخاص" القديمة اللي لسه معلقة في الجدول ── */
+window._mroSweep=async function(){
+  try{
+    if(!window.me||!me.name||!window.sb)return;
+    var d=await sb.from('messages').select('id,meta').eq('conv_id','__notif__'+me.name).limit(50);
+    var rows=(d&&d.data)||[];
+    for(var i=0;i<rows.length;i++){
+      var mn=rows[i]&&rows[i].meta&&rows[i].meta.mn;
+      if(mn&&mn.t==='user'){
+        try{await sb.from('messages').delete().eq('id',rows[i].id);}catch(e){}
+      }
+    }
+  }catch(e){}
+};
+var _swFor=null;
+var _swT=setInterval(function(){
+  try{
+    if(window.me&&me.name){
+      if(_swFor!==me.name){_swFor=me.name;window._mroSweep();}
+      clearInterval(_swT);
+    }
+  }catch(e){clearInterval(_swT);}
+},400);
+setTimeout(function(){try{clearInterval(_swT);}catch(e){}},20000);
+
+console.log('%cPATCH _mentionsRoomsOnly: الذكر @ بقى في الغرف فقط ✅','color:#22c55e');
+})();
+</script>
 
 </body>
 </html>
