@@ -25236,6 +25236,238 @@ _snEnsure();
 console.log('%cPATCH _searchNav: عداد البحث والتنقل شغالين ✅','color:#22c55e');
 })();
 </script>
-   
+  <!-- ═══════════ 🔔 باتش قايمة الذكر @: اختيار من كل المستخدمين ═══════════ -->
+<!-- يتلصق في آخر الملف — متوافق مع باتش _mentionNotif (الإشعارات) ومن غير أي تكرار ليه -->
+<!-- بيضيف: زرار @ جنب صندوق الكتابة + قايمة بكل الناس (أونلاين وأوفلاين) + بحث + كتابة @ تفتح القايمة -->
+<script>
+(function(){
+if(window._mentionPicker)return;window._mentionPicker=true;
+
+/* ─────────── أدوات ─────────── */
+function mpNorm(s){try{return String(s||'').toLowerCase().replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');}catch(e){return String(s||'').toLowerCase();}}
+function mpRxq(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+
+/* ─────────── CSS ─────────── */
+try{
+  var st=document.createElement('style');
+  st.textContent='#mentionPanel{display:none;position:absolute;bottom:85px;right:10px;left:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;z-index:520;max-height:320px;overflow:hidden;flex-direction:column;box-shadow:0 6px 18px rgba(0,0,0,.55)}'
+  +'#mentionPanel.open{display:flex}'
+  +'.mp-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-shrink:0}'
+  +'.mp-head b{color:var(--acc);font-size:13px;white-space:nowrap}'
+  +'.mp-count{font-size:11px;color:var(--mut);white-space:nowrap}'
+  +'#mpSearch{flex:1;background:var(--card2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:7px 10px;font-size:13px;outline:none;min-width:0}'
+  +'.mp-btn{background:none;border:none;color:var(--mut);font-size:15px;cursor:pointer;padding:4px 5px;flex-shrink:0}'
+  +'#mpList{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;min-height:60px}'
+  +'.mp-item{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line)}'
+  +'.mp-item:active{background:var(--card2)}'
+  +'.mp-item .mp-nm{font-size:14px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}'
+  +'.mp-st{font-size:11px}.mp-on{color:var(--grn)}.mp-off{color:var(--mut)}'
+  +'.mp-empty{padding:22px;text-align:center;color:var(--mut);font-size:13px}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* ─────────── بناء اللوحة والزرار ─────────── */
+function mpEnsurePanel(){
+  if(el('mentionPanel'))return;
+  var sp=el('stickerPanel');if(!sp||!sp.parentNode)return;
+  var d=document.createElement('div');d.id='mentionPanel';
+  d.innerHTML='<div class="mp-head"><b>🔔 ذكر شخص @</b><span class="mp-count" id="mpCount"></span>'
+  +'<input id="mpSearch" placeholder="اكتب جزء من الاسم..." oninput="mpFilter()">'
+  +'<button class="mp-btn" onclick="mpRefresh()" title="تحديث القايمة">🔄</button>'
+  +'<button class="mp-btn" onclick="mpClose()">✕</button></div><div id="mpList"></div>';
+  sp.parentNode.insertBefore(d,sp);
+  var s=el('mpSearch');
+  if(s){s.addEventListener('keydown',function(e){
+    try{
+      if(e.key==='Enter'){e.preventDefault();var f=el('mpList').querySelector('.mp-item');if(f)f.click();}
+      else if(e.key==='Escape'){mpClose();}
+    }catch(err){}
+  });}
+  mpRender('');
+}
+function mpEnsureBtn(){
+  if(el('mentionBtn'))return;
+  var inp=el('msgInput');if(!inp)return;
+  var ci=inp.closest?inp.closest('.chat-input'):null;if(!ci)return;
+  var wrap=inp.parentElement;if(!wrap)return;
+  var b=document.createElement('button');
+  b.className='ic-btn';b.id='mentionBtn';b.type='button';
+  b.innerText='@';b.title='ذكر شخص @';
+  b.style.cssText='flex-shrink:0;font-weight:bold;color:var(--acc);font-size:17px';
+  b.onclick=function(ev){try{ev.stopPropagation();mpToggle();}catch(e){}};
+  ci.insertBefore(b,wrap);
+}
+function mpInit(){try{mpEnsurePanel();}catch(e){}try{mpEnsureBtn();}catch(e){}}
+mpInit();setTimeout(mpInit,1200);setTimeout(mpInit,3500);
+
+/* ─────────── القايمة: كل المستخدمين (أونلاين أولًا) ─────────── */
+function mpUsers(){
+  var arr=[],seen={};
+  var uc=window.usersCache||{};
+  for(var k in uc){
+    var u=uc[k];if(!u||!u.name||seen[u.name])continue;seen[u.name]=true;
+    if(window.me&&u.name===window.me.name)continue;
+    if(u.banned===true)continue;
+    if(u.is_active===false)continue;
+    try{if(u.hidden===true&&!(isOwner()||isAdmin()))continue;}catch(e){}
+    arr.push(u);
+  }
+  arr.sort(function(a,b){
+    var oa=isOnline(a)?0:1,ob=isOnline(b)?0:1;
+    if(oa!==ob)return oa-ob;
+    try{return getDisplayName(a).localeCompare(getDisplayName(b),'ar');}catch(e){return 0;}
+  });
+  return arr;
+}
+function mpRender(q){
+  var list=el('mpList');if(!list)return;
+  q=mpNorm(q||'');
+  var us=mpUsers();
+  var cnt=el('mpCount');if(cnt)cnt.innerText='('+us.length+')';
+  var html='',n=0;
+  for(var i=0;i<us.length&&n<300;i++){
+    var u=us[i];
+    var dn=getDisplayName(u);
+    if(q&&mpNorm(dn).indexOf(q)===-1&&mpNorm(u.name).indexOf(q)===-1)continue;
+    n++;
+    var on=isOnline(u);
+    var nm=String(u.name).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html+='<div class="mp-item" data-uname="'+escapeHtml(u.name)+'" onclick="mpPick(\''+nm+'\')">'+getAvatarHTML(u,38)
+    +'<div style="flex:1;min-width:0"><div class="mp-nm">'+styleName(u)+'</div>'
+    +'<div><span class="mp-st '+(on?'mp-on':'mp-off')+'">'+(on?'● متصل الآن':'● غير متصل')+'</span></div></div></div>';
+  }
+  list.innerHTML=n?html:'<div class="mp-empty">'+(q?'😕 مفيش حد بالاسم ده':'😕 القايمة فاضية — دوس 🔄')+'</div>';
+}
+window.mpFilter=function(){try{mpRender(el('mpSearch')?el('mpSearch').value:'');}catch(e){}};
+window.mpRefresh=async function(){
+  try{
+    if(typeof refreshUsers==='function')await refreshUsers();
+    mpRender(el('mpSearch')?el('mpSearch').value:'');
+  }catch(e){}
+};
+
+/* ─────────── فتح/غلق ─────────── */
+function mpOpen(filter){
+  try{
+    var p=el('mentionPanel');if(!p)return;
+    p.classList.add('open');
+    var s=el('mpSearch');
+    if(s&&typeof filter==='string'){if(s.value!==filter)s.value=filter;}
+    mpRender(s?s.value:'');
+    try{
+      var uc=window.usersCache||{};
+      if(!Object.keys(uc).length&&typeof refreshUsers==='function')refreshUsers().then(function(){mpRender(el('mpSearch')?el('mpSearch').value:'');}).catch(function(){});
+    }catch(e){}
+  }catch(e){}
+}
+function mpClose(){try{var p=el('mentionPanel');if(p)p.classList.remove('open');}catch(e){}}
+window.mpClose=mpClose;window.mpOpen=mpOpen;
+window.mpToggle=function(){try{var p=el('mentionPanel');if(p&&p.classList.contains('open')){mpClose();return;}mpOpen('');var s=el('mpSearch');if(s)setTimeout(function(){try{s.focus();}catch(e){}},60);}catch(e){}};
+/* غلق بضغطة بره اللوحة (ما عدا المستخدم بيكتب @ في صندوق الكتابة) */
+document.addEventListener('click',function(e){
+  try{
+    if(e.target.closest&&e.target.closest('#mentionPanel'))return;
+    if(e.target.closest&&e.target.closest('#mentionBtn'))return;
+    var inp=el('msgInput');
+    if(inp&&document.activeElement===inp){
+      var v=inp.value||'',c=inp.selectionStart;
+      if(typeof c!=='number'||isNaN(c))c=v.length;
+      var before=v.slice(0,c),at=before.lastIndexOf('@');
+      var tok=(at>-1)?before.slice(at+1):'';
+      if(at>-1&&tok.length<=30&&tok.indexOf(' ')===-1&&tok.indexOf('\n')===-1)return;
+    }
+    mpClose();
+  }catch(err){}
+},true);
+
+/* ─────────── إدخال الاسم المختار (الاسم الحقيقي عشان الإشعار يوصل) ─────────── */
+window.mpPick=function(name){
+  try{
+    var inp=el('msgInput');if(!inp)return;
+    var v=inp.value||'',c=inp.selectionStart;
+    if(typeof c!=='number'||isNaN(c))c=v.length;
+    var before=v.slice(0,c),after=v.slice(c);
+    var at=before.lastIndexOf('@');
+    if(at>-1&&(c-at)<=32)before=before.slice(0,at);
+    var ins='@'+name+' ';
+    inp.value=before+ins+after;
+    inp.focus();
+    var pos=before.length+ins.length;
+    try{inp.setSelectionRange(pos,pos);}catch(e){}
+  }catch(e){}
+  mpClose();
+};
+
+/* ─────────── الكتابة @ تفتح القايمة تلقائي ─────────── */
+var _ht=window.handleTyping;
+window.handleTyping=function(){
+  var r;try{r=_ht?_ht.apply(this,arguments):void 0;}catch(e){}
+  try{
+    var inp=el('msgInput');if(!inp)return r;
+    var v=inp.value||'',c=inp.selectionStart;
+    if(typeof c!=='number'||isNaN(c))c=v.length;
+    var before=v.slice(0,c),at=before.lastIndexOf('@');
+    if(at>-1){
+      var tok=before.slice(at+1);
+      if(tok.length<=30&&tok.indexOf('\n')===-1){mpOpen(tok);return r;}
+    }
+    mpClose();
+  }catch(e){}
+  return r;
+};
+var _hik=window.handleInputKey;
+window.handleInputKey=function(e){
+  try{if(e&&e.key==='Escape'){mpClose();return;}}catch(err){}
+  return _hik?_hik.apply(this,arguments):void 0;
+};
+var _sm=window.sendMsg;
+window.sendMsg=function(){try{mpClose();}catch(e){}return _sm?_sm.apply(this,arguments):void 0;};
+
+/* ─────────── تلوين الذكر متعدد الكلمات/الرموز في الرسايل ─────────── */
+var _rc=window.renderMsgContent;
+window.renderMsgContent=function(m){
+  var h='';try{h=_rc?_rc.apply(this,arguments):'';}catch(e){h='';}
+  try{
+    if(typeof h!=='string'||h.indexOf('@')===-1)return h;
+    var uc=window.usersCache||{};
+    var cands=[],seen={};
+    for(var k in uc){
+      var u=uc[k];if(!u)continue;
+      var list=[u.name,getDisplayName(u)];
+      for(var i=0;i<2;i++){
+        var n=String(list[i]||'').trim();
+        if(n.length<2||seen[n])continue;seen[n]=true;
+        var esc=escapeHtml(n);
+        /* فحص مبدئي بأول كلمة بس (الاسم المتعدد ممكن يكون مقسوم بوسم في HTML) */
+        if(h.indexOf(esc.split(/\s+/)[0])===-1)continue;
+        cands.push(esc);
+      }
+    }
+    if(!cands.length)return h;
+    cands.sort(function(a,b){return b.length-a.length;});
+    /* 1) ترقيع ما لفه الأصلي جزئيًا (أسماء فيها مسافات: @Silent soul) */
+    for(var c=0;c<cands.length;c++){
+      var parts=cands[c].split(/\s+/);
+      if(parts.length>1){
+        try{
+          var re=new RegExp('<span class="mention">@'+mpRxq(parts[0])+'</span>((?:\\s|&nbsp;)+'+parts.slice(1).map(mpRxq).join('(?:\\s|&nbsp;)+')+')','g');
+          h=h.replace(re,'<span class="mention">@'+cands[c]+'</span>');
+        }catch(e){}
+      }
+    }
+    /* 2) لف أي @اسم لسه مكشوف — بعد بداية نص أو مسافة أو وسم قافل بس، مش بعد فتح span (عشان مفيش ازدواج) */
+    for(var c2=0;c2<cands.length;c2++){
+      try{
+        var re2=new RegExp('(^|</[a-zA-Z]+>|\\s)@'+mpRxq(cands[c2])+'(?!["\'\\w\\u0600-\\u06FF])','g');
+        h=h.replace(re2,function(mm,p1){return p1+'<span class="mention">'+mm.slice(p1.length)+'</span>';});
+      }catch(e){}
+    }
+  }catch(e){}
+  return h;
+};
+console.log('%cPATCH _mentionPicker: قايمة الذكر @ جاهزة ✅','color:#22c55e');
+})();
+</script>
+ 
 </body>
 </html>
