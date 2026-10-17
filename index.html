@@ -25763,5 +25763,45 @@ try{
 console.log('%cPATCH _fairAll: العدالة جاهزة — نفس التجربة للكل ✅','color:#22c55e');
 })();
 </script>
+ <!-- ═══════════ باتش: شيل صندوق "منطقة الخطر" (المسح الشامل) من لوحة التحكم ═══════════ -->
+<!-- يتلصق في آخر الملف — بيشيل صندوق الحذف الشامل نهائيًا ويقفل الدالة بتاعته -->
+<!-- عشان مفيش حد (ولا انت بالغلط) يقدر يمسح كل رسايل الموقع — باقي الميزات في اللوحة زي ما هي -->
+<script>
+(function(){
+if(window._noWipeBox)return;window._noWipeBox=1;
+
+function _nwKill(){
+  try{
+    var b=document.getElementById('wipeMsgsBox');
+    if(b&&b.parentNode){b.parentNode.removeChild(b);return true;}
+  }catch(e){}
+  return false;
+}
+_nwKill();
+
+/* لو الصندوق اترسمع تاني (الكود القديم بيرسمعه كل ثانيتين أول ما الصفحة تفتح) — نشيله فورًا */
+try{
+  var scr=document.getElementById('s-admin');
+  if(scr&&typeof MutationObserver!=='undefined'){
+    var mo=new MutationObserver(function(){try{if(document.getElementById('wipeMsgsBox'))_nwKill();}catch(e){}});
+    mo.observe(scr,{childList:true,subtree:true});
+  }
+}catch(e){}
+
+/* شبكة أمان دورية (تغطي أول 70 ثانية من حياة الصفحة — أطول من دورة الرسمع القديمة) */
+var _n=0;
+var _t=setInterval(function(){try{_nwKill();}catch(e){}if(++_n>35)clearInterval(_t);},2000);
+
+/* قفل الدالة نفسها: لو الزرار ظهر بطريقة ما ودُس عليه — مش هيمسح حاجة */
+try{
+  window.ownerWipeAll=function(){
+    try{toast('🗑️ المسح الشامل اتشال من الموقع');}catch(e){}
+  };
+}catch(e){}
+
+console.log('%cPATCH _noWipeBox: صندوق الحذف الشامل اتشال من لوحة التحكم ✅','color:#22c55e');
+})();
+</script>
+
 </body>
 </html>
