@@ -25965,6 +25965,139 @@ setTimeout(function(){try{clearInterval(_swT);}catch(e){}},20000);
 console.log('%cPATCH _mentionsRoomsOnly: الذكر @ بقى في الغرف فقط ✅','color:#22c55e');
 })();
 </script>
+<!-- ═══════════ ⌨️ باتش ملاءمة شريط الكتابة — صندوق الرسايل عمره ما بيختفي ═══════════ -->
+<!-- المشكلة: شريط الكتابة زحمان بزرارات بمقاسات ثابتة (إرسال/ستيكر/@/مايك/قلم/كاميرا/تنسيق/بول/فيديو) -->
+<!-- والصندوق نفسه هو العنصر الوحيد المرن في الصف — فلما المساحة تضيق (شاشة ضيقة أو خط الموبايل مكبّر -->
+<!-- من إعدادات الجهاز) الصندوق بيتضغط لحد ما يختفي تمامًا ويبان كأن مفيش خانة كتابة خالص -->
+<!-- الحل: قياس حي كل نص ثانية — لو الصندوق اتضغط أقل من 90px، الزرارات تنزل في سطر تحته -->
+<!-- والصندوق ياخد السطر كامل (نفس فكرة واتساب) — ولما المساحة ترجع كل حاجة ترجع زي ما كانت -->
+<!-- يتلصق في آخر الملف — مش بيغير أي شكل غير لما يكون لازم -->
+<script>
+(function(){
+if(window._barFit)return;window._barFit=true;
+
+/* ─────────── 1) CSS ─────────── */
+try{
+  var st=document.createElement('style');st.id='barFitCss';
+  st.textContent=''
+  /* شبكة أمان: الحقل عمره ما يقل عن 70px حتى قبل أول قياس */
+  +'.chat-input input{min-width:70px!important}'
+  /* تضييق الفواصل شوية — يكسب مساحة للكل من غير تغيير ملحوظ */
+  +'.chat-input{gap:8px!important}'
+  /* وضع السطرين: صف الإدخال بيقبل الالتفاف وزرار الإرسال يرتفع مع سطر الكتابة */
+  +'.ciStackRow{flex-wrap:wrap!important}'
+  +'.ciStackRow>.ic-btn[onclick="sendMsg()"]{align-self:flex-start!important;margin-bottom:4px!important}'
+  +'.chat-input.ciStack{flex-wrap:wrap!important;row-gap:6px!important;column-gap:6px!important;padding:8px 10px!important;height:auto!important}'
+  +'.chat-input.ciStack>.ciWrap{order:-1!important;flex:1 1 100%!important;min-width:100%!important}'
+  +'.chat-input.ciStack .ic-btn{font-size:18px!important;padding:2px!important}'
+  +'.chat-input.ciStack #penColorBtn{width:28px!important;height:28px!important;margin-right:2px!important;font-size:15px!important}';
+  document.head.appendChild(st);
+}catch(e){}
+
+/* ─────────── 2) رفع اللوحات العائمة لما الشريط يطول ─────────── */
+function _bfPanels(on){
+  try{
+    ['recBar','stickerPanel','mentionPanel'].forEach(function(id){
+      var p=document.getElementById(id);if(!p)return;
+      if(on){
+        if(p.__bfOld===undefined)p.__bfOld=p.style.bottom||'';
+        p.style.bottom='130px';
+      }else if(p.__bfOld!==undefined){
+        p.style.bottom=p.__bfOld;p.__bfOld=undefined;
+      }
+    });
+  }catch(e){}
+}
+
+/* ─────────── 3) القياس والتبديل (من غير أي وميض — القياس بيتعمل في نفس النبضة) ─────────── */
+window._bfCheck=function(){
+  try{
+    var inp=document.getElementById('msgInput');if(!inp)return;
+    if(!inp.offsetParent)return; /* شاشة الشات مش مفتوحة — مفيش قياس */
+    var wrap=inp.parentElement;if(!wrap)return;
+    var ci=wrap.closest?wrap.closest('.chat-input'):null;if(!ci)return;
+    var row=ci.parentElement;if(!row)return;
+    if(!wrap.classList.contains('ciWrap'))wrap.classList.add('ciWrap');
+    var stacked=ci.classList.contains('ciStack');
+    /* نشيل الوضع المؤقت ونقيس المساحة الحقيقية — من غير رسم */
+    if(stacked){ci.classList.remove('ciStack');row.classList.remove('ciStackRow');}
+    var w=0;try{w=inp.getBoundingClientRect().width;}catch(e){w=inp.offsetWidth||0;}
+    /* هامش أمان ضد الرفرفة عند الحد: لو المساحة الحقيقية صغرت عن 90 كبّس، ولو انت مكبّس والمساحة لسه أقل من 110 فضل مكبّس */
+    if((!stacked&&w<90)||(stacked&&w<110)){
+      ci.classList.add('ciStack');
+      row.classList.add('ciStackRow');
+    }
+    _bfPanels(ci.classList.contains('ciStack'));
+  }catch(e){}
+};
+
+/* ─────────── 4) مواعيد الفحص ─────────── */
+try{
+  setTimeout(window._bfCheck,400);setTimeout(window._bfCheck,1500);setTimeout(window._bfCheck,3500);
+  setInterval(window._bfCheck,900);
+  window.addEventListener('resize',function(){setTimeout(window._bfCheck,60);});
+  window.addEventListener('orientationchange',function(){setTimeout(window._bfCheck,300);});
+  try{if(window.visualViewport)visualViewport.addEventListener('resize',function(){setTimeout(window._bfCheck,60);});}catch(e){}
+  var _bi=document.getElementById('msgInput');
+  if(_bi)_bi.addEventListener('focus',function(){setTimeout(window._bfCheck,250);setTimeout(window._bfCheck,800);});
+}catch(e){}
+
+console.log('%cPATCH _barFit: ملاءمة شريط الكتابة جاهزة — صندوق الرسايل مبيختفيش تاني ✅','color:#22c55e');
+})();
+</script>
+<!-- ═══════════ باتش: اسم ناشر الفيديو يظهر في فقاعات الفيديو ═══════════ -->
+<!-- يتلصق في آخر الملف (بعد كل الباتشات) -->
+<!-- السبب: باتش مشغل الفيديو القديم كان يعيد بناء فقاعة الفيديو من الأول ويرمي اسم المرسل وشريط الرد -->
+<!-- الحل: بيرجع الاسم (في الغرف) وشريط الرد (في كل المحادثات) فوق المشغل — بنفس شكل ومكان باقي الرسايل بالظبط -->
+<script>
+(function(){
+if(window._videoNameFix)return;window._videoNameFix=1;
+
+var _vnRC=window.renderMsgContent;
+if(typeof _vnRC!=='function'){console.warn('_videoNameFix: renderMsgContent مش موجود — تخطي');return;}
+
+/* نجيب القطع اللي كانت بتترمي (الرد + الاسم + كارت الحالة) من نفس سلسلة الرندر:
+   نرندر نسخة بنوع مختلف فمتجيشن كنص عادي، وناخد كل حاجة قبل لينك الفيديو */
+function _vnPrefix(m){
+  try{
+    var probe={};
+    for(var k in m)probe[k]=m[k];
+    probe.type='__vn_probe__';
+    var hp=_vnRC(probe);
+    if(typeof hp!=='string'||!hp)return '';
+    var idx=hp.indexOf('<a href');
+    if(idx>0)return hp.slice(0,idx);
+    return '';
+  }catch(e){return '';}
+}
+/* شبكة أمان: لو الاستخراج فشل — نبني الاسم يدوي بنفس شكل الكود الأصلي حرفيًا */
+function _vnNameFallback(m){
+  try{
+    if(!window.chat||chat.type!=='room'||!m||m.from==='نظام')return '';
+    var sender=usersCache[m.from];
+    var nm=sender?getDisplayName(sender):m.from;
+    return '<div style="font-size:12px;font-weight:bold;color:#fff;margin-bottom:4px;text-shadow:0 1px 2px rgba(0,0,0,.6)">'+escapeHtml(nm)+'</div>';
+  }catch(e){return '';}
+}
+
+window.renderMsgContent=function(m){
+  var h;
+  try{h=_vnRC.apply(this,arguments);}catch(e){h='';}
+  try{
+    if(!m||m.deleted||typeof h!=='string'||!h)return h;
+    /* الفقاعة اتبنت من جديد كمشغل فيديو (باتش المشغل) — القطع اللي قبل المحتوى كانت اترميت */
+    if(h.indexOf('<video')===0){
+      var pre=_vnPrefix(m);
+      if(!pre)pre=_vnNameFallback(m);
+      if(pre)h=pre+h;
+    }
+  }catch(e){}
+  return h;
+};
+
+console.log('%cPATCH _videoNameFix: اسم ناشر الفيديو بيظهر تاني ✅','color:#22c55e');
+})();
+</script>
 
 </body>
 </html>
