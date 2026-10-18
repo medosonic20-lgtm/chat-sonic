@@ -26390,6 +26390,159 @@ setInterval(function(){try{_riSyncChip();}catch(e){}},900);
 console.log('%cPATCH _roomInfo: صفحة معلومات الغرفة + عدد الأعضاء جاهزة ✅','color:#3b82f6');
 })();
 </script>
+<style>
+/* ======_delMenu: شكل ديالوج الحذف زي واتساب بالظبط ====== */
+#dmModal{position:fixed;inset:0;z-index:1140;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.66);direction:rtl}
+#dmModal.dm-open{display:flex}
+#dmCard{background:var(--card,#1a1f2e);border:1px solid var(--line,#2e3648);border-radius:16px;width:min(320px,88vw);overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55);animation:dmPop .16s ease}
+@keyframes dmPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+.dm-title{padding:18px 18px 8px;text-align:center;font-weight:bold;font-size:15px;color:var(--txt,#e8ebf2)}
+.dm-row{width:100%;display:flex;align-items:center;gap:10px;background:none;border:none;color:var(--red,#e64553);padding:13px 20px;font-size:14px;font-weight:bold;cursor:pointer;font-family:inherit;text-align:right}
+.dm-row:hover{background:rgba(255,255,255,.05)}
+.dm-row .dm-ic{font-size:16px}
+.dm-cancel{width:100%;background:none;border:none;color:var(--txt,#e8ebf2);padding:12px;font-size:14px;font-weight:bold;cursor:pointer;font-family:inherit;border-top:1px solid var(--line,#2e3648)}
+.dm-cancel:hover{background:rgba(255,255,255,.05)}
+</style>
+<script>
+/* ======_delMenu: حذف الرسايل زي واتساب — إلغاء / حذف لدي / حذف لدى الجميع ======
+   - زرار "🗑️ حذف" (ورا doDelete) بيفتح ديالوج بدل الحذف المباشر
+   - "حذف لدي": بيخفي الرسالة من جهازك بس (localStorage) — الطرف التاني لسه شايفها
+   - "حذف لدى الجميع": نفس الحذف الأصلي (deleted:true في الداتابيز)
+   - رسايل غيري بياخدوا زرار "حذف لدي" في المنيو تلقائيًا
+   - الرسايل المحذوفة من عندك مترجعش تظهر بعد الريلود ولا مع الرسايل الجديدة */
+(function(){
+if(window._delMenu)return;window._delMenu=true;
+
+/* ─── قايمة "محذوف من عندي" في localStorage (أقصى حد 5000 رسالة) ─── */
+var LS='cs_del_for_me_v1',CAP=5000;
+function blLoad(){try{var v=JSON.parse(localStorage.getItem(LS)||'[]');return Array.isArray(v)?v:[];}catch(e){return[];}}
+function blSave(a){try{localStorage.setItem(LS,JSON.stringify(a.slice(-CAP)));}catch(e){}}
+function blHas(id){return blLoad().indexOf(String(id))>-1;}
+function blAdd(id){var a=blLoad();id=String(id);if(a.indexOf(id)>-1)return;a.push(id);blSave(a);}
+window._dmBL={has:blHas,add:blAdd,load:blLoad};
+
+/* ─── الديالوج ─── */
+function dlg(){
+  var d=el('dmModal');
+  if(!d){
+    d=document.createElement('div');d.id='dmModal';
+    d.innerHTML='<div id="dmCard"><div class="dm-title">حذف الرسالة؟</div><div id="dmRows"></div><button class="dm-cancel" id="dmCancel">إلغاء</button></div>';
+    document.body.appendChild(d);
+    d.addEventListener('click',function(e){if(e.target===d)closeDlg();});
+  }
+  var c=el('dmCancel');
+  if(c&&!c._dmBound){c._dmBound=1;c.onclick=function(){closeDlg();};}
+  return d;
+}
+function row(txt,fn){
+  var b=document.createElement('button');b.className='dm-row';
+  b.innerHTML='<span class="dm-ic">🗑️</span><span>'+txt+'</span>';
+  b.onclick=function(ev){ev.stopPropagation();fn();};
+  return b;
+}
+function closeDlg(){var d=el('dmModal');if(d)d.classList.remove('dm-open');}
+window._dmClose=closeDlg;
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDlg();});
+
+function canDelAll(m){
+  var isMine=(m.from===me.name);
+  var inRoom=(chat&&chat.type==='room');
+  try{return isMine||isOwner()||(inRoom&&isAdmin());}catch(e){return isMine;}
+}
+function openDlg(m){
+  try{
+    var d=dlg();var rows=el('dmRows');rows.innerHTML='';
+    rows.appendChild(row('حذف لدي',function(){closeDlg();delForMe(m);}));
+    if(canDelAll(m))rows.appendChild(row('حذف لدى الجميع',function(){closeDlg();delForAll(m);}));
+    d.classList.add('dm-open');
+  }catch(e){}
+}
+window._dmOpen=openDlg;
+
+/* ─── حذف لدي: من جهازك بس ─── */
+function delForMe(m){
+  try{
+    blAdd(m._id);
+    var i=msgsCache.findIndex(function(x){return x._id===m._id;});
+    if(i>-1)msgsCache.splice(i,1);
+    var n=document.querySelector('[data-id="'+m._id+'"]');
+    if(n){
+      n.style.transition='opacity .18s,transform .18s';
+      n.style.opacity='0';n.style.transform='translateY(6px)';
+      setTimeout(function(){if(n&&n.parentNode)n.parentNode.removeChild(n);},190);
+    }
+    toast('🗑️ اتحذفت من عندك بس — لسه ظاهرة عند الطرف التاني');
+  }catch(e){}
+}
+/* ─── حذف لدى الجميع: نفس منطق الحذف الأصلي بالظبط ─── */
+async function delForAll(m){
+  try{
+    if(!canDelAll(m))return toast('لا يمكنك حذف رسالة غيرك');
+    await SDB.updMsg(m._id,{deleted:true,body:''});
+    var idx=msgsCache.findIndex(function(x){return x._id===m._id;});
+    if(idx>-1){msgsCache[idx].deleted=true;msgsCache[idx].data='';updateMsg(msgsCache[idx]);}
+    toast('تم حذف الرسالة لدى الجميع');
+  }catch(e){}
+}
+
+/* ─── doDelete → يفتح الديالوج بدل الحذف المباشر (بيغطي كمان منيو النقط في الغرف) ─── */
+window.doDelete=function(){
+  try{if(typeof hideMsgMenu==='function')hideMsgMenu();}catch(_){}
+  var m=null;
+  try{m=msgsCache.find(function(x){return x._id===msgMenuId;});}catch(_){}
+  if(!m)return;
+  openDlg(m);
+};
+
+/* ─── زرار "🗑️ حذف لدي" لرسايل غيري (بتنضاف للمنيو الحالي مهما كان شكله) ─── */
+var _dmOM=window.openMsgMenu;
+window.openMsgMenu=function(e,id,from){
+  try{_dmOM?_dmOM.apply(this,arguments):null;}catch(_){}
+  try{
+    var menu=el('msgMenu');if(!menu)return;
+    var isMine=(from===me.name);
+    var inRoom=(chat&&chat.type==='room');
+    var canAll=false;
+    try{canAll=isMine||isOwner()||(inRoom&&isAdmin());}catch(_){canAll=isMine;}
+    if(canAll)return;
+    var b=document.createElement('button');
+    b.innerHTML='🗑️ حذف لدي';
+    b.onclick=function(ev){ev.stopPropagation();window.doDelete();};
+    menu.appendChild(b);
+  }catch(_){}
+};
+
+/* ─── رسايل "حذف لدي" مترجعش تظهر: عند وصول رسالة حية ─── */
+var _dmAp=window.appendMsg;
+window.appendMsg=function(m){
+  try{
+    if(m&&blHas(m._id)){
+      var i=msgsCache.findIndex(function(x){return x._id===m._id;});
+      if(i>-1)msgsCache.splice(i,1);
+      return;
+    }
+  }catch(_){}
+  return _dmAp?_dmAp.apply(this,arguments):undefined;
+};
+/* ─── وعند تحميل المحادثة (ريلود/تبديل شات) ─── */
+var _dmSm=window.subMsgs;
+window.subMsgs=async function(){
+  var r=await _dmSm.apply(this,arguments);
+  try{
+    var a=blLoad();
+    if(a.length){
+      var set={};for(var i=0;i<a.length;i++)set[a[i]]=1;
+      msgsCache=msgsCache.filter(function(m){return !set[m._id];});
+      for(var j=0;j<a.length;j++){
+        var n=document.querySelector('[data-id="'+a[j]+'"]');
+        if(n&&n.parentNode)n.parentNode.removeChild(n);
+      }
+    }
+  }catch(_){}
+  return r;
+};
+})();
+</script>
 
 </body>
 </html>
