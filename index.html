@@ -26404,6 +26404,403 @@ console.log('%cPATCH _roomInfo: صفحة معلومات الغرفة + عدد ا
 .dm-cancel:hover{background:rgba(255,255,255,.05)}
 </style>
 </script>
-   
+ <script>
+/* ======_clockArmor: درع الساعة — الموقع يظبط نفسه لو ساعة أو تاريخ أي جهاز غلط ======
+   المشكلة اللي بتحلها: عضو ساعة موبايله قدّم (مثلاً بيقول 20/10 واحنا في 18/10) →
+   سجل دخوله بيبان في المستقبل + بيبان "أونلاين" دايمًا حتى وهو مقفول + رسايله
+   بتفضل في أول القوايم لأن وقتها في المستقبل.
+   الحل بأربع طبقات:
+   1) قياس انحراف ساعة الجهاز عن السيرفر الحقيقي (هيدر Date من Supabase + إجماع المتصلين)
+   2) تعقيم كل الأوقات المكتوبة للداتابيز (آخر ظهور / رسايل / سجلات / ستوريز) — أي وقت غلط بيتصحح أوتوماتيك
+   3) "أونلاين" الكاذبة (آخر ظهور في المستقبل) بتتعامل كأوفلاين فورًا عند العرض
+   4) صاحب الموقع بيتنضف الداتا القديمة المسمومة لوحدها (يوزرز/رسايل/سجلات/ستوريز) */
+(function(){
+if(window._clockArmor)return;window._clockArmor=true;
+
+var MAXSKEW=30*86400000,   /* لا تصحيح لو الفرق مجنون أكتر من 30 يوم (داتا عشوائية) */
+    MIN=90000,             /* عتبة التدخل: أكبر من ثواني "اجبار اوفلاين" (65 ثانية) */
+    TOL=6*3600000,         /* قيم أكبر من +6 ساعات في المستقبل = مسمومة مرفوضة */
+    skew=0,src='',confident=false,_lastEst=null,_lastMx=0;
+window._caState={skew:0,src:'',confident:false};
+window._trueNow=function(){return Date.now()-skew;};
+
+/* ─── استخراج رابط ومفتاح Supabase من الصفحة ─── */
+var U=null,K=null;
+try{if(typeof SUPABASE_URL!=='undefined')U=SUPABASE_URL;if(typeof SUPABASE_KEY!=='undefined')K=SUPABASE_KEY;}catch(_){}
+if(!U){try{var _h=document.documentElement.innerHTML,_m;_m=_h.match(/SUPABASE_URL\s*=\s*['"]([^'"]+)['"]/);if(_m)U=_m[1];_m=_h.match(/SUPABASE_KEY\s*=\s*['"]([^'"]+)['"]/);if(_m)K=_m[1];}catch(_){}}
+
+function setSkew(v,s){
+  skew=v;src=s;confident=true;
+  window._caState={skew:skew,src:src,confident:true};
+  try{if(Math.abs(v)>MIN&&typeof toast==='function'&&!window.__caToastShown){window.__caToastShown=1;toast('🛡️ ساعة الجهاز فيها فرق ('+Math.round(Math.abs(v)/60000)+' دقيقة) — الأوقات هتتكتب صح أوتوماتيك');}}catch(_){}
+}
+
+/* ─── أوراكل 1: هيدر Date من سيرفر Supabase (أدق مصدر — لو متاح) ─── */
+window._caHeader=function(){
+  if(!U||!K||typeof fetch!=='function')return Promise.resolve(false);
+  var eps=[U+'/auth/v1/health',U+'/rest/v1/users?select=name&limit=1'];
+  var i=0;
+  function attempt(){
+    if(i>=eps.length)return Promise.resolve(false);
+    var url=eps[i++];
+    var t0=Date.now();
+    return fetch(url,{headers:{apikey:K},cache:'no-store'}).then(function(r){
+      var t1=Date.now();
+      var d=null;try{d=r.headers&&r.headers.get?r.headers.get('date'):null;}catch(_){}
+      if(!d)return attempt();
+      var s=Date.parse(d);if(!s||isNaN(s))return attempt();
+      var est=Math.round(((t0+t1)/2)-s);
+      if(Math.abs(est)>MAXSKEW)return attempt();
+      setSkew(est,'header');return true;
+    }).catch(function(){return attempt();});
+  }
+  return attempt();
+};
+
+/* ─── أوراكل 2: إجماع "آخر ظهور" للمتصلين التانيين ───
+   الفكرة: العضو اللي بينبض فعلًا قيمته بتتقدم — ناخد الأوقات بتاعة "الأحياء" بس
+   (القيم الواقفة المسمومة مستبعدة مهما كانت شبية-جديدة)، نجمع القياسات في مجموعات،
+   ونختار أكبر مجموعة اللي انحرافها مفهوم (أكتر من 90 ثانية). لو مفيش — مفيش تصحيح. */
+var _prevVals={},_alive={},_lastChoice=null;
+function consensusOracle(){
+  try{
+    var now=Date.now(),vals=[],pv={},i;
+    for(var k in usersCache){
+      var u=usersCache[k];
+      if(!u)continue;
+      if(typeof me!=='undefined'&&me&&u.name===me.name)continue;
+      var v=(+u.lastSeen||0); /* ممنوع |0 — التايمستامب أكبر من int32 بيتبوظ */
+      if(v<=0||v>now+TOL)continue; /* القيم المستقبلية المسمومة مرفوضة */
+      vals.push({n:k,v:v});
+      pv[k]=v;
+      if(_prevVals[k]!==undefined&&v>_prevVals[k])_alive[k]=1; /* القيمة بتتقدم = عضو حي */
+    }
+    _prevVals=pv;
+    var cands=vals.filter(function(x){return _alive[x.n];});
+    if(!cands.length){_lastChoice=null;return confident&&src==='consensus';}
+    var ests=cands.map(function(x){return now-x.v;}).sort(function(a,b){return a-b;});
+    var groups=[],g=[ests[0]];
+    for(i=1;i<ests.length;i++){
+      if(ests[i]-g[g.length-1]<=90000)g.push(ests[i]);
+      else{groups.push(g);g=[ests[i]];}
+    }
+    groups.push(g);
+    /* أكبر مجموعة الأول، وفي التعادل الأصغر انحرافًا (أكثر تحفظًا) */
+    groups.sort(function(a,b){return (b.length-a.length)||(a[0]-b[0]);});
+    var chosen=null;
+    for(i=0;i<groups.length;i++){
+      var e=groups[i][0];
+      if(Math.abs(e)>MIN&&Math.abs(e)<MAXSKEW){chosen=e;break;}
+    }
+    if(chosen===null){_lastChoice=null;return confident&&src==='consensus';}
+    var gapReq=(typeof window.__caGap==='number')?window.__caGap:25000;
+    var gap=Date.now()-(_lastChoice?_lastChoice.t:0);
+    if(_lastChoice&&Math.abs(chosen-_lastChoice.v)<45000&&gap>=gapReq){
+      setSkew(chosen,'consensus');_lastChoice={v:chosen,t:Date.now()};return true;
+    }
+    /* بعد ما الثقة تثبت بنوع الإجماع: تحديث ناعم للقياس */
+    if(confident&&src==='consensus'&&_lastChoice&&Math.abs(chosen-_lastChoice.v)<300000)skew=chosen;
+    _lastChoice={v:chosen,t:Date.now()};
+    return confident&&src==='consensus';
+  }catch(e){return false;}
+}
+
+/* ─── نبضة القياس (بتتنادى مع كل تحميل يوزرز + كل 25 ثانية) ─── */
+window._caProbe=function(){
+  try{
+    var wasConfident=confident;
+    if(src!=='header')consensusOracle();
+    window._caState={skew:skew,src:src,confident:confident};
+    return confident&&!wasConfident;
+  }catch(e){return false;}
+};
+window._caReset=function(){skew=0;src='';confident=false;_prevVals={};_alive={};_lastChoice=null;window._caState={skew:0,src:'',confident:false};};
+
+try{setTimeout(function(){window._caHeader();},3000);}catch(_){}
+try{setInterval(function(){window._caHeader();},600000);}catch(_){}
+try{setInterval(function(){window._caProbe();},25000);}catch(_){}
+
+/* ─── بروب فور كل تحميل يوزرز (داتا طازة ببلاش) ─── */
+try{
+  var _ru=window.refreshUsers;
+  if(typeof _ru==='function')window.refreshUsers=async function(){
+    var r=await _ru.apply(this,arguments);
+    try{window._caProbe();}catch(_){}
+    return r;
+  };
+}catch(_){}
+
+/* ─── طبقة 3: صمام الأونلاين — نسخة كاملة بالوقت المصحح ───
+   (أ) آخر ظهور في المستقبل = أوفلاين فورًا (داتا مسمومة قديمة)
+   (ب) لو ساعة المشاهد نفسها غلط: الفحص بيتم بالوقت الحقيقي مش ساعة جهازه
+       — وإلا هيشوف كل الناس أوفلاين (أو كلهم متصلين) بالغلط */
+var _io=window.isOnline;
+window.isOnline=function(u){
+  try{
+    if(!u||!u.lastSeen)return false;
+    if(u.lastSeen===0)return false;
+    var T=window._trueNow();
+    if(u.lastSeen>T+120000)return false;
+    var OT=(typeof window.ONLINE_TIMEOUT==='number')?window.ONLINE_TIMEOUT:60000;
+    return (T-u.lastSeen)<OT;
+  }catch(e){return _io?_io.apply(this,arguments):false;}
+};
+window.isOnline.__caWrapped=1;
+
+/* ─── "منذ كام" للعرض — بالوقت المصحح + المستقبل = الآن ─── */
+var _ta=window.timeAgo;
+window.timeAgo=function(ts){
+  try{
+    var T=window._trueNow();
+    if(!ts)return _ta?_ta.apply(this,arguments):'';
+    if(ts>T+5000)return 'الآن';
+    var diff=Math.floor((T-ts)/1000);
+    if(diff<60)return 'الآن';
+    if(diff<3600)return Math.floor(diff/60)+' د';
+    if(diff<86400)return Math.floor(diff/3600)+' س';
+    return new Date(ts).toLocaleDateString('ar-EG');
+  }catch(e){return _ta?_ta.apply(this,arguments):'';}
+};
+
+/* ─── طبقة 2: نقطة الاختناق — تعقيم كل الكتابات اللي بتمر على Supabase ─── */
+var TKEYS=['mtime','last_seen','time','stime'];
+function sane(v,T){
+  if(typeof v!=='number'||!isFinite(v))return v;
+  if(v<1000000000000)return v;               /* مش شكل تايم ستامب (صفر/قيم صغيرة) — سيبه */
+  if(Math.abs(v-T)<=MIN)return v;            /* قريب من الصح — سيبه */
+  return Math.round(T);                      /* غلط (قدام أو ورا بأكتر من 90 ثانية) — صححه */
+}
+function cleanPay(p){
+  try{
+    if(!p||typeof p!=='object')return p;
+    var T=window._trueNow();
+    if(Object.prototype.toString.call(p)==='[object Array]'){
+      for(var i=0;i<p.length;i++)cleanPay(p[i]);
+      return p;
+    }
+    for(var a=0;a<TKEYS.length;a++){var k=TKEYS[a];if(k in p)p[k]=sane(p[k],T);}
+    if(p.data&&typeof p.data==='object'&&('lastSeen' in p.data))p.data.lastSeen=sane(p.data.lastSeen,T);
+  }catch(_){}
+  return p;
+}
+try{
+  var _from=sb.from.bind(sb);
+  sb.from=function(t){
+    var q=_from(t);
+    try{
+      var _ins=q.insert,_ups=q.upsert,_upd=q.update;
+      q.insert=function(p,o){return _ins.call(q,cleanPay(p),o);};
+      q.upsert=function(p,o){return _ups.call(q,cleanPay(p),o);};
+      q.update=function(p){return _upd.call(q,cleanPay(p));};
+    }catch(_){}
+    return q;
+  };
+  sb.from.__caWrapped=1;
+}catch(_){}
+
+/* ─── عرض السجلات القديمة بوقت سليم حتى لو الداتابيز رفضت التعديل ─── */
+try{
+  if(window.SDB&&SDB.loadLogs){
+    var _ll=SDB.loadLogs;
+    SDB.loadLogs=async function(){
+      var r=await _ll.apply(this,arguments);
+      try{
+        var T=window._trueNow();
+        (r||[]).forEach(function(x){if(x&&typeof x.time==='number'&&x.time>T+120000)x.time=T;});
+      }catch(_){}
+      return r;
+    };
+  }
+}catch(_){}
+
+/* ─── طبقة 4: تنظيف الداتا المسمومة القديمة (صاحب الموقع بس) ─── */
+var cleaning=false;
+window._caClean=async function(){
+  try{
+    if(cleaning)return;
+    if(typeof isOwner!=='function'||!isOwner())return;
+    cleaning=true;
+    if(typeof toast!=='function')return void(cleaning=false);
+    var T=Math.round(window._trueNow()),fixed=0;
+    /* يوزرز: آخر ظهور في المستقبل → صفر (أوفلاين نظيف) */
+    var bad=[];
+    for(var k in usersCache){
+      var u=usersCache[k];
+      if(u&&u.lastSeen&&u.lastSeen>T+120000&&!(typeof me!=='undefined'&&me&&u.name===me.name))bad.push(u.name);
+    }
+    for(var i=0;i<bad.length&&i<20;i++){
+      try{
+        var r0=await sb.from('users').update({last_seen:0}).eq('name',bad[i]);
+        if(!r0||!r0.error){fixed++;if(usersCache[bad[i]])usersCache[bad[i]].lastSeen=0;}
+      }catch(_){}
+    }
+    /* رسايل: وقت في المستقبل → دلوقتي (دفعة 300) */
+    try{
+      var m=await sb.from('messages').select('id').gt('mtime',T+300000).limit(300);
+      if(m&&m.data&&m.data.length){
+        var ids=m.data.map(function(x){return x.id;});
+        var r1=await sb.from('messages').update({mtime:T}).in('id',ids);
+        if(!r1||!r1.error)fixed+=ids.length;
+      }
+    }catch(_){}
+    /* سجلات الدخول */
+    try{
+      var l=await sb.from('logs').select('id').gt('time',T+300000).limit(200);
+      if(l&&l.data&&l.data.length){
+        var lids=l.data.map(function(x){return x.id;});
+        var r2=await sb.from('logs').update({time:T}).in('id',lids);
+        if(!r2||!r2.error)fixed+=lids.length;
+      }
+    }catch(_){}
+    /* ستوريز */
+    try{
+      var s=await sb.from('stories').select('id').gt('stime',T+300000).limit(200);
+      if(s&&s.data&&s.data.length){
+        var sids=s.data.map(function(x){return x.id;});
+        var r3=await sb.from('stories').update({stime:T}).in('id',sids);
+        if(!r3||!r3.error)fixed+=sids.length;
+      }
+    }catch(_){}
+    if(fixed)toast('🛡️ اتصلح '+fixed+' تسجيل كان متسجل بوقت غلط من ساعة جهاز');
+  }catch(_){}
+  finally{cleaning=false;}
+};
+try{setTimeout(function(){window._caClean();},12000);}catch(_){}
+try{setInterval(function(){window._caClean();},600000);}catch(_){}
+})();
+</script>
+  <!-- ═══════════ باتش: زرار "↵ سطر جديد" + صندوق كتابة متعدد السطور ═══════════ -->
+<!-- يتلصق في آخر الملف (بعد كل الباتشات — بعد patch_owner_edit) -->
+<!-- الفكرة: صندوق الكتابة الأصلي <input> مش بيقبل أسطر أصلًا. الباتش ده بيحوّله لصندوق
+     متعدد السطور + زرار ↵ جنب الميك بيحط سطر جديد تحت الكلام زي Enter بالظبط.
+     Enter من الكيبورد لسه بيبعت الرسالة زي الأول، وزرار ↵ هو اللي بينزل سطر.
+     كل الباتشات القديمة (الممنشن @ / درع الشاشة / ملاءمة الشريط) بتفضل شغالة
+     لأن الباتش بيسيب العنصر القديم مخفي كجسر بينقل الكتابة والفوكس لهم. -->
+<style>
+/* ─── ستايل الصندوق الجديد: نفس شكل الأصل بالظبط + سطور متعددة ─── */
+.chat-input textarea#msgInput{
+  flex:1;background:transparent;border:none;color:var(--txt);outline:none;
+  font-size:16px;text-align:right;min-width:70px!important;
+  resize:none;overflow-y:hidden;line-height:1.45;
+  padding:4px 6px;box-sizing:border-box;display:block;font-family:inherit;
+  max-height:130px;min-height:32px;
+}
+/* ─── ستايل زرار السطر الجديد ─── */
+#csNlBtn{flex-shrink:0;font-weight:700;font-size:20px;line-height:1;transition:transform .12s}
+#csNlBtn:active{transform:scale(.88)}
+#csNlBtn.csNlFlash{color:#fff;background:var(--acc);border-radius:50%;padding:2px 8px}
+</style>
+<script>
+(function(){
+if(window._nlBtn)return;window._nlBtn=1;
+
+function el(id){return document.getElementById(id);}
+var old=el('msgInput');
+if(!old||old.tagName!=='INPUT'){console.warn('_nlBtn: صندوق الكتابة مش input — تخطي الآمن');}
+
+/* ─── 1) الـ input القديم يبقى "جسر مخفي" (legacy) ───
+   الباتشات القديمة (الممنشن @ + درع الشاشة + ملاءمة الشريط) مسمّعة على العنصر
+   ده نفسه، فمش هشيله — هخفيه وبينقل ليه الكتابة والفوكس عشان يفضلوا شغالين */
+if(old&&old.tagName==='INPUT'){
+  old.id='msgInputLegacy';
+  old.style.display='none';
+  old.removeAttribute('onkeydown');
+  old.removeAttribute('oninput');
+  old.value='';
+}else{
+  /* اتلزق بعد باتش تاني ولقا textarea موجودة — سيبها وشوف الزرار بس */
+  old=null;
+}
+
+/* ─── 2) إنشاء textarea جديدة بنفس الـ id والمكان بالظبط ─── */
+var ta=el('msgInput');
+if(!ta){
+  ta=document.createElement('textarea');
+  ta.id='msgInput';
+  ta.rows=1;
+  ta.placeholder='اكتب رسالتك هنا';
+  ta.setAttribute('onkeydown','handleInputKey(event)');
+  ta.setAttribute('oninput','csNlInput()');
+  var anchor=el('msgInputLegacy');
+  if(anchor&&anchor.parentNode)anchor.parentNode.insertBefore(ta,anchor);
+  else if(old&&old.parentNode)old.parentNode.insertBefore(ta,old);
+  else return;
+}
+
+/* ─── 3) autosize: الصندوق يكبر مع السطور (لحد ~5 سطور وبعدين scroll) ─── */
+window.csNlSize=function(){
+  try{
+    var t=el('msgInput');if(!t)return;
+    var mx=130;
+    t.style.height='auto';
+    var h=Math.min(t.scrollHeight,mx);
+    t.style.height=h+'px';
+    t.style.overflowY=t.scrollHeight>mx?'auto':'hidden';
+  }catch(_){}
+};
+
+/* ─── 4) دالة الـ input الموحدة: حالة الكتابة + جسر الممنشن + autosize ─── */
+window.csNlInput=function(){
+  var t=el('msgInput');if(!t)return;
+  try{if(typeof handleTyping==='function')handleTyping();}catch(_){}
+  try{
+    var lg=el('msgInputLegacy');
+    if(lg){lg.value=t.value;lg.dispatchEvent(new Event('input',{bubbles:true}));}
+  }catch(_){}
+  window.csNlSize();
+};
+
+/* ─── 5) زرار ↵: بيحط سطر جديد عند الكيرسور ويرجّع الفوكس ─── */
+window.csNlInsert=function(){
+  var t=el('msgInput');if(!t)return;
+  var s=t.selectionStart,e2=t.selectionEnd;
+  if(s==null){s=t.value.length;e2=s;}
+  if(e2==null)e2=s;
+  var v=t.value;
+  t.value=v.slice(0,s)+'\n'+v.slice(e2);
+  var p=s+1;
+  t.focus();
+  try{t.setSelectionRange(p,p);}catch(_){}
+  t.dispatchEvent(new Event('input',{bubbles:true}));
+};
+
+var btn=document.createElement('button');
+btn.id='csNlBtn';btn.type='button';btn.className='ic-btn';
+btn.title='سطر جديد';
+btn.innerHTML='↵';
+btn.addEventListener('mousedown',function(e){e.preventDefault();}); /* الصندوق مايفقدش الفوكس */
+btn.addEventListener('click',function(){
+  window.csNlInsert();
+  btn.classList.add('csNlFlash');
+  setTimeout(function(){btn.classList.remove('csNlFlash');},180);
+});
+
+var ci=ta.closest('.chat-input');
+var mic=el('micBtn');
+var micWrap=mic?mic.parentElement:null;
+if(ci&&micWrap&&micWrap.parentElement===ci)ci.insertBefore(btn,micWrap);
+else if(ci)ci.appendChild(btn);
+else if(old&&old.parentNode&&old.parentNode.parentNode)old.parentNode.parentNode.appendChild(btn);
+
+/* ─── 6) جسر الفوكس: الباتشات القديمة مسمّعة focus على العنصر المخفي ─── */
+ta.addEventListener('focus',function(){
+  try{
+    var lg=el('msgInputLegacy');
+    if(lg)lg.dispatchEvent(new FocusEvent('focus'));
+  }catch(_){}
+  try{
+    if(window._bfCheck){setTimeout(window._bfCheck,250);setTimeout(window._bfCheck,800);}
+  }catch(_){}
+});
+
+/* ─── 7) نبضة خفيفة كل 400ms: تظبط الارتفاع لأي كتابة برمجية
+   (إيموجي / تعديل رسالة / تفريغ بعد الإرسال) من غير لزق كود تاني ─── */
+setInterval(window.csNlSize,400);
+window.csNlSize();
+
+console.log('%cPATCH _nlBtn: زرار السطر الجديد ↵ + صندوق متعدد السطور جاهز ✅','color:#22c55e');
+})();
+</script>
+
 </body>
 </html>
