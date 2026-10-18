@@ -26543,6 +26543,58 @@ window.subMsgs=async function(){
 };
 })();
 </script>
+<script>
+/* ======_ownerEdit: خانة "✏️ تعديل" لصاحب الموقع بس — يعدّل رسايل الأعضاء في الرومات لما يغلطوا ======
+   - الزرار بيظهر لصاحب الموقع فقط (مش للأدمن) على رسايل النص بتاعة الأعضاء في الرومات
+   - بيحط نص الرسالة في خانة الكتابة — عدّل وابعته زي التعديل العادي بالظبط
+   - الرسالة بتتحدّث عند كل الأعضاء وتظهر عليها "(تم التعديل)"
+   - رسايل صاحب الموقع نفسها بتتعدل بالزرار الأصلي (مفيش تكرار) */
+(function(){
+if(window._ownerEdit)return;window._ownerEdit=true;
 
+/* ─── فتح باب التعديل لرسايل غيري لما يكون صاحب الموقع ─── */
+var _oeDE=window.doEdit;
+window.doEdit=function(){
+  var m=null;
+  try{m=msgsCache.find(function(x){return x._id===msgMenuId;});}catch(_){}
+  if(m&&m.from!==me.name&&m.type==='text'&&chat&&chat.type==='room'&&isOwner()){
+    try{if(typeof hideMsgMenu==='function')hideMsgMenu();}catch(_){}
+    try{
+      editingMsgId=m._id;
+      var inp=el('msgInput');
+      inp.value=m.data;inp.focus();
+      toast('✏️ بتعدّل رسالة '+getMsgName(m.from)+' — عدّل الكلام وابعته');
+    }catch(_){}
+    return;
+  }
+  return _oeDE?_oeDE.apply(this,arguments):undefined;
+};
+
+/* ─── زرار "✏️ تعديل" في المنيو لصاحب الموقع (قبل زرار الحذف) ─── */
+var _oeOM=window.openMsgMenu;
+window.openMsgMenu=function(e,id,from){
+  try{_oeOM?_oeOM.apply(this,arguments):null;}catch(_){}
+  try{
+    var menu=el('msgMenu');if(!menu)return;
+    /* لو فيه تعديل أصلًا (رسالته هو) مفيش تكرار */
+    var btns=menu.querySelectorAll('button'),hasEdit=false;
+    for(var i=0;i<btns.length;i++){if(btns[i].textContent.indexOf('تعديل')>-1){hasEdit=true;break;}}
+    if(hasEdit)return;
+    if(!isOwner())return;
+    if(!chat||chat.type!=='room')return;
+    var m=null;
+    try{m=msgsCache.find(function(x){return x._id===id;});}catch(_){}
+    if(!m||m.type!=='text'||m.deleted)return;
+    var b=document.createElement('button');
+    b.innerHTML='✏️ تعديل';
+    b.onclick=function(ev){ev.stopPropagation();window.doEdit();};
+    /* حطه قبل زرار الحذف عشان الترتيب يبقى: رد / رياكشن / تعديل / حذف */
+    var delBtn=null;
+    for(var j=0;j<btns.length;j++){if(btns[j].textContent.indexOf('🗑️')>-1){delBtn=btns[j];break;}}
+    if(delBtn)menu.insertBefore(b,delBtn);else menu.appendChild(b);
+  }catch(_){}
+};
+})();
+   </script>
 </body>
 </html>
