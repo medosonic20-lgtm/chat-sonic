@@ -26999,6 +26999,32 @@ try{
 .ep-e:active{transform:scale(1.3);background:rgba(255,255,255,.06)}
 .ep-e.mine{box-shadow:inset 0 0 0 2px var(--acc,#5eb5ff);border-radius:12px;background:rgba(94,181,255,.1)}
 </style>
+<script> 
+   <style>
+/* ======_emoPlus: زرار + في شريط إيموجي المنيو + لوحة إيموجي كاملة — يتلصق في آخر الملف بعد patch_telegram_menu ====== */
+#csEpWrap{display:flex;align-items:center;gap:2px;padding:0 8px;flex:0 0 auto;width:100%}
+#csEpWrap #tgReact{flex:1 1 auto;min-width:0;padding:6px 0 6px 4px}
+#csEpBtn{flex:0 0 auto;width:38px;height:38px;border:none;background:rgba(94,181,255,.12);color:var(--acc,#5eb5ff);border-radius:50%;font-size:26px;font-weight:700;line-height:1;cursor:pointer;padding:0;transition:transform .12s ease}
+#csEpBtn:active{transform:scale(1.3)}
+#epSheet{position:fixed;left:0;right:0;bottom:0;z-index:4700;max-width:560px;margin:0 auto;background:#1f2c34;border-radius:18px 18px 0 0;border:1px solid rgba(255,255,255,.08);border-bottom:none;box-shadow:0 -10px 34px rgba(0,0,0,.6);display:none;flex-direction:column;direction:rtl;font-family:inherit;transform:translateY(105%);transition:transform .22s cubic-bezier(.2,.9,.35,1);padding-bottom:env(safe-area-inset-bottom,0)}
+#epSheet.open{transform:translateY(0)}
+.ep-top{display:flex;justify-content:center;padding:8px 0 0;flex:0 0 auto}
+.ep-grip{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.18)}
+.ep-head{display:flex;align-items:center;gap:8px;padding:6px 14px 4px;flex:0 0 auto}
+.ep-title{flex:1;font-size:14px;color:#fff;font-weight:600}
+.ep-x{background:rgba(255,255,255,.08);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:13px;flex:0 0 auto;font-family:inherit}
+.ep-x:active{background:rgba(255,255,255,.2)}
+.ep-tabs{display:flex;gap:2px;padding:4px 10px 8px;overflow-x:auto;scrollbar-width:none;flex:0 0 auto;border-bottom:1px solid rgba(255,255,255,.07)}
+.ep-tabs::-webkit-scrollbar{display:none}
+.ep-tab{flex:0 0 auto;background:transparent;border:none;font-size:21px;padding:4px 9px;border-radius:10px;cursor:pointer;opacity:.5;transition:opacity .15s,background .15s;font-family:inherit}
+.ep-tab.act{background:rgba(94,181,255,.18);opacity:1;box-shadow:inset 0 0 0 1px rgba(94,181,255,.4)}
+.ep-grid{height:min(46vh,380px);overflow-y:auto;padding:4px 10px 16px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.ep-lab{font-size:11px;color:var(--mut,#8a9aa8);margin:10px 2px 6px}
+.ep-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:2px}
+.ep-e{border:none;background:transparent;font-size:27px;height:44px;border-radius:10px;cursor:pointer;line-height:1;padding:0;transition:transform .1s ease;font-family:inherit}
+.ep-e:active{transform:scale(1.3);background:rgba(255,255,255,.06)}
+.ep-e.mine{box-shadow:inset 0 0 0 2px var(--acc,#5eb5ff);border-radius:12px;background:rgba(94,181,255,.1)}
+</style>
 <script>
 /* ======_emoPlus: زرار + ولوحة إيموجي كاملة للريأكشن — رقم 25 ====== */
 /* محمي بفلاغ window._emoPlus — لو اتلزق مرتين مش هيتنفذ تاني */
