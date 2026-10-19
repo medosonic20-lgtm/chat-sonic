@@ -26530,145 +26530,6 @@ try{
   };
 }catch(_){}
 
-/* ─── طبقة 3: صمام الأونلاين — نسخة كاملة بالوقت المصحح ───
-   (أ) آخر ظهور في المستقبل = أوفلاين فورًا (داتا مسمومة قديمة)
-   (ب) لو ساعة المشاهد نفسها غلط: الفحص بيتم بالوقت الحقيقي مش ساعة جهازه
-       — وإلا هيشوف كل الناس أوفلاين (أو كلهم متصلين) بالغلط */
-var _io=window.isOnline;
-window.isOnline=function(u){
-  try{
-    if(!u||!u.lastSeen)return false;
-    if(u.lastSeen===0)return false;
-    var T=window._trueNow();
-    if(u.lastSeen>T+120000)return false;
-    var OT=(typeof window.ONLINE_TIMEOUT==='number')?window.ONLINE_TIMEOUT:60000;
-    return (T-u.lastSeen)<OT;
-  }catch(e){return _io?_io.apply(this,arguments):false;}
-};
-window.isOnline.__caWrapped=1;
-
-/* ─── "منذ كام" للعرض — بالوقت المصحح + المستقبل = الآن ─── */
-var _ta=window.timeAgo;
-window.timeAgo=function(ts){
-  try{
-    var T=window._trueNow();
-    if(!ts)return _ta?_ta.apply(this,arguments):'';
-    if(ts>T+5000)return 'الآن';
-    var diff=Math.floor((T-ts)/1000);
-    if(diff<60)return 'الآن';
-    if(diff<3600)return Math.floor(diff/60)+' د';
-    if(diff<86400)return Math.floor(diff/3600)+' س';
-    return new Date(ts).toLocaleDateString('ar-EG');
-  }catch(e){return _ta?_ta.apply(this,arguments):'';}
-};
-
-/* ─── طبقة 2: نقطة الاختناق — تعقيم كل الكتابات اللي بتمر على Supabase ─── */
-var TKEYS=['mtime','last_seen','time','stime'];
-function sane(v,T){
-  if(typeof v!=='number'||!isFinite(v))return v;
-  if(v<1000000000000)return v;               /* مش شكل تايم ستامب (صفر/قيم صغيرة) — سيبه */
-  if(Math.abs(v-T)<=MIN)return v;            /* قريب من الصح — سيبه */
-  return Math.round(T);                      /* غلط (قدام أو ورا بأكتر من 90 ثانية) — صححه */
-}
-function cleanPay(p){
-  try{
-    if(!p||typeof p!=='object')return p;
-    var T=window._trueNow();
-    if(Object.prototype.toString.call(p)==='[object Array]'){
-      for(var i=0;i<p.length;i++)cleanPay(p[i]);
-      return p;
-    }
-    for(var a=0;a<TKEYS.length;a++){var k=TKEYS[a];if(k in p)p[k]=sane(p[k],T);}
-    if(p.data&&typeof p.data==='object'&&('lastSeen' in p.data))p.data.lastSeen=sane(p.data.lastSeen,T);
-  }catch(_){}
-  return p;
-}
-try{
-  var _from=sb.from.bind(sb);
-  sb.from=function(t){
-    var q=_from(t);
-    try{
-      var _ins=q.insert,_ups=q.upsert,_upd=q.update;
-      q.insert=function(p,o){return _ins.call(q,cleanPay(p),o);};
-      q.upsert=function(p,o){return _ups.call(q,cleanPay(p),o);};
-      q.update=function(p){return _upd.call(q,cleanPay(p));};
-    }catch(_){}
-    return q;
-  };
-  sb.from.__caWrapped=1;
-}catch(_){}
-
-/* ─── عرض السجلات القديمة بوقت سليم حتى لو الداتابيز رفضت التعديل ─── */
-try{
-  if(window.SDB&&SDB.loadLogs){
-    var _ll=SDB.loadLogs;
-    SDB.loadLogs=async function(){
-      var r=await _ll.apply(this,arguments);
-      try{
-        var T=window._trueNow();
-        (r||[]).forEach(function(x){if(x&&typeof x.time==='number'&&x.time>T+120000)x.time=T;});
-      }catch(_){}
-      return r;
-    };
-  }
-}catch(_){}
-
-/* ─── طبقة 4: تنظيف الداتا المسمومة القديمة (صاحب الموقع بس) ─── */
-var cleaning=false;
-window._caClean=async function(){
-  try{
-    if(cleaning)return;
-    if(typeof isOwner!=='function'||!isOwner())return;
-    cleaning=true;
-    if(typeof toast!=='function')return void(cleaning=false);
-    var T=Math.round(window._trueNow()),fixed=0;
-    /* يوزرز: آخر ظهور في المستقبل → صفر (أوفلاين نظيف) */
-    var bad=[];
-    for(var k in usersCache){
-      var u=usersCache[k];
-      if(u&&u.lastSeen&&u.lastSeen>T+120000&&!(typeof me!=='undefined'&&me&&u.name===me.name))bad.push(u.name);
-    }
-    for(var i=0;i<bad.length&&i<20;i++){
-      try{
-        var r0=await sb.from('users').update({last_seen:0}).eq('name',bad[i]);
-        if(!r0||!r0.error){fixed++;if(usersCache[bad[i]])usersCache[bad[i]].lastSeen=0;}
-      }catch(_){}
-    }
-    /* رسايل: وقت في المستقبل → دلوقتي (دفعة 300) */
-    try{
-      var m=await sb.from('messages').select('id').gt('mtime',T+300000).limit(300);
-      if(m&&m.data&&m.data.length){
-        var ids=m.data.map(function(x){return x.id;});
-        var r1=await sb.from('messages').update({mtime:T}).in('id',ids);
-        if(!r1||!r1.error)fixed+=ids.length;
-      }
-    }catch(_){}
-    /* سجلات الدخول */
-    try{
-      var l=await sb.from('logs').select('id').gt('time',T+300000).limit(200);
-      if(l&&l.data&&l.data.length){
-        var lids=l.data.map(function(x){return x.id;});
-        var r2=await sb.from('logs').update({time:T}).in('id',lids);
-        if(!r2||!r2.error)fixed+=lids.length;
-      }
-    }catch(_){}
-    /* ستوريز */
-    try{
-      var s=await sb.from('stories').select('id').gt('stime',T+300000).limit(200);
-      if(s&&s.data&&s.data.length){
-        var sids=s.data.map(function(x){return x.id;});
-        var r3=await sb.from('stories').update({stime:T}).in('id',sids);
-        if(!r3||!r3.error)fixed+=sids.length;
-      }
-    }catch(_){}
-    if(fixed)toast('🛡️ اتصلح '+fixed+' تسجيل كان متسجل بوقت غلط من ساعة جهاز');
-  }catch(_){}
-  finally{cleaning=false;}
-};
-try{setTimeout(function(){window._caClean();},12000);}catch(_){}
-try{setInterval(function(){window._caClean();},600000);}catch(_){}
-})();
-</script>
   <!-- ═══════════ باتش: زرار "↵ سطر جديد" + صندوق كتابة متعدد السطور ═══════════ -->
 <!-- يتلصق في آخر الملف (بعد كل الباتشات — بعد patch_owner_edit) -->
 <!-- الفكرة: صندوق الكتابة الأصلي <input> مش بيقبل أسطر أصلًا. الباتش ده بيحوّله لصندوق
@@ -26907,6 +26768,210 @@ window._ehHide=function(){var m=el('ehModal');if(m)m.classList.remove('eh-open')
 document.addEventListener('keydown',function(e){if(e.key==='Escape')window._ehHide();});
 
 console.log('%cPATCH _editHist: تاريخ التعديل لصاحب الموقع جاهز ✅','color:#22c55e');
+})();
+</script>
+<style>
+/* ======_tgMenu: منيو الضغط المطول زي تليجرام — شريط إيموجي فوق + قايمة داكنة تحت ====== */
+#tgPop{position:fixed;z-index:4600;display:none;flex-direction:column;min-width:230px;max-width:300px;max-height:calc(100vh - 16px);overflow-y:auto;background:#1f2c34;border-radius:16px;border:1px solid rgba(255,255,255,.07);box-shadow:0 10px 34px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.35);direction:rtl;opacity:0;transform:scale(.8);transition:opacity .15s ease,transform .18s cubic-bezier(.2,1.4,.4,1);font-family:inherit;scrollbar-width:none}
+#tgPop::-webkit-scrollbar{display:none}
+#tgPop.open{opacity:1;transform:scale(1)}
+#tgReact{display:flex;gap:2px;padding:6px 8px;overflow-x:auto;scrollbar-width:none;flex:0 0 auto}
+#tgReact::-webkit-scrollbar{display:none}
+.tg-e{flex:0 0 auto;width:38px;height:38px;border:none;background:transparent;border-radius:50%;font-size:24px;line-height:1;cursor:pointer;transition:transform .12s ease;padding:0}
+.tg-e:active{transform:scale(1.35)}
+.tg-e.mine{background:rgba(255,255,255,.15);box-shadow:inset 0 0 0 2px var(--acc,#5eb5ff)}
+#tgSep{height:1px;background:rgba(255,255,255,.09);margin:0 8px;flex:0 0 auto}
+.tg-i{display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;border:none;background:transparent;color:#fff;font-size:14px;cursor:pointer;text-align:right;font-family:inherit}
+.tg-i:hover,.tg-i:active{background:rgba(255,255,255,.08)}
+.tg-i.red{color:#ff595a}
+.tg-ic{width:22px;text-align:center;font-size:15px;flex:0 0 auto}
+</style>
+<script>
+/* ======_tgMenu: منيو الضغط المطول زي تليجرام — يتلصق في آخر الملف بعد patch_edit_history ====== */
+/* محمي بفلاغ window._tgMenu — لو اتلزق مرتين مش هيتنفذ تاني. لو حصل أي خطأ بيرجع للمينيو القديم */
+(function(){
+if(window._tgMenu)return;window._tgMenu=1;
+try{
+  var pop=null,reactRow=null,itemsBox=null,curId=null,justOpened=0;
+  var EMO=['👍','❤️','🔥','😂','😮','😢','🙏','👎','🎉'];
+
+  function _lg(t){try{console.log('%c_tgMenu: '+t,'color:#38bdf8');}catch(e){}}
+
+  /* بناء البوب مرة واحدة */
+  function build(){
+    if(pop)return;
+    pop=document.createElement('div');pop.id='tgPop';pop.setAttribute('dir','rtl');
+    reactRow=document.createElement('div');reactRow.id='tgReact';
+    EMO.forEach(function(em){
+      var b=document.createElement('button');b.type='button';b.className='tg-e';b.textContent=em;b.setAttribute('data-em',em);
+      b.addEventListener('click',function(ev){
+        try{
+          ev.stopPropagation();
+          var id=curId;close();
+          if(id&&typeof window.toggleReaction==='function')window.toggleReaction(id,em);
+        }catch(e){_lg('ريأكشن: '+e.message);}
+      });
+      reactRow.appendChild(b);
+    });
+    var sep=document.createElement('div');sep.id='tgSep';
+    itemsBox=document.createElement('div');itemsBox.id='tgItems';
+    pop.appendChild(reactRow);pop.appendChild(sep);pop.appendChild(itemsBox);
+    document.body.appendChild(pop);
+  }
+
+  function close(){
+    try{if(pop){pop.classList.remove('open');pop.style.display='none';}}catch(e){}
+    curId=null;
+  }
+  window._tgClose=close;
+
+  function isOpen(){return !!(pop&&curId);}
+
+  /* نسخ النص مع fallback للمتصفحات القديمة */
+  function copyFB(t){
+    try{
+      var ta=document.createElement('textarea');ta.value=t;
+      ta.style.cssText='position:fixed;top:-999px;opacity:0';
+      document.body.appendChild(ta);ta.focus();try{ta.select();}catch(e){}
+      var ok=false;try{ok=document.execCommand('copy');}catch(e){}
+      try{ta.remove();}catch(e){}
+      try{toast(ok?'📋 تم نسخ النص':'تعذر النسخ');}catch(e){}
+    }catch(e){}
+  }
+  window._tgCopy=function(t){
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(t).then(function(){try{toast('📋 تم نسخ النص');}catch(e){}},function(){copyFB(t);});
+      }else copyFB(t);
+    }catch(e){copyFB(t);}
+  };
+
+  /* إيجاد فقاعة الرسالة بالمقارنة على data-id (أأمن من querySelector بالـ id) */
+  function findBub(id){
+    try{
+      var all=document.querySelectorAll('#chatBox .bub[data-id]');
+      for(var i=0;i<all.length;i++){if(all[i].getAttribute('data-id')===id)return all[i];}
+    }catch(e){}
+    return null;
+  }
+
+  function open(e,id,from){
+    build();
+    var m=null;try{m=msgsCache.find(function(x){return x._id===id;});}catch(_e){}
+    if(m&&m.deleted){close();return false;}
+    window.msgMenuId=id;window.msgMenuTarget=from;
+    curId=id;
+    /* تعليم الإيموجي اللي انت حاططه على الرسالة دي */
+    var r=(m&&m.reactions)||{};
+    Array.prototype.forEach.call(reactRow.children,function(b){
+      var em=b.getAttribute('data-em'),users=r[em];
+      var mine=!!(users&&users.indexOf&&me&&users.indexOf(me.name)>-1);
+      b.classList.toggle('mine',mine);
+    });
+    /* بنود القايمة حسب الصلاحيات — نفس منطق المنيو الحالي بالظبط */
+    itemsBox.innerHTML='';
+    var isMine=(from===(me&&me.name));
+    var ct=null;try{ct=chat&&chat.type;}catch(_e){}
+    var prime=(ct==='user')&&(typeof hasPrime==='function')&&hasPrime();
+    var canDel=isMine||(typeof isOwner==='function'&&isOwner())||(ct==='room'&&(typeof isAdmin==='function')&&isAdmin())||prime;
+    function item(icon,label,red,fn){
+      var b=document.createElement('button');b.type='button';b.className='tg-i'+(red?' red':'');
+      b.innerHTML='<span class="tg-ic">'+icon+'</span><span>'+label+'</span>';
+      b.addEventListener('click',function(ev){try{ev.stopPropagation();close();fn();}catch(e){_lg('بند: '+e.message);}});
+      itemsBox.appendChild(b);
+    }
+    item('↩️','رد',false,function(){try{doReply();}catch(e){}});
+    if(m&&m.type==='text'&&m.data)item('📋','نسخ النص',false,function(){window._tgCopy(String(m.data));});
+    if(prime&&!isMine)item('✏️','تعديل',false,function(){try{doEditPrime();}catch(e){}});
+    else if(isMine&&m&&m.type==='text')item('✏️','تعديل',false,function(){try{doEdit();}catch(e){}});
+    if(prime&&!isMine)item('🗑️','حذف',true,function(){try{doDeletePrime();}catch(e){}});
+    else if(canDel)item('🗑️','حذف',true,function(){try{doDelete();}catch(e){}});
+    if(!isMine)item('🚨','إبلاغ عن الرسالة',true,function(){try{reportMessage(id,from);}catch(e){}});
+    /* تمركز زي تليجرام: على الفقاعة — فوقها لو فيه مكان وإلا تحتها وإلا عند مكان الضغط */
+    var vw=window.innerWidth,vh=window.innerHeight;
+    pop.style.display='flex';pop.style.visibility='hidden';pop.classList.remove('open');
+    var pw=pop.offsetWidth,ph=pop.offsetHeight;
+    var bub=findBub(id);
+    var rect=null;try{rect=bub?bub.getBoundingClientRect():null;}catch(_e){rect=null;}
+    var px=(e&&typeof e.clientX==='number'&&e.clientX)?e.clientX:(rect?((rect.left+rect.right)/2):vw/2);
+    var py=(e&&typeof e.clientY==='number'&&e.clientY)?e.clientY:(rect?rect.top:vh/2);
+    function cl(v,a,b){return Math.max(a,Math.min(b,v));}
+    var cx=rect?(rect.left+rect.width/2):px;
+    var x=cl(cx-pw/2,8,vw-pw-8),y,org;
+    if(rect&&rect.top-ph-8>=8&&rect.top<=vh){y=rect.top-ph-8;org='50% 100%';}
+    else if(rect&&rect.bottom+ph+8<=vh-8){y=rect.bottom+8;org='50% 0%';}
+    else{y=cl(py-ph/2,8,Math.max(8,vh-ph-8));org=(py>vh/2)?'50% 100%':'50% 0%';}
+    pop.style.left=x+'px';pop.style.top=y+'px';pop.style.transformOrigin=org;
+    pop.style.visibility='visible';
+    justOpened=Date.now();
+    requestAnimationFrame(function(){try{if(curId)pop.classList.add('open');}catch(e){}});
+    return true;
+  }
+  window._tgOpen=open;
+
+  /* لفّ openMsgMenu: اللمس الطويل وتلت النقط كلهم يفتحوا المنيو الجديد */
+  var _prevOM=window.openMsgMenu;
+  window.openMsgMenu=function(e,id,from){
+    try{
+      if(e&&e.preventDefault)e.preventDefault();
+      if(e&&e.stopPropagation)e.stopPropagation();
+      return open(e,id,from);
+    }catch(err){
+      _lg('رجعت للمينيو القديم: '+err.message);
+      try{close();}catch(e){}
+      try{return _prevOM?_prevOM.apply(this,arguments):undefined;}catch(e2){}
+    }
+  };
+
+  /* لفّ hideMsgMenu: أي إغلاق خارجي (رد/تعديل/حذف/إبلاغ) يقفل البوب كمان */
+  var _prevHM=window.hideMsgMenu;
+  window.hideMsgMenu=function(){
+    try{close();}catch(e){}
+    try{return _prevHM?_prevHM.apply(this,arguments):undefined;}catch(e){}
+  };
+
+  /* كليك يمين على الكمبيوتر = نفس المنيو زي تليجرام ديسكتوب */
+  document.addEventListener('contextmenu',function(e){
+    try{
+      var b=e.target&&e.target.closest?e.target.closest('#chatBox .bub[data-id]'):null;
+      if(!b)return;
+      var id=b.getAttribute('data-id');
+      var m=null;try{m=msgsCache.find(function(x){return x._id===id;});}catch(_e){}
+      if(!m||m.deleted)return;
+      e.preventDefault();
+      open({clientX:e.clientX,clientY:e.clientY,preventDefault:function(){},stopPropagation:function(){}},id,m.from);
+    }catch(err){}
+  });
+
+  /* الضغط برة البوب يقفله (لمس أو ماوس) */
+  function outside(e){
+    try{
+      if(!isOpen())return;
+      if(e.target&&e.target.closest&&e.target.closest('#tgPop'))return;
+      close();
+    }catch(err){}
+  }
+  document.addEventListener('touchstart',outside,true);
+  document.addEventListener('mousedown',outside,true);
+
+  /* بلع أول كليكة بعد اللمس الطويل عشان الصور ما تتفتحش ورا المنيو */
+  document.addEventListener('click',function(e){
+    try{
+      if(!isOpen())return;
+      if(Date.now()-justOpened>800)return;
+      if(e.target&&e.target.closest&&e.target.closest('#tgPop'))return;
+      if(e.target&&e.target.closest&&e.target.closest('#chatBox .bub')){e.stopPropagation();e.preventDefault();}
+    }catch(err){}
+  },true);
+
+  /* سكرول / Escape / تحجيم النافذة يقفلو */
+  var cb=document.getElementById('chatBox');
+  if(cb)cb.addEventListener('scroll',function(){try{if(isOpen())close();}catch(e){}},{passive:true});
+  document.addEventListener('keydown',function(e){try{if((e.key==='Escape'||e.keyCode===27)&&isOpen())close();}catch(err){}});
+  window.addEventListener('resize',function(){try{if(isOpen())close();}catch(e){}});
+
+  console.log('%cPATCH _tgMenu: منيو الرسايل زي تليجرام جاهز ✅','color:#22c55e');
+}catch(e){try{console.warn('_tgMenu init fail',e);}catch(_e){}}
 })();
 </script>
 
