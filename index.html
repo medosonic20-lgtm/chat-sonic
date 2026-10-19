@@ -26801,6 +26801,114 @@ window.csNlSize();
 console.log('%cPATCH _nlBtn: زرار السطر الجديد ↵ + صندوق متعدد السطور جاهز ✅','color:#22c55e');
 })();
 </script>
+<!-- ═══════════ باتش: صاحب الموقع يشوف النص قبل التعديل ═══════════ -->
+<!-- يتلصق في آخر الملف (بعد كل الباتشات) -->
+<!-- الفكرة: جدول messages فيه عمود "meta" بيتخزن ويرجع من Supabase أصلًا (مستخدم في
+     الحالات والهدايا والتنسيق). الباتش بيخزن فيه سجل كل تعديل (النص القديم + وقته)
+     في نداء التحديث نفسه — من غير أي عمود جديد ولا تعديل على Supabase.
+     بعد كده "(تم التعديل)" بتبقى قابلة للدوس لصاحب الموقع بس: تدوس عليها تفتح
+     نافذة صغيرة فيها النص الأصلي وكل تعديل حصل بالتاريخ.
+     الرسايل المعدلة قبل تركيب الباتش مالهاش سجل محفوظ فبتفضل عادية. -->
+<style>
+/* "(تم التعديل)" القابلة للدوس — لصاحب الموقع */
+.ehTag{cursor:pointer;border-bottom:1px dotted rgba(255,255,255,.45);font-size:10px;opacity:.5}
+.ehTag:hover{opacity:.9}
+/* نافذة تاريخ التعديل */
+#ehModal{position:fixed;inset:0;z-index:1160;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55)}
+#ehModal.eh-open{display:flex}
+#ehCard{width:min(92vw,360px);max-height:72vh;background:var(--card,#1b1e27);border:1px solid var(--line,#2a2e3d);border-radius:16px;padding:14px;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+#ehCard h4{margin:0 0 8px;font-size:15px;color:var(--txt,#fff)}
+#ehBody{overflow-y:auto;font-size:13px;line-height:1.6}
+.ehItem{background:rgba(255,255,255,.05);border-radius:10px;padding:8px 10px;margin:6px 0;white-space:pre-wrap;word-break:break-word}
+.ehWhen{font-size:10px;color:var(--mut,#8b93a7);margin-bottom:3px}
+.ehNow{border:1px solid var(--acc,#e65c00);background:rgba(230,92,0,.08)}
+.ehCancel{margin-top:10px;background:var(--acc,#e65c00);border:none;color:#fff;border-radius:10px;padding:8px 0;font-size:14px;cursor:pointer}
+</style>
+<script>
+(function(){
+if(window._editHist)return;window._editHist=1;
+
+function el(id){return document.getElementById(id);}
+
+/* ─── 1) اعتراض التحديث: خزّن النص القديم في meta.editHist بنفس النداء ─── */
+var _upd=SDB.updMsg.bind(SDB);
+SDB.updMsg=async function(id,patch){
+  var addedMeta=false;
+  try{
+    if(patch&&patch.edited===true&&typeof patch.body==='string'&&typeof window.msgsCache!=='undefined'){
+      var m=msgsCache.find(function(x){return x._id===id;});
+      /* التعديل الحقيقي: النص متغير فعلًا + الرسالة نصية */
+      if(m&&m.type==='text'&&m.data!==patch.body){
+        var meta={};
+        if(m.meta&&typeof m.meta==='object')for(var k in m.meta)meta[k]=m.meta[k];
+        var hist=(meta.editHist&&meta.editHist.length)?meta.editHist.slice():[];
+        hist.push({old:String(m.data==null?'':m.data).substring(0,20000),at:(window._trueNow?window._trueNow():Date.now())});
+        if(hist.length>30)hist=hist.slice(hist.length-30); /* حد أقصى 30 تعديل */
+        meta.editHist=hist;
+        patch.meta=meta;
+        addedMeta=true;
+      }
+    }
+  }catch(_){}
+  var res=await _upd(id,patch);
+  /* حدّث الكاش المحلي فورًا عشان الوسم يظهر على طول (من غير ما نستنى الريلود) */
+  try{
+    if(addedMeta&&patch.meta){
+      var m2=msgsCache.find(function(x){return x._id===id;});
+      if(m2)m2.meta=patch.meta;
+    }
+  }catch(_){}
+  return res;
+};
+
+/* ─── 2) زخرفة العرض: "(تم التعديل)" تبقى قابلة للدوس لصاحب الموقع بس ─── */
+var TAG=' <span style="font-size:10px;opacity:.5">(تم التعديل)</span>';
+function _ehEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+var _rmc=window.renderMsgContent;
+if(typeof _rmc==='function'){
+  window.renderMsgContent=function(m){
+    var html=_rmc.apply(this,arguments);
+    try{
+      if(m&&m.meta&&m.meta.editHist&&m.meta.editHist.length&&typeof isOwner==='function'&&me&&isOwner()&&html.indexOf('(تم التعديل)')>-1){
+        html=html.replace(TAG,' <span class="ehTag" onclick="event.stopPropagation();window._ehShow(\''+String(m._id).replace(/'/g,"")+'\')">(تم التعديل)</span>');
+      }
+    }catch(_){}
+    return html;
+  };
+}
+
+/* ─── 3) النافذة: النص الأصلي + كل التعديلات بالتاريخ ─── */
+window._ehShow=function(id){
+  try{
+    var m=msgsCache.find(function(x){return x._id===id;});
+    if(!m||!m.meta||!m.meta.editHist||!m.meta.editHist.length)return;
+    var hist=m.meta.editHist;
+    var modal=el('ehModal');
+    if(!modal){
+      modal=document.createElement('div');modal.id='ehModal';
+      modal.innerHTML='<div id="ehCard"><h4>🕘 تاريخ التعديل</h4><div id="ehBody"></div><button class="ehCancel" onclick="window._ehHide()">إغلاق</button></div>';
+      document.body.appendChild(modal);
+      modal.addEventListener('click',function(e){if(e.target===modal)window._ehHide();});
+    }
+    var body=el('ehBody');
+    var h='';
+    /* الأقدم → الأحدث: النص الأصلي أولًا */
+    for(var i=0;i<hist.length;i++){
+      var d=new Date(hist[i].at||0);
+      var when=(hist[i].at?d.toLocaleDateString('ar-EG')+' '+d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'');
+      h+='<div class="ehItem"><div class="ehWhen">'+(i===0?'📝 النص الأصلي — ':'✏️ تعديل رقم '+i+' — ')+when+'</div>'+_ehEsc(hist[i].old)+'</div>';
+    }
+    h+='<div class="ehItem ehNow"><div class="ehWhen">📍 النص الحالي</div>'+_ehEsc(m.data)+'</div>';
+    body.innerHTML=h;
+    modal.classList.add('eh-open');
+  }catch(_){}
+};
+window._ehHide=function(){var m=el('ehModal');if(m)m.classList.remove('eh-open');};
+document.addEventListener('keydown',function(e){if(e.key==='Escape')window._ehHide();});
+
+console.log('%cPATCH _editHist: تاريخ التعديل لصاحب الموقع جاهز ✅','color:#22c55e');
+})();
+</script>
 
 </body>
 </html>
