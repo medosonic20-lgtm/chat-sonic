@@ -26974,6 +26974,231 @@ try{
 }catch(e){try{console.warn('_tgMenu init fail',e);}catch(_e){}}
 })();
 </script>
+<style>
+/* ======_emoPlus: زرار + في شريط إيموجي المنيو + لوحة إيموجي كاملة — يتلصق في آخر الملف بعد patch_telegram_menu ====== */
+#csEpWrap{display:flex;align-items:center;gap:2px;padding:0 8px;flex:0 0 auto;width:100%}
+#csEpWrap #tgReact{flex:1 1 auto;min-width:0;padding:6px 0 6px 4px}
+#csEpBtn{flex:0 0 auto;width:38px;height:38px;border:none;background:rgba(94,181,255,.12);color:var(--acc,#5eb5ff);border-radius:50%;font-size:26px;font-weight:700;line-height:1;cursor:pointer;padding:0;transition:transform .12s ease}
+#csEpBtn:active{transform:scale(1.3)}
+#epSheet{position:fixed;left:0;right:0;bottom:0;z-index:4700;max-width:560px;margin:0 auto;background:#1f2c34;border-radius:18px 18px 0 0;border:1px solid rgba(255,255,255,.08);border-bottom:none;box-shadow:0 -10px 34px rgba(0,0,0,.6);display:none;flex-direction:column;direction:rtl;font-family:inherit;transform:translateY(105%);transition:transform .22s cubic-bezier(.2,.9,.35,1);padding-bottom:env(safe-area-inset-bottom,0)}
+#epSheet.open{transform:translateY(0)}
+.ep-top{display:flex;justify-content:center;padding:8px 0 0;flex:0 0 auto}
+.ep-grip{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.18)}
+.ep-head{display:flex;align-items:center;gap:8px;padding:6px 14px 4px;flex:0 0 auto}
+.ep-title{flex:1;font-size:14px;color:#fff;font-weight:600}
+.ep-x{background:rgba(255,255,255,.08);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:13px;flex:0 0 auto;font-family:inherit}
+.ep-x:active{background:rgba(255,255,255,.2)}
+.ep-tabs{display:flex;gap:2px;padding:4px 10px 8px;overflow-x:auto;scrollbar-width:none;flex:0 0 auto;border-bottom:1px solid rgba(255,255,255,.07)}
+.ep-tabs::-webkit-scrollbar{display:none}
+.ep-tab{flex:0 0 auto;background:transparent;border:none;font-size:21px;padding:4px 9px;border-radius:10px;cursor:pointer;opacity:.5;transition:opacity .15s,background .15s;font-family:inherit}
+.ep-tab.act{background:rgba(94,181,255,.18);opacity:1;box-shadow:inset 0 0 0 1px rgba(94,181,255,.4)}
+.ep-grid{height:min(46vh,380px);overflow-y:auto;padding:4px 10px 16px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.ep-lab{font-size:11px;color:var(--mut,#8a9aa8);margin:10px 2px 6px}
+.ep-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:2px}
+.ep-e{border:none;background:transparent;font-size:27px;height:44px;border-radius:10px;cursor:pointer;line-height:1;padding:0;transition:transform .1s ease;font-family:inherit}
+.ep-e:active{transform:scale(1.3);background:rgba(255,255,255,.06)}
+.ep-e.mine{box-shadow:inset 0 0 0 2px var(--acc,#5eb5ff);border-radius:12px;background:rgba(94,181,255,.1)}
+</style>
+<script>
+/* ======_emoPlus: زرار + ولوحة إيموجي كاملة للريأكشن — رقم 25 ====== */
+/* محمي بفلاغ window._emoPlus — لو اتلزق مرتين مش هيتنفذ تاني */
+/* بيعتمد على باتش منيو تليجرام _tgMenu (رقم 24) — لو مش ملزوق هيستنى ويجرب تاني */
+(function(){
+if(window._emoPlus)return;window._emoPlus=1;
+try{
+  var epCurId=null,sheet=null,grid=null,tabsBox=null,recSec=null,_ct=null;
+  var RECENT_KEY='csEpRecent';
+  function _lg(t){try{console.log('%c_emoPlus: '+t,'color:#a78bfa');}catch(e){}}
+
+  /* ─── تصنيفات الإيموجي (9 أقسام — إيموجي مدعومة على كل الموبايلات) ─── */
+  var CATS=[
+   {id:'smile',icon:'😀',name:'ابتسامات',list:'😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😗 😚 😙 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 🤐 🤨 😐 😑 😶 😏 😒 🙄 😬 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🤧 🥵 🥶 🥴 😵 🤯 🤠 🥳 😎 🤓 🧐 😕 😟 🙁 ☹️ 😮 😲 😳 🥺 😢 😭 😱 😤 😡 🤬 😈 💀 💩 🤡 👻 👽 🤖'},
+   {id:'hand',icon:'👋',name:'إيماءات',list:'👋 🤚 🖐 ✋ 🖖 👌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 👶 🧒 👦 👧 🧑 👨 👩 🧓 👴 👵 👮 💁 🙅 🙆 🤦 🤷 💃 🕺 🧘 🏃 🚶 👥'},
+   {id:'animal',icon:'🐾',name:'حيوانات',list:'🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🙉 🙊 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🐺 🐴 🦄 🐝 🐛 🦋 🐌 🐞 🐢 🐍 🦎 🐙 🦑 🦐 🦀 🐡 🐠 🐟 🐬 🐳 🦈 🐊 🐘'},
+   {id:'nature',icon:'🌸',name:'طبيعة',list:'🌻 🌹 🥀 🌷 🌸 🌺 🌼 🌞 🌙 ⭐ 🌟 ✨ ⚡ 🔥 🌈 ☀️ ⛅ ☁️ 🌧 ❄️ ⛄ 💧 💦 🌊'},
+   {id:'food',icon:'🍔',name:'أكل',list:'🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥒 🌽 🥕 🥔 🍞 🥐 🥖 🧀 🥚 🍳 🥞 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🥗 🍝 🍜 🍲 🍛 🍣 🍱 🥟 🍤 🍙 🍚 🍢 🍡 🍧 🍨 🍦 🥧 🧁 🍰 🎂 🍮 🍭 🍬 🍫 🍿 🍩 🍪 ☕ 🍵 🧃 🥤 🥛 🍺 🥂 🍷 🥃 🍹 🍾'},
+   {id:'sport',icon:'⚽',name:'رياضة وأنشطة',list:'⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🏓 🏸 🏒 🥍 🏏 ⛳ 🏹 🎣 🥊 🥋 🎽 🛹 ⛸ 🎿 🏂 🏋️ 🤸 🤺 🤾 🏌️ 🏇 🧘 🏄 🏊 🚣 🚴 🚵 🏆 🥇 🥈 🥉 🏅 🎖 🎗 🎫 🎪 🤹 🎭 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🎷 🎺 🎸 🎻 🎲 ♟ 🎯 🎳 🎮 🎰 🧩'},
+   {id:'travel',icon:'🚗',name:'سفر وأماكن',list:'🚗 🚕 🚙 🚌 🚎 🏎 🚓 🚑 🚒 🚐 🚚 🚛 🚜 🛴 🚲 🛵 🏍 🚨 🚔 🚍 🚘 🚖 🚄 🚅 🚂 🚆 🚇 🚊 🚉 ✈️ 🛫 🛬 💺 🚀 🛸 🚁 🛶 ⛵ 🚤 🛥 🚢 ⚓ 🚧 🚦 🗺 🗿 🗽 🗼 🏰 🏯 🏟 🎡 🎢 🎠 ⛲ 🏖 🏝 🏜 🌋 ⛰ 🏔 🏕 ⛺ 🏠 🏡 🏗 🏭 🏢 🏬 🏥 🏦 🏨 🏪 🏫 💒 🏛 ⛪ 🕌'},
+   {id:'stuff',icon:'💡',name:'أشياء',list:'⌚ 📱 💻 ⌨️ 🖥 🖨 🖱 💾 💿 📀 📷 📸 📹 🎥 📞 ☎️ 📟 📺 📻 🎙 ⏰ ⌛ ⏳ 📡 🔋 🔌 💡 🔦 🕯 🧯 💸 💵 💰 💳 💎 ⚖️ 🧰 🔧 🔩 ⚙️ 🧱 ⛓ 🧲 🔫 💣 🧨 🔪 🗡 ⚔️ 🛡 🏺 🔮 📿 🧿 💊 💉 🧪 🌡 🧹 🚽 🚿 🛁 🧼 🛎 🔑 🗝 🚪 🪑 🛋 🛏 🧸 🖼 🛍 🛒 🎁 🎈 🎏 🎀 🎊 🎉 🏮 ✉️ 📧 💌 📦 🏷 📮 📜 📄 📊 📈 📉 🗓 📅 📋 📁 📂 📰 📓 📚 📖 🔖 🔗 📎 📏 📌 📍 ✂️ 🖊 🖋 🖌 🖍 📝 ✏️ 🔍 🔏 🔐 🔒 🔓'},
+   {id:'symb',icon:'❤️',name:'رموز وقلوب',list:'❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉 ☸️ ✡️ 🔯 🕎 ☯️ ⛎ ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ ⚛️ ☢️ ☣️ 📴 📳 💯 💢 ♨️ 🚫 ⛔ 🚭 ❗ ❕ ❓ ❔ ‼️ ⁉️ 🔅 🔆 ⚠️ 🔱 ⚜️ 🔰 ♻️ ✅ 💹 ❇️ ✳️ ❎ 🌐 💠 Ⓜ️ 🌀 💤 🏧 ♿ 🅿️ 🚹 🚺 🚻 🚮 🎦 📶 ℹ️ 🔤 🆖 🆗 🆙 🆒 🆕 🆓 🔃 🔁 🔄 ⏩ ⏪ ⏫ ⏬ ◀️ ▶️ ⬆️ ⬇️ ➡️ ⬅️ ↗️ ↘️ ↙️ ↖️ ↕️ ↔️ ↩️ ↪️ 🎶 🎵 ➕ ➖ ➗ ✖️ ♾️ 💱 ™️ ©️ ®️'}
+  ];
+
+  /* ─── الأحدث: بيتخزن على الجهاز ─── */
+  function getRecent(){
+    try{var a=JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');
+      return Array.isArray(a)?a.filter(function(x){return typeof x==='string'&&x;}).slice(0,18):[];}
+    catch(e){return[];}
+  }
+  function pushRecent(em){
+    try{var a=getRecent();a=a.filter(function(x){return x!==em;});a.unshift(em);
+      localStorage.setItem(RECENT_KEY,JSON.stringify(a.slice(0,18)));}catch(e){}
+  }
+
+  /* ─── زرار + المثبت جنب شريط الإيموجي (برة منطقة السكرول عشان يبان دايمًا) ─── */
+  function ensurePlus(){
+    try{
+      var row=document.getElementById('tgReact');
+      if(!row||document.getElementById('csEpBtn'))return;
+      var pop=document.getElementById('tgPop');
+      if(!pop)return;
+      var w=document.createElement('div');w.id='csEpWrap';
+      row.parentNode.insertBefore(w,row);
+      w.appendChild(row);
+      row.style.padding='6px 0 6px 4px';
+      var b=document.createElement('button');
+      b.type='button';b.id='csEpBtn';b.className='ep-plus';b.textContent='+';b.title='إيموجي تانية';
+      b.addEventListener('click',function(ev){
+        try{ev.stopPropagation();ev.preventDefault();openSheet();}catch(e){_lg('فتح: '+e.message);}
+      });
+      w.appendChild(b);
+      _lg('زرار + اتضاف للشريط');
+    }catch(e){_lg('ensurePlus: '+e.message);}
+  }
+
+  /* ─── بناء اللوحة مرة واحدة ─── */
+  function mkEmo(em){
+    var b=document.createElement('button');
+    b.type='button';b.className='ep-e';b.textContent=em;b.setAttribute('data-em',em);
+    b.addEventListener('click',function(ev){try{ev.stopPropagation();pick(em);}catch(e){}});
+    return b;
+  }
+  function build(){
+    if(sheet)return;
+    sheet=document.createElement('div');sheet.id='epSheet';sheet.setAttribute('dir','rtl');
+    var top=document.createElement('div');top.className='ep-top';
+    top.innerHTML='<div class="ep-grip"></div>';
+    var head=document.createElement('div');head.className='ep-head';
+    head.innerHTML='<div class="ep-title">اختار رياكشن</div><button type="button" class="ep-x" title="إغلاق">✕</button>';
+    tabsBox=document.createElement('div');tabsBox.className='ep-tabs';
+    grid=document.createElement('div');grid.className='ep-grid';
+    CATS.forEach(function(c,ci){
+      var tb=document.createElement('button');
+      tb.type='button';tb.className='ep-tab';tb.textContent=c.icon;tb.title=c.name;tb.setAttribute('data-cat',c.id);
+      tb.addEventListener('click',function(ev){
+        try{
+          ev.stopPropagation();setActive(ci);
+          var sec=grid.querySelector('.ep-sec[data-cat="'+c.id+'"]');
+          if(sec&&sec.scrollIntoView)sec.scrollIntoView({behavior:'smooth',block:'start'});
+        }catch(e){}
+      });
+      tabsBox.appendChild(tb);
+      var sec=document.createElement('div');sec.className='ep-sec';sec.setAttribute('data-cat',c.id);
+      var lab=document.createElement('div');lab.className='ep-lab';lab.textContent=c.name;
+      var row=document.createElement('div');row.className='ep-row';
+      String(c.list).split(' ').forEach(function(em){em=em.replace(/^\s+|\s+$/g,'');if(em)row.appendChild(mkEmo(em));});
+      sec.appendChild(lab);sec.appendChild(row);grid.appendChild(sec);
+    });
+    sheet.appendChild(top);sheet.appendChild(head);sheet.appendChild(tabsBox);sheet.appendChild(grid);
+    document.body.appendChild(sheet);
+    head.querySelector('.ep-x').addEventListener('click',function(ev){try{ev.stopPropagation();closeSheet();}catch(e){}});
+    setActive(0);
+  }
+  function setActive(ci){
+    try{Array.prototype.forEach.call(tabsBox.children,function(tb,i){tb.classList.toggle('act',i===ci);});}catch(e){}
+  }
+
+  /* ─── قسم الأحدث + تعليم إيموجيك الموجودة ─── */
+  function refreshRecent(){
+    build();
+    var a=getRecent();
+    if(!a.length){if(recSec&&recSec.parentNode){try{recSec.parentNode.removeChild(recSec);}catch(e){}}recSec=null;return;}
+    if(!recSec){
+      recSec=document.createElement('div');recSec.className='ep-sec';recSec.setAttribute('data-cat','recent');
+      var lab=document.createElement('div');lab.className='ep-lab';lab.textContent='🕘 الأحدث';
+      var row=document.createElement('div');row.className='ep-row';
+      recSec.appendChild(lab);recSec.appendChild(row);
+    }
+    var row=recSec.querySelector('.ep-row');row.innerHTML='';
+    a.forEach(function(em){row.appendChild(mkEmo(em));});
+    if(grid.firstChild!==recSec)grid.insertBefore(recSec,grid.firstChild);
+  }
+  function refreshMarks(){
+    try{
+      var r={},m=null;
+      m=msgsCache.find(function(x){return x._id===epCurId;});
+      r=(m&&m.reactions)||{};
+      Array.prototype.forEach.call(grid.querySelectorAll('.ep-e'),function(b){
+        var em=b.getAttribute('data-em'),users=r[em];
+        var mine=!!(users&&users.indexOf&&me&&users.indexOf(me.name)>-1);
+        b.classList.toggle('mine',mine);
+      });
+    }catch(e){_lg('marks: '+e.message);}
+  }
+
+  /* ─── فتح/قفل اللوحة ─── */
+  function openSheet(){
+    try{
+      if(!epCurId)return;
+      var m=null;
+      try{m=msgsCache.find(function(x){return x._id===epCurId;});}catch(e){}
+      if(!m||m.deleted){try{toast('الرسالة مش متاحة للتفاعل');}catch(e){}return;}
+      try{if(typeof window._tgClose==='function')window._tgClose();}catch(e){}
+      build();refreshRecent();refreshMarks();
+      clearTimeout(_ct);
+      sheet.style.display='flex';
+      requestAnimationFrame(function(){try{if(epCurId)sheet.classList.add('open');}catch(e){}});
+      _lg('اللوحة فتحت على '+epCurId);
+    }catch(e){_lg('openSheet: '+e.message);}
+  }
+  function closeSheet(){
+    try{
+      if(!sheet)return;
+      sheet.classList.remove('open');
+      clearTimeout(_ct);
+      _ct=setTimeout(function(){try{if(sheet&&!sheet.classList.contains('open'))sheet.style.display='none';}catch(e){}},240);
+    }catch(e){}
+  }
+  function pick(em){
+    try{
+      pushRecent(em);
+      var id=epCurId;
+      closeSheet();
+      if(id&&typeof window.toggleReaction==='function')window.toggleReaction(id,em);
+    }catch(e){_lg('pick: '+e.message);}
+  }
+  function isOpen(){return !!(sheet&&sheet.classList.contains('open'));}
+  window._epOpen=openSheet;window._epClose=closeSheet;
+
+  /* ─── لفّ _tgOpen: نمسك رقم الرسالة + نضيف زرار + بعد بناء البوب ─── */
+  function wrap(){
+    if(window._epWrapped)return;window._epWrapped=1;
+    var _prevOpen=window._tgOpen; /* _emoPlus wrap */
+    window._tgOpen=function(e,id,from){
+      epCurId=id||null;
+      var r;
+      try{r=_prevOpen?_prevOpen.apply(this,arguments):undefined;}
+      finally{try{ensurePlus();}catch(_e){}}
+      return r;
+    };
+  }
+  if(typeof window._tgOpen==='function')wrap();
+  else{
+    var tries=0;
+    var iv=setInterval(function(){
+      if(typeof window._tgOpen==='function'){wrap();clearInterval(iv);}
+      else if(++tries>40){clearInterval(iv);try{console.warn('_emoPlus: ملقيش منيو تليجرام (_tgMenu) — اتأكد إن باتش رقم 24 ملزوق قبل ده');}catch(e){}}
+    },500);
+  }
+
+  /* ─── إغلاق: ضغط برة / سكرول الشات / Escape / تحجيم ─── */
+  function outside(e){
+    try{
+      if(!isOpen())return;
+      if(e.target&&e.target.closest&&e.target.closest('#epSheet'))return;
+      closeSheet();
+    }catch(err){}
+  }
+  document.addEventListener('mousedown',outside,true);
+  document.addEventListener('touchstart',outside,true);
+  var cb=document.getElementById('chatBox');
+  if(cb)cb.addEventListener('scroll',function(){try{if(isOpen())closeSheet();}catch(e){}},{passive:true});
+  document.addEventListener('keydown',function(e){try{if((e.key==='Escape'||e.keyCode===27)&&isOpen())closeSheet();}catch(err){}});
+  window.addEventListener('resize',function(){try{if(isOpen())closeSheet();}catch(e){}});
+
+  console.log('%cPATCH _emoPlus: زرار + ولوحة الإيموجي الكاملة جاهزة ✅','color:#22c55e');
+}catch(e){try{console.warn('_emoPlus init fail',e);}catch(_e){}}
+})();
+</script>
 
 </body>
 </html>
